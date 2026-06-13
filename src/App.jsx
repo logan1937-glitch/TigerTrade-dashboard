@@ -4,24 +4,29 @@ import Dashboard from "./Dashboard.jsx";
 
 const PRODUCTS = [
   { id: "events", label: "VOLATILITY · MOMENTUM RADAR" },
-  { id: "canslim", label: "CANSLIM RS DASHBOARD" },
+  { id: "canslim", label: "CANSLIM SCREENER" },
 ];
 
 export default function App() {
   const [product, setProduct] = useState("events");
   return (
-    <div style={{ background: "#080b0e", minHeight: "100vh" }}>
-      <div style={{ display: "flex", gap: 4, padding: "8px 16px", background: "#05070a", borderBottom: "1px solid #1e2530", alignItems: "center" }}>
-        <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569", marginRight: 10, letterSpacing: "0.05em" }}>TIGERTRADE ▸</span>
-        {PRODUCTS.map((p) => (
-          <button key={p.id} onClick={() => setProduct(p.id)}
-            style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, fontWeight: 600, padding: "5px 12px", borderRadius: 4, cursor: "pointer", letterSpacing: "0.04em",
-              background: product === p.id ? "#f59e0b1e" : "transparent",
-              color: product === p.id ? "#f59e0b" : "#64748b",
-              border: `1px solid ${product === p.id ? "#f59e0b55" : "#1e2530"}` }}>
-            {p.label}
-          </button>
-        ))}
+    <div style={{ background: "#eef2f7", minHeight: "100vh" }}>
+      <div style={{ display: "flex", gap: 6, padding: "9px 18px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", alignItems: "center", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" }}>
+        <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#1e3a8a", marginRight: 8, letterSpacing: "-0.01em" }}>
+          TIGER<span style={{ color: "#ea580c" }}>TRADE</span>
+        </span>
+        {PRODUCTS.map((p) => {
+          const on = product === p.id;
+          return (
+            <button key={p.id} onClick={() => setProduct(p.id)}
+              style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, fontWeight: 600, padding: "6px 13px", borderRadius: 999, cursor: "pointer", letterSpacing: "0.03em",
+                background: on ? "#eff6ff" : "transparent",
+                color: on ? "#2563eb" : "#64748b",
+                border: `1px solid ${on ? "#dbeafe" : "transparent"}` }}>
+              {p.label}
+            </button>
+          );
+        })}
       </div>
       {product === "events" ? <EventDashboard /> : <Dashboard />}
     </div>
