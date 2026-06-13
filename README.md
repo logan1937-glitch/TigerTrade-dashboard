@@ -150,9 +150,16 @@ tigertrade-dashboard/
 
 ## Features
 - Two dashboards in one app with a crisp blue / orange / white UI
+- **Light & dark mode** (toggle in the top bar, remembers your choice) built on a
+  shared CSS-variable design-token system
+- **Responsive** layout — cards reflow and tables scroll cleanly on mobile
 - **Volatility Radar:** 2026–2027 event calendar with countdowns, timeline,
-  month-grid calendar, category/weight filters, and an AI volatility briefing
+  month-grid calendar, category/weight filters, company logos on tech-conference
+  events, and an AI volatility briefing
 - **CANSLIM Screener:** full 7-criteria scoring → composite + letter grade,
-  buy-zone detection, RS ranking, market-health gate, sortable/filterable table
-- Click any stock → CAN SLIM scorecard, auto trade plan, and Claude AI analysis
+  per-row **trend sparklines**, buy-zone detection, RS ranking, market-health
+  gate, and a sortable/filterable table
+- Click any stock → CAN SLIM scorecard, a **price-vs-pivot chart** (buy zone /
+  stop / targets as bands), auto trade plan, company logo, and Claude AI analysis
+- Hover-lift cards and subtle depth for a crisp, modern feel
 - AI features via Claude API; optional live quotes via FMP
