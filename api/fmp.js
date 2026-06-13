@@ -1,17 +1,31 @@
 // api/fmp.js — Vercel Serverless Function
-// Optional live-data proxy for Financial Modeling Prep. Keeps your FMP API key
-// on the server, never exposed to the browser. The dashboard runs fully on its
-// built-in demo dataset; this endpoint lets you wire in live quotes when a key
-// is configured (set FMP_API_KEY in your Vercel project env vars).
+// Live-data proxy for Financial Modeling Prep. Keeps your FMP API key on the
+// server, never exposed to the browser. The screener pulls live quotes through
+// this endpoint; if no key is configured it returns 501 and the dashboard shows
+// a loud "DEMO — NOT LIVE" state (it never fabricates numbers).
 //
 // Usage from the client:
-//   GET /api/fmp?path=quote/NVDA
-//   GET /api/fmp?path=quote/NVDA,AVGO,MRVL
-// `path` is the FMP stable-API path after the version segment.
+//   GET /api/fmp?endpoint=quote&symbol=NVDA
+//   GET /api/fmp?endpoint=batch-quote&symbols=NVDA,AVGO,MRVL
+// `endpoint` is the FMP stable-API path; all other query params are forwarded.
 //
-// Note: batch quotes, the stock screener and index quotes require a paid FMP
-// tier. The free tier is limited — verify your plan at
+// Note: batch quotes and index quotes may require a paid FMP tier. Single-symbol
+// quotes work on the free tier — verify your plan at
 // https://site.financialmodelingprep.com/developer/docs/pricing
+
+const SAFE = /^[A-Za-z0-9_,.\-^/]+$/;
+
+// Whitelisted endpoints (exact match or `<prefix>/...`). Keeps the proxy from
+// being used as an open relay to arbitrary FMP routes.
+const ALLOWED = [
+  "quote",
+  "quote-short",
+  "batch-quote",
+  "income-statement",
+  "ratios-ttm",
+  "key-metrics-ttm",
+  "historical-price-eod/light",
+];
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -19,23 +33,45 @@ export default async function handler(req, res) {
 
   const key = process.env.FMP_API_KEY;
   if (!key) {
-    return res.status(501).json({ error: "FMP_API_KEY not configured — dashboard is running on demo data." });
+    return res.status(501).json({ error: "FMP_API_KEY not configured — dashboard is in demo mode.", code: "NO_KEY" });
   }
 
-  const path = (req.query.path || "").toString().replace(/^\/+/, "");
-  if (!path || !/^[a-zA-Z0-9/_,.\-^%]+$/.test(path)) {
-    return res.status(400).json({ error: "Missing or invalid `path` query parameter." });
+  // accept `endpoint` (preferred) or legacy `path`
+  const endpoint = (req.query.endpoint || req.query.path || "").toString().replace(/^\/+/, "");
+  if (!endpoint || !SAFE.test(endpoint)) {
+    return res.status(400).json({ error: "Missing or invalid `endpoint`.", code: "BAD_ENDPOINT" });
   }
+  if (!ALLOWED.some((e) => endpoint === e || endpoint.startsWith(e + "/"))) {
+    return res.status(403).json({ error: `Endpoint not allowed: ${endpoint}`, code: "FORBIDDEN" });
+  }
+
+  // forward every other query param, sanitized
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(req.query)) {
+    if (k === "endpoint" || k === "path") continue;
+    const val = Array.isArray(v) ? v.join(",") : String(v);
+    if (!SAFE.test(val)) {
+      return res.status(400).json({ error: `Invalid value for query param "${k}".`, code: "BAD_PARAM" });
+    }
+    params.set(k, val);
+  }
+  params.set("apikey", key);
 
   try {
-    const url = `https://financialmodelingprep.com/stable/${path}${path.includes("?") ? "&" : "?"}apikey=${key}`;
+    const url = `https://financialmodelingprep.com/stable/${endpoint}?${params.toString()}`;
     const r = await fetch(url);
-    const data = await r.json();
-    // cache at the edge for 60s to conserve API calls
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+
+    if (!r.ok) {
+      return res.status(r.status).json({ error: "Upstream FMP error.", code: "UPSTREAM", status: r.status, detail: data });
+    }
+    // cache at the edge to conserve API calls
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
-    return res.status(r.status).json(data);
+    return res.status(200).json(data);
   } catch (e) {
     console.error("FMP proxy error:", e);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(502).json({ error: "Upstream fetch failed.", code: "FETCH_FAILED" });
   }
 }

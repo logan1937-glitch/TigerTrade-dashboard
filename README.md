@@ -43,12 +43,28 @@ The whole site uses a crisp blue / orange / white design.
 Both dashboards share a Claude-backed serverless proxy (`/api/claude`) so the
 Anthropic API key never reaches the browser.
 
-### Optional: live market data
-The screener ships with a realistic **demo dataset** so it works with zero setup.
-To wire in live quotes, set `FMP_API_KEY` in your Vercel project env vars (get a
-key at https://site.financialmodelingprep.com); requests route through the
-`/api/fmp` proxy. Note that batch quotes, index quotes and the stock screener
-require a **paid FMP tier** — the free tier is limited.
+### Live market data (recommended before trading)
+The screener attempts to load **live quotes** on every visit and shows its data
+state in the header:
+
+- **● LIVE** (green) — price, % change, distance off the 52-wk high and relative
+  volume are live, with a real "as of" timestamp. These drive the **buy-zone /
+  new-high logic in real time**.
+- **● DEMO — NOT LIVE** (red) — the live feed is unavailable, so the screener
+  falls back to an illustrative dataset that is **clearly labeled and never
+  presented as real**. A loud banner warns you not to trade off it.
+
+To turn the feed on, set `FMP_API_KEY` in your Vercel project env vars (get a key
+at https://site.financialmodelingprep.com); requests route through the `/api/fmp`
+proxy (your key never reaches the browser). Single-symbol quotes work on the free
+tier; the dashboard tries a batch call first and falls back to per-symbol quotes
+automatically.
+
+**What's live vs. analyst-maintained:** prices, % moves, off-52-week-high and
+relative volume come live from FMP. The slower-moving / proprietary CAN SLIM
+inputs — earnings growth (C/A), RS rank (L), institutional read (I), pivot, base
+pattern and catalyst — are maintained in the editorial dataset and labeled as
+model inputs, not live quotes. Verify against your broker before trading.
 
 ---
 
