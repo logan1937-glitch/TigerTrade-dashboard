@@ -4,8 +4,8 @@ const GOOGLE_FONT = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght
 
 // ── crisp blue / orange / white palette ──────────────────────────────────────
 const C = {
-  bg: "#eef2f7", surface: "#ffffff", surfaceAlt: "#f8fafc",
-  border: "#e2e8f0", borderStrong: "#cbd5e1",
+  bg: "#e6ebf2", surface: "#f7f9fc", surfaceAlt: "#eef2f7",
+  border: "#dde3ec", borderStrong: "#cbd5e1",
   ink: "#0f172a", inkSoft: "#475569", inkMute: "#94a3b8",
   blue: "#2563eb", blueDark: "#1d4ed8", blueDeep: "#1e3a8a", blueSoft: "#dbeafe", blueWash: "#eff6ff",
   orange: "#ea580c", orangeBright: "#f97316", orangeSoft: "#ffedd5", orangeWash: "#fff7ed",

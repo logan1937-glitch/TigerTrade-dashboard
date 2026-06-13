@@ -204,11 +204,11 @@ Be specific, reference the actual dates above, and keep it under 280 words.`
   return (
     <div>
       <button onClick={run} disabled={loading}
-        style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 700, padding: "9px 16px", background: loading ? "#e2e8f0" : "#ea580c", color: loading ? "#94a3b8" : "#000", border: "none", borderRadius: 5, cursor: loading ? "default" : "pointer", letterSpacing: "0.05em" }}>
+        style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 700, padding: "9px 16px", background: loading ? "#dde3ec" : "#ea580c", color: loading ? "#94a3b8" : "#000", border: "none", borderRadius: 5, cursor: loading ? "default" : "pointer", letterSpacing: "0.05em" }}>
         {loading ? "BRIEFING…" : "▶ GENERATE AI VOLATILITY BRIEFING"}
       </button>
       {out && (
-        <pre style={{ marginTop: 14, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#475569", lineHeight: 1.75, whiteSpace: "pre-wrap", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "16px 18px" }}>{out}</pre>
+        <pre style={{ marginTop: 14, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#475569", lineHeight: 1.75, whiteSpace: "pre-wrap", background: "#eef2f7", border: "1px solid #dde3ec", borderRadius: 6, padding: "16px 18px" }}>{out}</pre>
       )}
     </div>
   );
@@ -222,7 +222,7 @@ function EventRow({ e }) {
   const past = du < 0;
   const imminent = du >= 0 && du <= 7;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "84px 1fr auto", gap: 14, alignItems: "center", padding: "11px 14px", background: past ? "#f8fafc" : "#ffffff", borderRadius: 5, border: `1px solid ${imminent ? w.color + "55" : "#e2e8f0"}`, borderLeft: `3px solid ${cat.color}`, opacity: past ? 0.5 : 1, transition: "all 0.15s" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "84px 1fr auto", gap: 14, alignItems: "center", padding: "11px 14px", background: past ? "#eef2f7" : "#f7f9fc", borderRadius: 5, border: `1px solid ${imminent ? w.color + "55" : "#dde3ec"}`, borderLeft: `3px solid ${cat.color}`, opacity: past ? 0.5 : 1, transition: "all 0.15s" }}>
       <div style={{ textAlign: "left" }}>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{e.approx && <span style={{ color: "#475569" }}>~</span>}{fmtShort(e.date)}</div>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, color: imminent ? w.color : "#475569", marginTop: 1, fontWeight: imminent ? 700 : 400 }}>
@@ -299,10 +299,10 @@ export default function EventDashboard() {
   }, [radar]);
 
   const S = {
-    wrap: { minHeight: "100vh", background: "#eef2f7", fontFamily: "'Syne',sans-serif", color: "#0f172a", padding: "0 0 48px" },
-    header: { borderBottom: "1px solid #e2e8f0", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff", flexWrap: "wrap", gap: 12 },
+    wrap: { minHeight: "100vh", background: "#e6ebf2", fontFamily: "'Syne',sans-serif", color: "#0f172a", padding: "0 0 48px" },
+    header: { borderBottom: "1px solid #dde3ec", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f7f9fc", flexWrap: "wrap", gap: 12 },
     logo: { fontSize: 20, fontWeight: 800, color: "#ea580c", letterSpacing: "-0.02em" },
-    tabs: { display: "flex", gap: 2, padding: "16px 28px 0", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap" },
+    tabs: { display: "flex", gap: 2, padding: "16px 28px 0", borderBottom: "1px solid #dde3ec", flexWrap: "wrap" },
     tab: (a) => ({ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 600, padding: "8px 16px", border: "none", borderBottom: a ? "2px solid #ea580c" : "2px solid transparent", background: "transparent", color: a ? "#ea580c" : "#475569", cursor: "pointer", letterSpacing: "0.05em" }),
     content: { padding: "24px 28px", maxWidth: 1180, margin: "0 auto" },
   };
@@ -323,9 +323,9 @@ export default function EventDashboard() {
       </div>
 
       {/* stat strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1, background: "#e2e8f0" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1, background: "#dde3ec" }}>
         {stats.map(([label, e, col]) => (
-          <div key={label} style={{ padding: "10px 16px", background: "#ffffff" }}>
+          <div key={label} style={{ padding: "10px 16px", background: "#f7f9fc" }}>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, color: "#475569", letterSpacing: "0.05em" }}>{label}</div>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 15, fontWeight: 700, color: "#0f172a", marginTop: 3 }}>{e ? fmtShort(e.date) : "—"}</div>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: col }}>{e ? `T-${daysUntil(e.date)}d` : ""}</div>
@@ -348,18 +348,18 @@ export default function EventDashboard() {
               const on = activeCats.includes(k);
               return (
                 <button key={k} onClick={() => toggleCat(k)}
-                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 10px", borderRadius: 3, cursor: "pointer", fontWeight: 600, letterSpacing: "0.04em", background: on ? c.color + "1e" : "transparent", color: on ? c.color : "#475569", border: `1px solid ${on ? c.color + "55" : "#e2e8f0"}` }}>
+                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 10px", borderRadius: 3, cursor: "pointer", fontWeight: 600, letterSpacing: "0.04em", background: on ? c.color + "1e" : "transparent", color: on ? c.color : "#475569", border: `1px solid ${on ? c.color + "55" : "#dde3ec"}` }}>
                   ● {c.short}
                 </button>
               );
             })}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="search events…"
-                style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: "6px 10px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 4, color: "#0f172a", outline: "none", width: 160 }} />
+                style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: "6px 10px", background: "#f7f9fc", border: "1px solid #dde3ec", borderRadius: 4, color: "#0f172a", outline: "none", width: 160 }} />
               <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569" }}>MIN WT:</span>
               {[[1, "ALL"], [2, "MED+"], [3, "HIGH+"], [4, "EXTREME"]].map(([v, l]) => (
                 <button key={v} onClick={() => setMinWeight(v)}
-                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 8px", background: minWeight === v ? "#ea580c22" : "transparent", color: minWeight === v ? "#ea580c" : "#475569", border: `1px solid ${minWeight === v ? "#ea580c44" : "#e2e8f0"}`, borderRadius: 3, cursor: "pointer" }}>{l}</button>
+                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 8px", background: minWeight === v ? "#ea580c22" : "transparent", color: minWeight === v ? "#ea580c" : "#475569", border: `1px solid ${minWeight === v ? "#ea580c44" : "#dde3ec"}`, borderRadius: 3, cursor: "pointer" }}>{l}</button>
               ))}
             </div>
           </div>
@@ -370,7 +370,7 @@ export default function EventDashboard() {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#475569" }}>{radar.length} EVENTS · {showPast ? "ALL" : "UPCOMING ONLY"}</div>
-              <button onClick={() => setShowPast((p) => !p)} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 10px", background: showPast ? "#ea580c22" : "transparent", color: showPast ? "#ea580c" : "#475569", border: `1px solid ${showPast ? "#ea580c44" : "#e2e8f0"}`, borderRadius: 3, cursor: "pointer" }}>
+              <button onClick={() => setShowPast((p) => !p)} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 10px", background: showPast ? "#ea580c22" : "transparent", color: showPast ? "#ea580c" : "#475569", border: `1px solid ${showPast ? "#ea580c44" : "#dde3ec"}`, borderRadius: 3, cursor: "pointer" }}>
                 {showPast ? "HIDE PAST" : "SHOW PAST"}
               </button>
             </div>
@@ -388,7 +388,7 @@ export default function EventDashboard() {
               const [y, m] = k.split("-").map(Number);
               return (
                 <div key={k}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "#ea580c", marginBottom: 8, borderBottom: "1px solid #e2e8f0", paddingBottom: 6, letterSpacing: "0.02em" }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "#ea580c", marginBottom: 8, borderBottom: "1px solid #dde3ec", paddingBottom: 6, letterSpacing: "0.02em" }}>
                     {MONTH_FULL[m]} {y} <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569", fontWeight: 400 }}>· {grouped[k].length} events</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -420,7 +420,7 @@ export default function EventDashboard() {
                   const isSel = k === calSelected;
                   return (
                     <div key={k} onClick={() => setCalSelected(k)}
-                      style={{ minHeight: 58, padding: "5px 6px", borderRadius: 5, cursor: "pointer", background: isSel ? "#ea580c14" : "#ffffff", border: `1px solid ${isSel ? "#ea580c55" : isToday ? "#2563eb55" : "#e2e8f0"}` }}>
+                      style={{ minHeight: 58, padding: "5px 6px", borderRadius: 5, cursor: "pointer", background: isSel ? "#ea580c14" : "#f7f9fc", border: `1px solid ${isSel ? "#ea580c55" : isToday ? "#2563eb55" : "#dde3ec"}` }}>
                       <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 600, color: isToday ? "#2563eb" : "#475569" }}>{day}</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 2, marginTop: 3 }}>
                         {evs.slice(0, 4).map((e) => <span key={e.id} title={e.title} style={{ width: 6, height: 6, borderRadius: "50%", background: CATEGORIES[e.cat].color }} />)}
@@ -430,7 +430,7 @@ export default function EventDashboard() {
                 })}
               </div>
             </div>
-            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, position: "sticky", top: 16 }}>
+            <div style={{ background: "#f7f9fc", border: "1px solid #dde3ec", borderRadius: 8, padding: 16, position: "sticky", top: 16 }}>
               <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#ea580c", letterSpacing: "0.05em", marginBottom: 10 }}>{calSelected}</div>
               {selectedEvents.length === 0
                 ? <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#475569" }}>No tracked events.</div>
@@ -462,7 +462,7 @@ export default function EventDashboard() {
               <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>THE FIVE EVENT REGIMES</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 10 }}>
                 {Object.entries(CATEGORIES).map(([k, c]) => (
-                  <div key={k} style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${c.color}`, borderRadius: 6, padding: "14px 16px" }}>
+                  <div key={k} style={{ background: "#f7f9fc", border: "1px solid #dde3ec", borderLeft: `3px solid ${c.color}`, borderRadius: 6, padding: "14px 16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: c.color }}>{c.label}</div>
                       <Tag color={c.color}>{c.short}</Tag>
@@ -478,7 +478,7 @@ export default function EventDashboard() {
               <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>UNSCHEDULED / CONTINUAL CATALYSTS</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {WATCH.map((w, i) => (
-                  <div key={i} style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${CATEGORIES[w.cat].color}`, borderRadius: 6, padding: "12px 16px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                  <div key={i} style={{ background: "#f7f9fc", border: "1px solid #dde3ec", borderLeft: `3px solid ${CATEGORIES[w.cat].color}`, borderRadius: 6, padding: "12px 16px", display: "flex", gap: 14, alignItems: "flex-start" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start", minWidth: 70 }}>
                       <Tag color={WEIGHTS[w.weight].color}>{w.weight}</Tag>
                       <Tag color={CATEGORIES[w.cat].color}>{CATEGORIES[w.cat].short}</Tag>
@@ -492,7 +492,7 @@ export default function EventDashboard() {
               </div>
             </div>
 
-            <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569", lineHeight: 1.7, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
+            <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569", lineHeight: 1.7, borderTop: "1px solid #dde3ec", paddingTop: 14 }}>
               FOMC dates, quadruple-witching (3rd Friday), Russell reconstitution (last Friday of June), NFP (first Friday) and the US midterms are exact. Items marked <span style={{ color: "#475569" }}>~</span> (BoJ, ECB, QRA, CPI/PPI, ISM, earnings windows, conferences, OPEC+) are projected from standard schedules and should be verified against official calendars before trading.
             </div>
           </div>
@@ -502,4 +502,4 @@ export default function EventDashboard() {
   );
 }
 
-const navBtn = { fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 12px", background: "transparent", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: 4, cursor: "pointer" };
+const navBtn = { fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 12px", background: "transparent", color: "#64748b", border: "1px solid #dde3ec", borderRadius: 4, cursor: "pointer" };

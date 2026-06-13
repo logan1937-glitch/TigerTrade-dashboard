@@ -10,8 +10,8 @@ const PRODUCTS = [
 export default function App() {
   const [product, setProduct] = useState("events");
   return (
-    <div style={{ background: "#eef2f7", minHeight: "100vh" }}>
-      <div style={{ display: "flex", gap: 6, padding: "9px 18px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", alignItems: "center", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" }}>
+    <div style={{ background: "#e6ebf2", minHeight: "100vh" }}>
+      <div style={{ display: "flex", gap: 6, padding: "9px 18px", background: "#f7f9fc", borderBottom: "1px solid #dde3ec", alignItems: "center", boxShadow: "0 1px 3px rgba(15,23,42,0.05)" }}>
         <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 800, color: "#1e3a8a", marginRight: 8, letterSpacing: "-0.01em" }}>
           TIGER<span style={{ color: "#ea580c" }}>TRADE</span>
         </span>
