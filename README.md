@@ -22,11 +22,33 @@ Two trading dashboards in one app, switchable from the top bar:
    > OPEC+) are projected from standard schedules — verify against official
    > calendars before trading.
 
-2. **CANSLIM RS Dashboard** — a CANSLIM-inspired relative strength trading
-   dashboard with per-stock AI scorecards.
+2. **CANSLIM Screener** — a methodology-faithful CAN SLIM relative-strength
+   screener. Each name is scored on all seven criteria — **C** (current
+   earnings), **A** (annual earnings), **N** (new high / catalyst), **S** (supply
+   & demand / accumulation), **L** (leader RS rank), **I** (institutional
+   sponsorship), **M** (market direction) — into a 0–100 composite and letter
+   grade. Features:
+   - **Screener** — sortable/filterable universe with per-letter pass-fail chips,
+     RS rank, and live **buy-zone** detection (Basing → Approaching → In Buy Zone
+     → Extended vs. the pivot)
+   - **Market Health** — the "M" gate: index trend vs. 50/200-DMA, distribution-day
+     count, last follow-through day, and breadth. CAN SLIM says buy only in a
+     Confirmed Uptrend.
+   - **Playbook** — the seven criteria plus O'Neil's buy/sell rules
+   - Click any row for a full scorecard, an auto-generated **trade plan** (5% buy
+     zone, –8% stop, +20–25% targets), and a Claude **AI trade analysis**.
 
-Both share a Claude-backed serverless proxy (`/api/claude`) so the Anthropic
-API key never reaches the browser.
+The whole site uses a crisp blue / orange / white design.
+
+Both dashboards share a Claude-backed serverless proxy (`/api/claude`) so the
+Anthropic API key never reaches the browser.
+
+### Optional: live market data
+The screener ships with a realistic **demo dataset** so it works with zero setup.
+To wire in live quotes, set `FMP_API_KEY` in your Vercel project env vars (get a
+key at https://site.financialmodelingprep.com); requests route through the
+`/api/fmp` proxy. Note that batch quotes, index quotes and the stock screener
+require a **paid FMP tier** — the free tier is limited.
 
 ---
 
@@ -44,7 +66,7 @@ npm install -g vercel
 
 ### Step 3 — Deploy
 ```bash
-cd canslim-dashboard
+cd TigerTrade-dashboard
 npm install
 vercel
 ```
@@ -111,12 +133,13 @@ the fetch URL in Dashboard.jsx from `/api/claude` to `/.netlify/functions/claude
 ```
 tigertrade-dashboard/
 ├── api/
-│   └── claude.js            ← Serverless proxy (keeps API key secure)
+│   ├── claude.js            ← Claude proxy (keeps Anthropic key secure)
+│   └── fmp.js               ← Optional live market-data proxy (FMP)
 ├── src/
 │   ├── main.jsx             ← React entry point
 │   ├── App.jsx              ← Product switcher shell
 │   ├── EventDashboard.jsx   ← Volatility & Momentum Radar (default)
-│   └── Dashboard.jsx        ← CANSLIM RS dashboard
+│   └── Dashboard.jsx        ← CANSLIM Screener
 ├── index.html
 ├── package.json
 ├── vercel.json
@@ -126,10 +149,10 @@ tigertrade-dashboard/
 ---
 
 ## Features
-- Industry group RS rankings (15 groups)
-- Watchlist with CANSLIM scoring for 8 stocks
-- Click any stock → full C-A-N-S-L-I-M scorecard
-- AI analysis per stock via Claude API
-- AI screener — ask anything about current market leaders
-- Live market status bar
-- Sort/filter by RS, composite rating, % change
+- Two dashboards in one app with a crisp blue / orange / white UI
+- **Volatility Radar:** 2026–2027 event calendar with countdowns, timeline,
+  month-grid calendar, category/weight filters, and an AI volatility briefing
+- **CANSLIM Screener:** full 7-criteria scoring → composite + letter grade,
+  buy-zone detection, RS ranking, market-health gate, sortable/filterable table
+- Click any stock → CAN SLIM scorecard, auto trade plan, and Claude AI analysis
+- AI features via Claude API; optional live quotes via FMP

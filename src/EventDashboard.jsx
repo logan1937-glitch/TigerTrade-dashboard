@@ -4,17 +4,17 @@ const GOOGLE_FONT = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght
 
 // ── taxonomy ─────────────────────────────────────────────────────────────────
 const CATEGORIES = {
-  central: { label: "Central Bank & Sovereign Liquidity", short: "CB / LIQ",  color: "#60a5fa", desc: "Sets the baseline cost of capital. Momentum assets are hyper-sensitive to sudden shifts in global yields or liquidity contractions." },
-  flows:   { label: "Mechanical Flow Rebalancing",        short: "FLOWS",     color: "#a78bfa", desc: "Forced execution by passive funds and options dealers. Fundamentals-agnostic, but drives massive volume and intraday VIX spikes." },
-  growth:  { label: "Growth & Tech-Thematic Catalysts",   short: "GROWTH",    color: "#34d399", desc: "Launching pads for narrative-driven capital. Routinely trigger violent sector rotations and momentum manias." },
-  data:    { label: "High-Impact Macro Data",             short: "DATA",      color: "#fbbf24", desc: "Scheduled monthly prints that can flip the macro regime from Soft-Landing to Stagflation in a single release." },
-  geo:     { label: "Geopolitical, Commodity & Regulatory", short: "GEO / REG", color: "#f87171", desc: "Exogenous structural shocks that reshape long-term policy, supply chains and the secular growth premium." },
+  central: { label: "Central Bank & Sovereign Liquidity", short: "CB / LIQ",  color: "#2563eb", desc: "Sets the baseline cost of capital. Momentum assets are hyper-sensitive to sudden shifts in global yields or liquidity contractions." },
+  flows:   { label: "Mechanical Flow Rebalancing",        short: "FLOWS",     color: "#7c3aed", desc: "Forced execution by passive funds and options dealers. Fundamentals-agnostic, but drives massive volume and intraday VIX spikes." },
+  growth:  { label: "Growth & Tech-Thematic Catalysts",   short: "GROWTH",    color: "#0d9488", desc: "Launching pads for narrative-driven capital. Routinely trigger violent sector rotations and momentum manias." },
+  data:    { label: "High-Impact Macro Data",             short: "DATA",      color: "#d97706", desc: "Scheduled monthly prints that can flip the macro regime from Soft-Landing to Stagflation in a single release." },
+  geo:     { label: "Geopolitical, Commodity & Regulatory", short: "GEO / REG", color: "#dc2626", desc: "Exogenous structural shocks that reshape long-term policy, supply chains and the secular growth premium." },
 };
 
 const WEIGHTS = {
   EXTREME: { color: "#ef4444", rank: 4, label: "EXTREME" },
-  HIGH:    { color: "#f59e0b", rank: 3, label: "HIGH" },
-  MEDIUM:  { color: "#eab308", rank: 2, label: "MEDIUM" },
+  HIGH:    { color: "#ea580c", rank: 3, label: "HIGH" },
+  MEDIUM:  { color: "#ca8a04", rank: 2, label: "MEDIUM" },
   LOW:     { color: "#64748b", rank: 1, label: "LOW" },
 };
 
@@ -204,11 +204,11 @@ Be specific, reference the actual dates above, and keep it under 280 words.`
   return (
     <div>
       <button onClick={run} disabled={loading}
-        style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 700, padding: "9px 16px", background: loading ? "#1e2530" : "#f59e0b", color: loading ? "#6b7280" : "#000", border: "none", borderRadius: 5, cursor: loading ? "default" : "pointer", letterSpacing: "0.05em" }}>
+        style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 700, padding: "9px 16px", background: loading ? "#e2e8f0" : "#ea580c", color: loading ? "#94a3b8" : "#000", border: "none", borderRadius: 5, cursor: loading ? "default" : "pointer", letterSpacing: "0.05em" }}>
         {loading ? "BRIEFING…" : "▶ GENERATE AI VOLATILITY BRIEFING"}
       </button>
       {out && (
-        <pre style={{ marginTop: 14, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.75, whiteSpace: "pre-wrap", background: "#0d1117", border: "1px solid #1e2530", borderRadius: 6, padding: "16px 18px" }}>{out}</pre>
+        <pre style={{ marginTop: 14, fontFamily: "'IBM Plex Mono',monospace", fontSize: 11.5, color: "#475569", lineHeight: 1.75, whiteSpace: "pre-wrap", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "16px 18px" }}>{out}</pre>
       )}
     </div>
   );
@@ -222,15 +222,15 @@ function EventRow({ e }) {
   const past = du < 0;
   const imminent = du >= 0 && du <= 7;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "84px 1fr auto", gap: 14, alignItems: "center", padding: "11px 14px", background: past ? "#0a0d1066" : "#0a0d10", borderRadius: 5, border: `1px solid ${imminent ? w.color + "55" : "#1e2530"}`, borderLeft: `3px solid ${cat.color}`, opacity: past ? 0.5 : 1, transition: "all 0.15s" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "84px 1fr auto", gap: 14, alignItems: "center", padding: "11px 14px", background: past ? "#f8fafc" : "#ffffff", borderRadius: 5, border: `1px solid ${imminent ? w.color + "55" : "#e2e8f0"}`, borderLeft: `3px solid ${cat.color}`, opacity: past ? 0.5 : 1, transition: "all 0.15s" }}>
       <div style={{ textAlign: "left" }}>
-        <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{e.approx && <span style={{ color: "#475569" }}>~</span>}{fmtShort(e.date)}</div>
+        <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{e.approx && <span style={{ color: "#475569" }}>~</span>}{fmtShort(e.date)}</div>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, color: imminent ? w.color : "#475569", marginTop: 1, fontWeight: imminent ? 700 : 400 }}>
           {past ? "PASSED" : du === 0 ? "● TODAY" : `T-${du}d`}
         </div>
       </div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: past ? "#64748b" : "#f1f5f9" }}>{e.title}{e.span && <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#64748b", fontWeight: 400, marginLeft: 8 }}>{e.span}</span>}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: past ? "#64748b" : "#0f172a" }}>{e.title}{e.span && <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#64748b", fontWeight: 400, marginLeft: 8 }}>{e.span}</span>}</div>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, color: "#64748b", marginTop: 3, lineHeight: 1.5 }}>{e.note}</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end" }}>
@@ -271,11 +271,11 @@ export default function EventDashboard() {
   // headline stat cards
   const nextMatch = (pred) => ALL_EVENTS.find((e) => daysUntil(e.date) >= 0 && pred(e));
   const stats = [
-    ["NEXT FOMC", nextMatch((e) => e.title.startsWith("FOMC")), "#60a5fa"],
-    ["NEXT CPI", nextMatch((e) => e.title === "US CPI"), "#fbbf24"],
-    ["NEXT WITCHING", nextMatch((e) => e.title === "Quadruple Witching"), "#a78bfa"],
-    ["NEXT RUSSELL", nextMatch((e) => e.title.startsWith("Russell")), "#a78bfa"],
-    ["US MIDTERMS", ALL_EVENTS.find((e) => e.title === "US Midterm Elections"), "#f87171"],
+    ["NEXT FOMC", nextMatch((e) => e.title.startsWith("FOMC")), "#2563eb"],
+    ["NEXT CPI", nextMatch((e) => e.title === "US CPI"), "#d97706"],
+    ["NEXT WITCHING", nextMatch((e) => e.title === "Quadruple Witching"), "#7c3aed"],
+    ["NEXT RUSSELL", nextMatch((e) => e.title.startsWith("Russell")), "#7c3aed"],
+    ["US MIDTERMS", ALL_EVENTS.find((e) => e.title === "US Midterm Elections"), "#dc2626"],
   ];
   const nextBig = nextMatch((e) => WEIGHTS[e.weight].rank >= 3);
 
@@ -299,11 +299,11 @@ export default function EventDashboard() {
   }, [radar]);
 
   const S = {
-    wrap: { minHeight: "100vh", background: "#080b0e", fontFamily: "'Syne',sans-serif", color: "#f1f5f9", padding: "0 0 48px" },
-    header: { borderBottom: "1px solid #1e2530", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0a0d10", flexWrap: "wrap", gap: 12 },
-    logo: { fontSize: 20, fontWeight: 800, color: "#f59e0b", letterSpacing: "-0.02em" },
-    tabs: { display: "flex", gap: 2, padding: "16px 28px 0", borderBottom: "1px solid #1e2530", flexWrap: "wrap" },
-    tab: (a) => ({ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 600, padding: "8px 16px", border: "none", borderBottom: a ? "2px solid #f59e0b" : "2px solid transparent", background: "transparent", color: a ? "#f59e0b" : "#475569", cursor: "pointer", letterSpacing: "0.05em" }),
+    wrap: { minHeight: "100vh", background: "#eef2f7", fontFamily: "'Syne',sans-serif", color: "#0f172a", padding: "0 0 48px" },
+    header: { borderBottom: "1px solid #e2e8f0", padding: "18px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#ffffff", flexWrap: "wrap", gap: 12 },
+    logo: { fontSize: 20, fontWeight: 800, color: "#ea580c", letterSpacing: "-0.02em" },
+    tabs: { display: "flex", gap: 2, padding: "16px 28px 0", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap" },
+    tab: (a) => ({ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 600, padding: "8px 16px", border: "none", borderBottom: a ? "2px solid #ea580c" : "2px solid transparent", background: "transparent", color: a ? "#ea580c" : "#475569", cursor: "pointer", letterSpacing: "0.05em" }),
     content: { padding: "24px 28px", maxWidth: 1180, margin: "0 auto" },
   };
 
@@ -323,11 +323,11 @@ export default function EventDashboard() {
       </div>
 
       {/* stat strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1, background: "#1e2530" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1, background: "#e2e8f0" }}>
         {stats.map(([label, e, col]) => (
-          <div key={label} style={{ padding: "10px 16px", background: "#0a0d10" }}>
+          <div key={label} style={{ padding: "10px 16px", background: "#ffffff" }}>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, color: "#475569", letterSpacing: "0.05em" }}>{label}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{e ? fmtShort(e.date) : "—"}</div>
+            <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 15, fontWeight: 700, color: "#0f172a", marginTop: 3 }}>{e ? fmtShort(e.date) : "—"}</div>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: col }}>{e ? `T-${daysUntil(e.date)}d` : ""}</div>
           </div>
         ))}
@@ -348,18 +348,18 @@ export default function EventDashboard() {
               const on = activeCats.includes(k);
               return (
                 <button key={k} onClick={() => toggleCat(k)}
-                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 10px", borderRadius: 3, cursor: "pointer", fontWeight: 600, letterSpacing: "0.04em", background: on ? c.color + "1e" : "transparent", color: on ? c.color : "#475569", border: `1px solid ${on ? c.color + "55" : "#1e2530"}` }}>
+                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 10px", borderRadius: 3, cursor: "pointer", fontWeight: 600, letterSpacing: "0.04em", background: on ? c.color + "1e" : "transparent", color: on ? c.color : "#475569", border: `1px solid ${on ? c.color + "55" : "#e2e8f0"}` }}>
                   ● {c.short}
                 </button>
               );
             })}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="search events…"
-                style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: "6px 10px", background: "#0a0d10", border: "1px solid #1e2530", borderRadius: 4, color: "#f1f5f9", outline: "none", width: 160 }} />
+                style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: "6px 10px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 4, color: "#0f172a", outline: "none", width: 160 }} />
               <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569" }}>MIN WT:</span>
               {[[1, "ALL"], [2, "MED+"], [3, "HIGH+"], [4, "EXTREME"]].map(([v, l]) => (
                 <button key={v} onClick={() => setMinWeight(v)}
-                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 8px", background: minWeight === v ? "#f59e0b22" : "transparent", color: minWeight === v ? "#f59e0b" : "#475569", border: `1px solid ${minWeight === v ? "#f59e0b44" : "#1e2530"}`, borderRadius: 3, cursor: "pointer" }}>{l}</button>
+                  style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 8px", background: minWeight === v ? "#ea580c22" : "transparent", color: minWeight === v ? "#ea580c" : "#475569", border: `1px solid ${minWeight === v ? "#ea580c44" : "#e2e8f0"}`, borderRadius: 3, cursor: "pointer" }}>{l}</button>
               ))}
             </div>
           </div>
@@ -370,7 +370,7 @@ export default function EventDashboard() {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#475569" }}>{radar.length} EVENTS · {showPast ? "ALL" : "UPCOMING ONLY"}</div>
-              <button onClick={() => setShowPast((p) => !p)} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 10px", background: showPast ? "#f59e0b22" : "transparent", color: showPast ? "#f59e0b" : "#475569", border: `1px solid ${showPast ? "#f59e0b44" : "#1e2530"}`, borderRadius: 3, cursor: "pointer" }}>
+              <button onClick={() => setShowPast((p) => !p)} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "4px 10px", background: showPast ? "#ea580c22" : "transparent", color: showPast ? "#ea580c" : "#475569", border: `1px solid ${showPast ? "#ea580c44" : "#e2e8f0"}`, borderRadius: 3, cursor: "pointer" }}>
                 {showPast ? "HIDE PAST" : "SHOW PAST"}
               </button>
             </div>
@@ -388,7 +388,7 @@ export default function EventDashboard() {
               const [y, m] = k.split("-").map(Number);
               return (
                 <div key={k}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "#f59e0b", marginBottom: 8, borderBottom: "1px solid #1e2530", paddingBottom: 6, letterSpacing: "0.02em" }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "#ea580c", marginBottom: 8, borderBottom: "1px solid #e2e8f0", paddingBottom: 6, letterSpacing: "0.02em" }}>
                     {MONTH_FULL[m]} {y} <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569", fontWeight: 400 }}>· {grouped[k].length} events</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -406,7 +406,7 @@ export default function EventDashboard() {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <button onClick={() => setCalMonth(new Date(calY, calM - 1, 1))} style={navBtn}>← PREV</button>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, color: "#f1f5f9" }}>{MONTH_FULL[calM]} {calY}</div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, color: "#0f172a" }}>{MONTH_FULL[calM]} {calY}</div>
                 <button onClick={() => setCalMonth(new Date(calY, calM + 1, 1))} style={navBtn}>NEXT →</button>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
@@ -420,8 +420,8 @@ export default function EventDashboard() {
                   const isSel = k === calSelected;
                   return (
                     <div key={k} onClick={() => setCalSelected(k)}
-                      style={{ minHeight: 58, padding: "5px 6px", borderRadius: 5, cursor: "pointer", background: isSel ? "#f59e0b14" : "#0a0d10", border: `1px solid ${isSel ? "#f59e0b55" : isToday ? "#60a5fa55" : "#1e2530"}` }}>
-                      <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 600, color: isToday ? "#60a5fa" : "#94a3b8" }}>{day}</div>
+                      style={{ minHeight: 58, padding: "5px 6px", borderRadius: 5, cursor: "pointer", background: isSel ? "#ea580c14" : "#ffffff", border: `1px solid ${isSel ? "#ea580c55" : isToday ? "#2563eb55" : "#e2e8f0"}` }}>
+                      <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, fontWeight: 600, color: isToday ? "#2563eb" : "#475569" }}>{day}</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 2, marginTop: 3 }}>
                         {evs.slice(0, 4).map((e) => <span key={e.id} title={e.title} style={{ width: 6, height: 6, borderRadius: "50%", background: CATEGORIES[e.cat].color }} />)}
                       </div>
@@ -430,15 +430,15 @@ export default function EventDashboard() {
                 })}
               </div>
             </div>
-            <div style={{ background: "#0a0d10", border: "1px solid #1e2530", borderRadius: 8, padding: 16, position: "sticky", top: 16 }}>
-              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#f59e0b", letterSpacing: "0.05em", marginBottom: 10 }}>{calSelected}</div>
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, position: "sticky", top: 16 }}>
+              <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#ea580c", letterSpacing: "0.05em", marginBottom: 10 }}>{calSelected}</div>
               {selectedEvents.length === 0
                 ? <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#475569" }}>No tracked events.</div>
                 : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {selectedEvents.map((e) => (
                       <div key={e.id} style={{ borderLeft: `3px solid ${CATEGORIES[e.cat].color}`, paddingLeft: 10 }}>
                         <div style={{ display: "flex", gap: 6, marginBottom: 3 }}><Tag color={WEIGHTS[e.weight].color} solid={e.weight === "EXTREME"}>{e.weight}</Tag></div>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#f1f5f9" }}>{e.title}</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{e.title}</div>
                         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#64748b", marginTop: 3, lineHeight: 1.5 }}>{e.note}</div>
                       </div>
                     ))}
@@ -451,7 +451,7 @@ export default function EventDashboard() {
         {tab === "playbook" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
             <div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 800, color: "#f59e0b", marginBottom: 6 }}>AI VOLATILITY BRIEFING</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 800, color: "#ea580c", marginBottom: 6 }}>AI VOLATILITY BRIEFING</div>
               <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: "#475569", lineHeight: 1.7, marginBottom: 14 }}>
                 Feeds the next 16 upcoming events into Claude for a desk-level positioning briefing — highest-risk windows, event clusters, and hedging notes.
               </div>
@@ -459,10 +459,10 @@ export default function EventDashboard() {
             </div>
 
             <div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 12 }}>THE FIVE EVENT REGIMES</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>THE FIVE EVENT REGIMES</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 10 }}>
                 {Object.entries(CATEGORIES).map(([k, c]) => (
-                  <div key={k} style={{ background: "#0a0d10", border: "1px solid #1e2530", borderLeft: `3px solid ${c.color}`, borderRadius: 6, padding: "14px 16px" }}>
+                  <div key={k} style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${c.color}`, borderRadius: 6, padding: "14px 16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: c.color }}>{c.label}</div>
                       <Tag color={c.color}>{c.short}</Tag>
@@ -475,16 +475,16 @@ export default function EventDashboard() {
             </div>
 
             <div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, color: "#f1f5f9", marginBottom: 12 }}>UNSCHEDULED / CONTINUAL CATALYSTS</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>UNSCHEDULED / CONTINUAL CATALYSTS</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {WATCH.map((w, i) => (
-                  <div key={i} style={{ background: "#0a0d10", border: "1px solid #1e2530", borderLeft: `3px solid ${CATEGORIES[w.cat].color}`, borderRadius: 6, padding: "12px 16px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                  <div key={i} style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${CATEGORIES[w.cat].color}`, borderRadius: 6, padding: "12px 16px", display: "flex", gap: 14, alignItems: "flex-start" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start", minWidth: 70 }}>
                       <Tag color={WEIGHTS[w.weight].color}>{w.weight}</Tag>
                       <Tag color={CATEGORIES[w.cat].color}>{CATEGORIES[w.cat].short}</Tag>
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9" }}>{w.title}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{w.title}</div>
                       <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, color: "#64748b", marginTop: 3, lineHeight: 1.55 }}>{w.note}</div>
                     </div>
                   </div>
@@ -492,8 +492,8 @@ export default function EventDashboard() {
               </div>
             </div>
 
-            <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569", lineHeight: 1.7, borderTop: "1px solid #1e2530", paddingTop: 14 }}>
-              FOMC dates, quadruple-witching (3rd Friday), Russell reconstitution (last Friday of June), NFP (first Friday) and the US midterms are exact. Items marked <span style={{ color: "#94a3b8" }}>~</span> (BoJ, ECB, QRA, CPI/PPI, ISM, earnings windows, conferences, OPEC+) are projected from standard schedules and should be verified against official calendars before trading.
+            <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#475569", lineHeight: 1.7, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
+              FOMC dates, quadruple-witching (3rd Friday), Russell reconstitution (last Friday of June), NFP (first Friday) and the US midterms are exact. Items marked <span style={{ color: "#475569" }}>~</span> (BoJ, ECB, QRA, CPI/PPI, ISM, earnings windows, conferences, OPEC+) are projected from standard schedules and should be verified against official calendars before trading.
             </div>
           </div>
         )}
@@ -502,4 +502,4 @@ export default function EventDashboard() {
   );
 }
 
-const navBtn = { fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 12px", background: "transparent", color: "#64748b", border: "1px solid #1e2530", borderRadius: 4, cursor: "pointer" };
+const navBtn = { fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: "5px 12px", background: "transparent", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: 4, cursor: "pointer" };
