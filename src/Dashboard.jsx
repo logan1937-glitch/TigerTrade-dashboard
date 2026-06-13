@@ -2,33 +2,25 @@ import { useState, useEffect, useMemo, useRef } from "react";
 
 const GOOGLE_FONT = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap";
 
-// ── crisp blue / orange / white palette ──────────────────────────────────────
+// ── design tokens (resolve to CSS variables defined in App; dark-mode aware) ──
+// Accent hues that get alpha-suffixed (e.g. color+"16") stay raw hex so the
+// concatenation stays valid; structural/soft colors use theme variables.
 const C = {
-  bg: "#e6ebf2", surface: "#f7f9fc", surfaceAlt: "#eef2f7",
-  border: "#dde3ec", borderStrong: "#cbd5e1",
-  ink: "#0f172a", inkSoft: "#475569", inkMute: "#94a3b8",
-  blue: "#2563eb", blueDark: "#1d4ed8", blueDeep: "#1e3a8a", blueSoft: "#dbeafe", blueWash: "#eff6ff",
-  orange: "#ea580c", orangeBright: "#f97316", orangeSoft: "#ffedd5", orangeWash: "#fff7ed",
-  green: "#16a34a", greenSoft: "#dcfce7",
-  red: "#dc2626", redSoft: "#fee2e2",
-  amber: "#d97706",
+  bg: "var(--bg)", surface: "var(--surface)", surfaceAlt: "var(--surface-2)",
+  border: "var(--border)", borderStrong: "var(--border-strong)",
+  ink: "var(--ink)", inkSoft: "var(--ink-soft)", inkMute: "var(--ink-mute)",
+  blue: "#3b82f6", blueDark: "#2563eb", blueDeep: "var(--blue-deep)", blueSoft: "var(--blue-soft)", blueWash: "var(--blue-wash)",
+  orange: "#f97316", orangeBright: "#fb923c", orangeSoft: "var(--orange-soft)", orangeWash: "var(--orange-wash)",
+  green: "#22c55e", greenSoft: "var(--green-soft)",
+  red: "#ef4444", redSoft: "var(--red-soft)",
+  amber: "#f59e0b",
   head: "'Syne',sans-serif", mono: "'IBM Plex Mono',monospace",
-  shadowSm: "0 1px 2px rgba(15,23,42,0.08)",
-  shadow: "0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.08)",
-  shadowMd: "0 24px 50px rgba(15,23,42,0.22)",
+  shadowSm: "var(--shadow-sm)",
+  shadow: "var(--shadow-card)",
+  shadowMd: "var(--shadow-modal)",
   hi: "inset 0 1px 0 rgba(255,255,255,0.9)",
-  cardGrad: "linear-gradient(180deg, #fdfeff 0%, #f3f6fb 100%)",
+  cardGrad: "var(--surface-grad)",
 };
-
-// global polish: hover-lift cards + button press, injected once
-const POLISH_CSS = `
-.tt-card{box-shadow:0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.08); transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;}
-.tt-card:hover{transform:translateY(-3px); box-shadow:0 16px 34px rgba(15,23,42,0.18); border-color:#c3d0e2;}
-.tt-btn{transition:transform .1s ease, box-shadow .12s ease, filter .12s ease;}
-.tt-btn:hover{filter:brightness(1.04);}
-.tt-btn:active{transform:translateY(1px);}
-.tt-img{-webkit-user-drag:none; user-select:none;}
-`;
 
 // ── company logo (real logo → clean monogram fallback) ───────────────────────
 function Logo({ ticker, size = 30, radius = 8 }) {
@@ -129,7 +121,7 @@ const gradeColor = (c) => (c >= 78 ? C.green : c >= 68 ? C.blue : c >= 55 ? C.am
 
 const buyZone = (s) => {
   const pct = (s.price / s.pivot - 1) * 100;
-  if (pct < -8) return { label: "BASING", color: C.inkSoft, pct, bg: C.surfaceAlt };
+  if (pct < -8) return { label: "BASING", color: "#64748b", pct, bg: C.surfaceAlt };
   if (pct < -1) return { label: "APPROACHING", color: C.blue, pct, bg: C.blueWash };
   if (pct <= 5) return { label: "IN BUY ZONE", color: C.green, pct, bg: C.greenSoft };
   return { label: "EXTENDED", color: C.orange, pct, bg: C.orangeWash };
@@ -155,8 +147,8 @@ const Donut = ({ value, size = 64, label }) => {
   return (
     <div style={{ position: "relative", width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.border} strokeWidth="6" />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth="6" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - value/100)} style={{ transition: "stroke-dashoffset .6s ease" }} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" strokeWidth="6" style={{ stroke: "var(--border)" }} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" strokeWidth="6" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ * (1 - value/100)} style={{ stroke: col, transition: "stroke-dashoffset .6s ease" }} />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <div style={{ fontFamily: C.head, fontSize: size * 0.32, fontWeight: 800, color: col, lineHeight: 1 }}>{value}</div>
@@ -165,6 +157,71 @@ const Donut = ({ value, size = 64, label }) => {
     </div>
   );
 };
+
+// ── sparkline (deterministic synthetic trend from the stock's own stats) ─────
+const seriesFor = (s) => {
+  // seed a stable pseudo-random walk; slope reflects RS strength & distance off high
+  let seed = [...s.t].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const n = 24, slope = ((s.rs - 55) / 100) - s.off52 / 220; // leaders rise, laggards fade
+  const pts = [];
+  let v = 1 - slope * 0.5;
+  for (let i = 0; i < n; i++) { v += slope / n + (rnd() - 0.5) * 0.05; pts.push(v); }
+  return pts;
+};
+const Sparkline = ({ data, w = 66, h = 24 }) => {
+  const min = Math.min(...data), max = Math.max(...data), span = max - min || 1;
+  const up = data[data.length - 1] >= data[0];
+  const col = up ? "#22c55e" : "#ef4444";
+  const X = (i) => (i / (data.length - 1)) * w;
+  const Y = (v) => h - 3 - ((v - min) / span) * (h - 6);
+  const line = data.map((v, i) => `${i === 0 ? "M" : "L"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const area = `${line} L${w},${h} L0,${h} Z`;
+  const gid = `sg-${Math.round(data[0] * 1e6)}`;
+  return (
+    <svg width={w} height={h} style={{ display: "block" }}>
+      <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={col} stopOpacity="0.22" /><stop offset="100%" stopColor={col} stopOpacity="0" />
+      </linearGradient></defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" style={{ stroke: col }} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+};
+
+// ── price-vs-pivot ladder (buy zone / stop / targets drawn as bands) ─────────
+const PivotChart = ({ stock }) => {
+  const stop = stock.pivot * 0.92, zlo = stock.pivot, zhi = stock.pivot * 1.05, t1 = stock.pivot * 1.20, t2 = stock.pivot * 1.25;
+  const lo = stop * 0.985, hi = t2 * 1.015, span = hi - lo;
+  const P = (v) => `${((v - lo) / span) * 100}%`;
+  const W = (a, b) => `${((b - a) / span) * 100}%`;
+  return (
+    <div style={{ paddingTop: 22, paddingBottom: 26 }}>
+      <div style={{ position: "relative", height: 16, borderRadius: 999, background: C.surfaceAlt, border: `1px solid ${C.border}` }}>
+        {/* buy zone band */}
+        <div style={{ position: "absolute", left: P(zlo), width: W(zlo, zhi), top: 0, bottom: 0, background: "#22c55e", opacity: 0.85, borderRadius: 4 }} />
+        {/* stop marker */}
+        <Mark x={P(stop)} color="#ef4444" label="STOP" value={`$${fmtPrice(stop)}`} below />
+        {/* pivot */}
+        <Mark x={P(zlo)} color="#16a34a" label="PIVOT" value={`$${fmtPrice(zlo)}`} />
+        {/* targets */}
+        <Mark x={P(t1)} color="#3b82f6" label="+20%" value={`$${fmtPrice(t1)}`} below />
+        <Mark x={P(t2)} color="#2563eb" label="+25%" value={`$${fmtPrice(t2)}`} />
+        {/* current price dot */}
+        <div style={{ position: "absolute", left: P(stock.price), top: "50%", transform: "translate(-50%,-50%)", width: 14, height: 14, borderRadius: 999, background: "#f97316", border: "2px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.35)" }} title={`Price $${fmtPrice(stock.price)}`} />
+      </div>
+    </div>
+  );
+};
+const Mark = ({ x, color, label, value, below }) => (
+  <div style={{ position: "absolute", left: x, top: 0, bottom: 0, transform: "translateX(-0.5px)" }}>
+    <div style={{ position: "absolute", top: -1, bottom: -1, width: 2, background: color, opacity: 0.7 }} />
+    <div style={{ position: "absolute", [below ? "top" : "bottom"]: below ? 20 : 20, left: "50%", transform: "translateX(-50%)", textAlign: "center", whiteSpace: "nowrap" }}>
+      <div style={{ fontFamily: C.mono, fontSize: 8.5, fontWeight: 700, color, letterSpacing: "0.03em" }}>{label}</div>
+      <div style={{ fontFamily: C.mono, fontSize: 9, color: C.inkSoft }}>{value}</div>
+    </div>
+  </div>
+);
 
 // ── AI analysis (per stock) ──────────────────────────────────────────────────
 function AIAnalysis({ stock, evalResult }) {
@@ -263,7 +320,8 @@ function StockModal({ stock, onClose }) {
 
           {/* trade plan */}
           <div style={{ background: C.blueWash, border: `1px solid ${C.blueSoft}`, borderRadius: 12, padding: 16 }}>
-            <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.blueDark, letterSpacing: "0.06em", marginBottom: 10 }}>📐 TRADE PLAN (CAN SLIM RULES)</div>
+            <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.blueDark, letterSpacing: "0.06em", marginBottom: 4 }}>📐 TRADE PLAN (CAN SLIM RULES)</div>
+            <PivotChart stock={stock} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
               {[["BUY ZONE", `$${fmtPrice(stock.pivot)}–${fmtPrice(stock.pivot*1.05)}`, C.green], ["STOP (-8%)", `$${fmtPrice(stop)}`, C.red], ["TARGET +20%", `$${fmtPrice(t1)}`, C.blue], ["TARGET +25%", `$${fmtPrice(t2)}`, C.blue]].map(([l, v, col]) => (
                 <div key={l}>
@@ -388,12 +446,7 @@ export default function Dashboard() {
   const [buyOnly, setBuyOnly] = useState(false);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const link = document.createElement("link"); link.rel = "stylesheet"; link.href = GOOGLE_FONT;
-    document.head.appendChild(link);
-    const style = document.createElement("style"); style.textContent = POLISH_CSS;
-    document.head.appendChild(style);
-  }, []);
+  // fonts, theme tokens and polish CSS are injected once by App.jsx
 
   const rows = useMemo(() => UNIVERSE.map((s) => ({ s, ev: evaluate(s), bz: buyZone(s) })), []);
   const sectors = useMemo(() => ["All", ...Array.from(new Set(UNIVERSE.map((s) => s.sector)))], []);
@@ -442,7 +495,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div style={S.content}>
+      <div className="tt-content" style={S.content}>
         {tab === "screener" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <MarketGate />
@@ -466,12 +519,13 @@ export default function Dashboard() {
             </div>
 
             {/* table */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", boxShadow: C.shadow }}>
-              <div style={{ display: "grid", gridTemplateColumns: "190px 88px 64px 1fr 124px 58px", gap: 12, padding: "10px 16px", fontFamily: C.mono, fontSize: 10, color: C.inkMute, letterSpacing: "0.04em", borderBottom: `1px solid ${C.border}`, background: C.surfaceAlt }}>
-                <span>TICKER</span><span>PRICE</span><span>RS</span><span>CAN SLIM LETTERS</span><span>BUY STATUS</span><span style={{ textAlign: "right" }}>SCORE</span>
+            <div className="tt-scroll" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: C.shadow }}>
+             <div className="tt-scroll-inner">
+              <div style={{ display: "grid", gridTemplateColumns: "182px 84px 56px 72px 1fr 116px 50px", gap: 12, padding: "10px 16px", fontFamily: C.mono, fontSize: 10, color: C.inkMute, letterSpacing: "0.04em", borderBottom: `1px solid ${C.border}`, background: C.surfaceAlt, borderRadius: "12px 12px 0 0" }}>
+                <span>TICKER</span><span>PRICE</span><span>RS</span><span>TREND</span><span>CAN SLIM LETTERS</span><span>BUY STATUS</span><span style={{ textAlign: "right" }}>SCORE</span>
               </div>
               {filtered.map(({ s, ev, bz }) => (
-                <div key={s.t} onClick={() => setSelected(s)} style={{ display: "grid", gridTemplateColumns: "190px 88px 64px 1fr 124px 58px", gap: 12, alignItems: "center", padding: "11px 16px", borderBottom: `1px solid ${C.border}`, cursor: "pointer", transition: "background .12s" }}
+                <div key={s.t} onClick={() => setSelected(s)} style={{ display: "grid", gridTemplateColumns: "182px 84px 56px 72px 1fr 116px 50px", gap: 12, alignItems: "center", padding: "11px 16px", borderBottom: `1px solid ${C.border}`, cursor: "pointer", transition: "background .12s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = C.blueWash)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                   <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
                     <Logo ticker={s.t} size={32} />
@@ -488,6 +542,7 @@ export default function Dashboard() {
                     <div style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 700, color: s.rs >= 80 ? C.green : C.inkSoft }}>{s.rs}</div>
                     <Bar value={s.rs} color={s.rs >= 80 ? C.green : C.amber} w={44} h={4} />
                   </div>
+                  <div><Sparkline data={seriesFor(s)} /></div>
                   <div style={{ display: "flex", gap: 4 }}>
                     {ev.parts.map((p) => (
                       <span key={p.k} title={`${p.label}: ${r0(p.score)}`} style={{ width: 22, height: 22, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: C.head, fontSize: 11, fontWeight: 800, color: p.pass ? "#fff" : C.inkMute, background: p.pass ? C.green : C.surfaceAlt, border: `1px solid ${p.pass ? C.green : C.border}` }}>{p.k}</span>
@@ -500,6 +555,7 @@ export default function Dashboard() {
                 </div>
               ))}
               {filtered.length === 0 && <div style={{ padding: 24, fontFamily: C.mono, fontSize: 12, color: C.inkMute, textAlign: "center" }}>No names match the screen — loosen the filters.</div>}
+             </div>
             </div>
             <div style={{ fontFamily: C.mono, fontSize: 10, color: C.inkMute }}>Showing {filtered.length} of {UNIVERSE.length} names · click any row for the full CAN SLIM scorecard, trade plan & AI analysis · letters fill green when the criterion passes.</div>
           </div>
