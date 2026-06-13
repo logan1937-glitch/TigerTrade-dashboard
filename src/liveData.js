@@ -11,6 +11,17 @@
 
 const num = (v) => (v == null || v === "" || Number.isNaN(+v) ? null : +v);
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// run async `worker` over `items` with limited concurrency (don't burst the API)
+async function runPool(items, worker, concurrency = 4) {
+  const queue = [...items];
+  const runners = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
+    while (queue.length) await worker(queue.shift());
+  });
+  await Promise.all(runners);
+}
+
 // FMP quote field names differ between API tiers/versions — read defensively.
 const pick = (q, ...keys) => {
   for (const k of keys) { const v = num(q?.[k]); if (v != null) return v; }
@@ -40,21 +51,27 @@ export async function fetchQuotes(tickers) {
     }
   } catch { /* fall through to per-symbol */ }
 
-  // 2) per-symbol fallback — fetch every ticker the batch didn't cover
+  // 2) per-symbol fallback — fetch every ticker the batch didn't cover.
+  // Throttled (4 at a time) with backoff retry on rate-limit so a free-tier key
+  // doesn't reject the burst — that's what made "only NVDA" update before.
   const missing = tickers.filter((t) => !map[t]);
   if (missing.length && !noKey) {
-    const results = await Promise.allSettled(
-      missing.map(async (t) => {
+    const fetchOne = async (t, attempt = 0) => {
+      try {
         const r = await fetch(`/api/fmp?endpoint=quote&symbol=${t}`);
-        if (r.status === 501) { const e = new Error("no key"); e.code = "NO_KEY"; throw e; }
-        if (!r.ok) { const e = new Error(`status ${r.status}`); e.status = r.status; throw e; }
+        if (r.status === 501) { noKey = true; return; }
+        if ((r.status === 429 || r.status >= 500) && attempt < 3) {
+          await sleep(500 * (attempt + 1));
+          return fetchOne(t, attempt + 1);
+        }
+        if (!r.ok) return;
         const d = await r.json();
-        const q = Array.isArray(d) ? d[0] : d;
-        if (!addIfPriced(q)) throw new Error("no price in response");
-        return true;
-      })
-    );
-    if (results.some((x) => x.status === "rejected" && x.reason?.code === "NO_KEY")) noKey = true;
+        addIfPriced(Array.isArray(d) ? d[0] : d);
+      } catch {
+        if (attempt < 3) { await sleep(500 * (attempt + 1)); return fetchOne(t, attempt + 1); }
+      }
+    };
+    await runPool(missing, fetchOne, 4);
   }
 
   const count = Object.keys(map).length;
