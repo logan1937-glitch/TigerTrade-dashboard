@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { fetchQuotes, mergeLive } from "./liveData.js";
 
 const GOOGLE_FONT = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap";
 
@@ -140,6 +141,33 @@ const Bar = ({ value, color, w = "100%", h = 6 }) => (
   </div>
 );
 const fmtPrice = (p) => p >= 1000 ? p.toLocaleString(undefined, { maximumFractionDigits: 0 }) : p.toFixed(2);
+
+// ── data-source state (live vs. demo — never silently fake) ──────────────────
+const fmtAsOf = (ms) => {
+  try {
+    return new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch { return "—"; }
+};
+// human-readable reason the live feed is unavailable
+const liveReason = (code) =>
+  code === "NO_KEY" ? "no FMP_API_KEY set in the deployment"
+  : code === "NO_DATA" ? "the data feed returned no quotes (check your FMP plan tier)"
+  : "the live feed could not be reached";
+
+function DataBadge({ live }) {
+  const isLive = live.status === "live";
+  const isLoading = live.status === "loading";
+  const col = isLive ? C.green : isLoading ? C.blue : C.red;
+  const label = isLive ? "● LIVE" : isLoading ? "● CONNECTING…" : "● DEMO — NOT LIVE";
+  const sub = isLive ? `as of ${fmtAsOf(live.asOf)}` : isLoading ? "fetching quotes" : "do not trade off these numbers";
+  return (
+    <div title={isLive ? "Live quotes via FMP" : isLoading ? "Connecting to the live feed" : `Live data unavailable — ${liveReason(live.code)}`}
+      style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2 }}>
+      <span style={{ fontFamily: C.mono, fontSize: 10.5, fontWeight: 700, color: col, letterSpacing: "0.04em" }}>{label}</span>
+      <span style={{ fontFamily: C.mono, fontSize: 8.5, color: C.inkMute }}>{sub}</span>
+    </div>
+  );
+}
 
 // ── score donut ──────────────────────────────────────────────────────────────
 const Donut = ({ value, size = 64, label }) => {
@@ -429,7 +457,7 @@ function PlaybookTab() {
         </div>
       </div>
       <div style={{ fontFamily: C.mono, fontSize: 10, color: C.inkMute, lineHeight: 1.7, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-        CAN SLIM® is a trademark of Investor's Business Daily. This dashboard is an educational implementation of the methodology and is not investment advice. Fundamentals and prices shown are a demo dataset for layout — verify against live sources before trading.
+        CAN SLIM® is a trademark of Investor's Business Daily. This dashboard is an educational implementation of the methodology and is not investment advice. Prices, % moves and buy-zone status are live when an FMP key is connected (watch the data badge in the header); earnings growth, RS rank, pivots and catalysts are analyst-maintained model inputs. Always verify against your broker before trading.
       </div>
     </div>
   );
@@ -445,10 +473,26 @@ export default function Dashboard() {
   const [minPass, setMinPass] = useState(0);
   const [buyOnly, setBuyOnly] = useState(false);
   const [search, setSearch] = useState("");
+  const [live, setLive] = useState({ status: "loading" });
 
   // fonts, theme tokens and polish CSS are injected once by App.jsx
 
-  const rows = useMemo(() => UNIVERSE.map((s) => ({ s, ev: evaluate(s), bz: buyZone(s) })), []);
+  // attempt to load live quotes once on mount; degrade loudly to demo on failure
+  useEffect(() => {
+    let alive = true;
+    fetchQuotes(UNIVERSE.map((s) => s.t))
+      .then((r) => { if (alive) setLive(r); })
+      .catch(() => { if (alive) setLive({ status: "unavailable", code: "ERROR", quotes: {} }); });
+    return () => { alive = false; };
+  }, []);
+
+  // merge live price/quote fields over the editorial base when available
+  const universe = useMemo(
+    () => UNIVERSE.map((s) => (live.status === "live" && live.quotes?.[s.t] ? mergeLive(s, live.quotes[s.t]) : s)),
+    [live]
+  );
+
+  const rows = useMemo(() => universe.map((s) => ({ s, ev: evaluate(s), bz: buyZone(s) })), [universe]);
   const sectors = useMemo(() => ["All", ...Array.from(new Set(UNIVERSE.map((s) => s.sector)))], []);
 
   const filtered = useMemo(() => rows
@@ -483,7 +527,8 @@ export default function Dashboard() {
           <div style={{ fontFamily: C.head, fontSize: 20, fontWeight: 800, color: C.blueDeep }}>CAN<span style={{ color: C.orange }}>SLIM</span> SCREENER</div>
           <div style={{ fontFamily: C.mono, fontSize: 10, color: C.inkMute }}>RELATIVE-STRENGTH LEADERSHIP · {MARKET.asOf.toUpperCase()}</div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <DataBadge live={live} />
           <Pill color={C.green}>{inBuyZone} IN BUY ZONE</Pill>
           <Pill color={C.blue}>{aPlus} A+ LEADERS</Pill>
         </div>
@@ -498,6 +543,26 @@ export default function Dashboard() {
       <div className="tt-content" style={S.content}>
         {tab === "screener" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {live.status !== "live" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: C.redSoft, border: `1px solid ${C.red}44`, borderLeft: `4px solid ${C.red}`, borderRadius: 12, padding: "11px 16px" }}>
+                <span style={{ fontFamily: C.head, fontSize: 13, fontWeight: 800, color: C.red }}>
+                  {live.status === "loading" ? "CONNECTING TO LIVE FEED…" : "DEMO DATA — NOT LIVE"}
+                </span>
+                <span style={{ fontFamily: C.mono, fontSize: 10.5, color: C.inkSoft, flex: 1, minWidth: 220 }}>
+                  {live.status === "loading"
+                    ? "Fetching live quotes…"
+                    : `These prices, % moves and buy-zone statuses are an illustrative dataset (${liveReason(live.code)}). Do not trade off them — set FMP_API_KEY in the deployment to drive prices live.`}
+                </span>
+              </div>
+            )}
+            {live.status === "live" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: C.greenSoft, border: `1px solid ${C.green}44`, borderLeft: `4px solid ${C.green}`, borderRadius: 12, padding: "9px 16px" }}>
+                <span style={{ fontFamily: C.head, fontSize: 12.5, fontWeight: 800, color: C.green }}>● LIVE PRICES</span>
+                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.inkSoft, flex: 1, minWidth: 220 }}>
+                  Price, % change, distance off 52-wk high & relative volume are live as of {fmtAsOf(live.asOf)}. Earnings growth, RS rank, pivots & catalysts are analyst-maintained model inputs.
+                </span>
+              </div>
+            )}
             <MarketGate />
             {/* filters */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", boxShadow: C.shadow }}>
