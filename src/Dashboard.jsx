@@ -157,9 +157,11 @@ const liveReason = (code) =>
 function DataBadge({ live }) {
   const isLive = live.status === "live";
   const isLoading = live.status === "loading";
-  const col = isLive ? C.green : isLoading ? C.blue : C.red;
+  const partial = isLive && live.total && live.count < live.total;
+  const col = partial ? C.amber : isLive ? C.green : isLoading ? C.blue : C.red;
   const label = isLive ? "● LIVE" : isLoading ? "● CONNECTING…" : "● DEMO — NOT LIVE";
-  const sub = isLive ? `as of ${fmtAsOf(live.asOf)}` : isLoading ? "fetching quotes" : "do not trade off these numbers";
+  const cover = live.total ? ` · ${live.count}/${live.total} live` : "";
+  const sub = isLive ? `as of ${fmtAsOf(live.asOf)}${cover}` : isLoading ? "fetching quotes" : "do not trade off these numbers";
   return (
     <div title={isLive ? "Live quotes via FMP" : isLoading ? "Connecting to the live feed" : `Live data unavailable — ${liveReason(live.code)}`}
       style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2 }}>

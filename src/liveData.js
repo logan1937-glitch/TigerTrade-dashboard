@@ -17,48 +17,53 @@ const pick = (q, ...keys) => {
   return null;
 };
 
-// Fetch quotes for every ticker. Tries a single batch call first (paid tiers),
-// then falls back to per-symbol quotes (works on the free tier).
+// Fetch quotes for every ticker. Tries a single batch call first (premium
+// tiers), then fills any gaps with per-symbol quotes (work on basic tiers).
+// A quote only counts as "live" if it actually carries a usable price — this is
+// what keeps the badge honest (no green without real prices).
 export async function fetchQuotes(tickers) {
   const map = {};
-  let any = false;
   let noKey = false;
 
-  // 1) batch attempt — one call for the whole universe
+  const addIfPriced = (q) => {
+    if (q && q.symbol && pick(q, "price") != null) { map[q.symbol] = q; return true; }
+    return false;
+  };
+
+  // 1) batch attempt — one call for the whole universe (premium tiers only)
   try {
     const r = await fetch(`/api/fmp?endpoint=batch-quote&symbols=${tickers.join(",")}`);
     if (r.status === 501) noKey = true;
     else if (r.ok) {
       const d = await r.json();
-      if (Array.isArray(d)) for (const q of d) { if (q?.symbol) { map[q.symbol] = q; any = true; } }
+      if (Array.isArray(d)) d.forEach(addIfPriced);
     }
   } catch { /* fall through to per-symbol */ }
 
-  // 2) per-symbol fallback (free tier allows single-symbol quotes)
-  if (!any && !noKey) {
+  // 2) per-symbol fallback — fetch every ticker the batch didn't cover
+  const missing = tickers.filter((t) => !map[t]);
+  if (missing.length && !noKey) {
     const results = await Promise.allSettled(
-      tickers.map(async (t) => {
+      missing.map(async (t) => {
         const r = await fetch(`/api/fmp?endpoint=quote&symbol=${t}`);
         if (r.status === 501) { const e = new Error("no key"); e.code = "NO_KEY"; throw e; }
-        if (!r.ok) throw new Error(`status ${r.status}`);
+        if (!r.ok) { const e = new Error(`status ${r.status}`); e.status = r.status; throw e; }
         const d = await r.json();
         const q = Array.isArray(d) ? d[0] : d;
-        if (!q || num(q.price) == null) throw new Error("empty");
-        return q;
+        if (!addIfPriced(q)) throw new Error("no price in response");
+        return true;
       })
     );
-    for (const res of results) {
-      if (res.status === "fulfilled" && res.value?.symbol) { map[res.value.symbol] = res.value; any = true; }
-      if (res.status === "rejected" && res.reason?.code === "NO_KEY") noKey = true;
-    }
+    if (results.some((x) => x.status === "rejected" && x.reason?.code === "NO_KEY")) noKey = true;
   }
 
-  if (!any) return { status: "unavailable", code: noKey ? "NO_KEY" : "NO_DATA", quotes: {} };
+  const count = Object.keys(map).length;
+  if (!count) return { status: "unavailable", code: noKey ? "NO_KEY" : "NO_DATA", quotes: {} };
 
   // real "as of" — newest quote timestamp we got back, else now
   let asOf = 0;
   for (const q of Object.values(map)) { const t = num(q.timestamp); if (t) asOf = Math.max(asOf, t * 1000); }
-  return { status: "live", code: "OK", asOf: asOf || Date.now(), quotes: map, count: any ? Object.keys(map).length : 0 };
+  return { status: "live", code: "OK", asOf: asOf || Date.now(), quotes: map, count, total: tickers.length };
 }
 
 // Merge a live quote over an editorial stock record. Only overrides fields the
