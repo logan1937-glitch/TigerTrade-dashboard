@@ -13,8 +13,38 @@ const C = {
   red: "#dc2626", redSoft: "#fee2e2",
   amber: "#d97706",
   head: "'Syne',sans-serif", mono: "'IBM Plex Mono',monospace",
-  shadow: "0 1px 3px rgba(15,23,42,0.07)", shadowMd: "0 8px 24px rgba(15,23,42,0.12)",
+  shadowSm: "0 1px 2px rgba(15,23,42,0.08)",
+  shadow: "0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.08)",
+  shadowMd: "0 24px 50px rgba(15,23,42,0.22)",
+  hi: "inset 0 1px 0 rgba(255,255,255,0.9)",
+  cardGrad: "linear-gradient(180deg, #fdfeff 0%, #f3f6fb 100%)",
 };
+
+// global polish: hover-lift cards + button press, injected once
+const POLISH_CSS = `
+.tt-card{box-shadow:0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.08); transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;}
+.tt-card:hover{transform:translateY(-3px); box-shadow:0 16px 34px rgba(15,23,42,0.18); border-color:#c3d0e2;}
+.tt-btn{transition:transform .1s ease, box-shadow .12s ease, filter .12s ease;}
+.tt-btn:hover{filter:brightness(1.04);}
+.tt-btn:active{transform:translateY(1px);}
+.tt-img{-webkit-user-drag:none; user-select:none;}
+`;
+
+// ── company logo (real logo → clean monogram fallback) ───────────────────────
+function Logo({ ticker, size = 30, radius = 8 }) {
+  const [err, setErr] = useState(false);
+  if (err) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: radius, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "'Syne',sans-serif", fontSize: size * 0.36, fontWeight: 800, letterSpacing: "-0.02em", background: "linear-gradient(135deg,#1e3a8a,#2563eb)", boxShadow: "0 1px 2px rgba(15,23,42,0.25), inset 0 1px 0 rgba(255,255,255,0.35)" }}>
+        {ticker.slice(0, 2)}
+      </div>
+    );
+  }
+  return (
+    <img className="tt-img" src={`https://financialmodelingprep.com/image-stock/${ticker}.png`} alt={ticker} onError={() => setErr(true)}
+      style={{ width: size, height: size, borderRadius: radius, objectFit: "contain", background: "#fff", border: "1px solid #e2e8f0", padding: 3, boxShadow: "0 1px 2px rgba(15,23,42,0.10)", flexShrink: 0 }} />
+  );
+}
 
 // ── market health (the "M" — gates all buying) ───────────────────────────────
 const MARKET = {
@@ -167,8 +197,8 @@ VERDICT: [BUY NOW / BUY ON BREAKOUT / WATCHLIST / AVOID — one line why]` }] })
   };
   return (
     <div style={{ marginTop: 4 }}>
-      <button onClick={run} disabled={loading}
-        style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, padding: "9px 16px", background: loading ? C.surfaceAlt : C.orange, color: loading ? C.inkMute : "#fff", border: "none", borderRadius: 8, cursor: loading ? "default" : "pointer", letterSpacing: "0.04em", boxShadow: loading ? "none" : C.shadow }}>
+      <button onClick={run} disabled={loading} className="tt-btn"
+        style={{ fontFamily: C.mono, fontSize: 11, fontWeight: 700, padding: "9px 16px", background: loading ? C.surfaceAlt : "linear-gradient(180deg,#fb923c,#ea580c)", color: loading ? C.inkMute : "#fff", border: "none", borderRadius: 8, cursor: loading ? "default" : "pointer", letterSpacing: "0.04em", boxShadow: loading ? "none" : "0 2px 6px rgba(234,88,12,0.35), inset 0 1px 0 rgba(255,255,255,0.3)" }}>
         {loading ? "ANALYZING…" : `▶ AI TRADE ANALYSIS — ${stock.t}`}
       </button>
       {out && <pre style={{ marginTop: 12, fontFamily: C.mono, fontSize: 11.5, color: C.inkSoft, lineHeight: 1.7, whiteSpace: "pre-wrap", background: C.blueWash, border: `1px solid ${C.blueSoft}`, borderRadius: 10, padding: "14px 16px" }}>{out}</pre>}
@@ -186,12 +216,15 @@ function StockModal({ stock, onClose }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: C.surface, borderRadius: 16, width: 560, maxWidth: "100%", maxHeight: "92vh", overflowY: "auto", boxShadow: C.shadowMd, border: `1px solid ${C.border}` }}>
         {/* header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "22px 24px", borderBottom: `1px solid ${C.border}`, background: `linear-gradient(135deg, ${C.blueWash}, ${C.surface})` }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ fontFamily: C.head, fontSize: 26, fontWeight: 800, color: C.blueDeep }}>{stock.t}</div>
-              <Pill color={gradeColor(ev.composite)} solid>{grade(ev.composite)}</Pill>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <Logo ticker={stock.t} size={46} radius={11} />
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ fontFamily: C.head, fontSize: 26, fontWeight: 800, color: C.blueDeep }}>{stock.t}</div>
+                <Pill color={gradeColor(ev.composite)} solid>{grade(ev.composite)}</Pill>
+              </div>
+              <div style={{ fontFamily: C.mono, fontSize: 12, color: C.inkSoft, marginTop: 3 }}>{stock.n} · {stock.group}</div>
             </div>
-            <div style={{ fontFamily: C.mono, fontSize: 12, color: C.inkSoft, marginTop: 3 }}>{stock.n} · {stock.group}</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: C.ink }}>${fmtPrice(stock.price)}</div>
@@ -275,7 +308,7 @@ function MarketTab() {
       <MarketGate />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
         {MARKET.indices.map((ix) => (
-          <div key={ix.sym} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, boxShadow: C.shadow }}>
+          <div key={ix.sym} className="tt-card" style={{ background: C.cardGrad, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <div style={{ fontFamily: C.head, fontSize: 14, fontWeight: 800, color: C.ink }}>{ix.name}</div>
               <Chg v={ix.chg} />
@@ -289,7 +322,7 @@ function MarketTab() {
           </div>
         ))}
       </div>
-      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, boxShadow: C.shadow }}>
+      <div className="tt-card" style={{ background: C.cardGrad, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
         <div style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: C.blueDark, letterSpacing: "0.06em", marginBottom: 12 }}>MARKET BREADTH</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 16 }}>
           {[["% above 50-DMA", breadth.above50 + "%", breadth.above50 >= 50 ? C.green : C.red, breadth.above50], ["% above 200-DMA", breadth.above200 + "%", breadth.above200 >= 50 ? C.green : C.red, breadth.above200], ["New 52-wk highs", breadth.newHighs, C.green, null], ["New 52-wk lows", breadth.newLows, C.red, null]].map(([l, v, col, bar]) => (
@@ -314,7 +347,7 @@ function PlaybookTab() {
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 10 }}>
         {LETTERS.map((L) => (
-          <div key={L.k} style={{ background: C.surface, border: `1px solid ${C.border}`, borderLeft: `4px solid ${C.blue}`, borderRadius: 12, padding: 14, boxShadow: C.shadow }}>
+          <div key={L.k} className="tt-card" style={{ background: C.cardGrad, border: `1px solid ${C.border}`, borderLeft: `4px solid ${C.blue}`, borderRadius: 12, padding: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ fontFamily: C.head, fontSize: 22, fontWeight: 800, color: C.orange }}>{L.k}</div>
               <div style={{ fontFamily: C.head, fontSize: 14, fontWeight: 700, color: C.ink }}>{L.label}</div>
@@ -324,13 +357,13 @@ function PlaybookTab() {
         ))}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
-        <div style={{ background: C.greenSoft, border: `1px solid ${C.green}33`, borderRadius: 12, padding: 16 }}>
+        <div className="tt-card" style={{ background: C.greenSoft, border: `1px solid ${C.green}33`, borderRadius: 12, padding: 16 }}>
           <div style={{ fontFamily: C.head, fontSize: 14, fontWeight: 800, color: C.green, marginBottom: 8 }}>BUY RULES</div>
           {["Buy within 5% of a proper pivot (cup-with-handle, flat base, high-tight flag).", "Demand breakout volume ≥ 40–50% above average.", "Only buy in a Confirmed Uptrend (the M).", "Concentrate in the top few leaders, not laggards."].map((r, i) => (
             <div key={i} style={{ fontFamily: C.mono, fontSize: 10.5, color: C.inkSoft, lineHeight: 1.6, marginBottom: 5 }}>✓ {r}</div>
           ))}
         </div>
-        <div style={{ background: C.redSoft, border: `1px solid ${C.red}33`, borderRadius: 12, padding: 16 }}>
+        <div className="tt-card" style={{ background: C.redSoft, border: `1px solid ${C.red}33`, borderRadius: 12, padding: 16 }}>
           <div style={{ fontFamily: C.head, fontSize: 14, fontWeight: 800, color: C.red, marginBottom: 8 }}>SELL RULES</div>
           {["Cut every loss at 7–8% below your buy — no exceptions.", "Take most gains into the +20–25% zone.", "Sell on a break of the 50-DMA on heavy volume.", "Reduce exposure as distribution days cluster."].map((r, i) => (
             <div key={i} style={{ fontFamily: C.mono, fontSize: 10.5, color: C.inkSoft, lineHeight: 1.6, marginBottom: 5 }}>✕ {r}</div>
@@ -358,6 +391,8 @@ export default function Dashboard() {
   useEffect(() => {
     const link = document.createElement("link"); link.rel = "stylesheet"; link.href = GOOGLE_FONT;
     document.head.appendChild(link);
+    const style = document.createElement("style"); style.textContent = POLISH_CSS;
+    document.head.appendChild(style);
   }, []);
 
   const rows = useMemo(() => UNIVERSE.map((s) => ({ s, ev: evaluate(s), bz: buyZone(s) })), []);
@@ -381,7 +416,7 @@ export default function Dashboard() {
 
   const S = {
     wrap: { minHeight: "100vh", background: C.bg, fontFamily: C.head, color: C.ink },
-    header: { background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 },
+    header: { background: C.cardGrad, borderBottom: `1px solid ${C.border}`, padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, boxShadow: "0 1px 3px rgba(15,23,42,0.06)" },
     tabs: { display: "flex", gap: 4, padding: "14px 28px 0", flexWrap: "wrap" },
     tab: (a) => ({ fontFamily: C.mono, fontSize: 11, fontWeight: 600, padding: "9px 16px", border: "none", borderRadius: "8px 8px 0 0", background: a ? C.surface : "transparent", color: a ? C.blue : C.inkSoft, cursor: "pointer", letterSpacing: "0.04em", borderBottom: a ? `2px solid ${C.blue}` : "2px solid transparent" }),
     content: { padding: "22px 28px 48px", maxWidth: 1200, margin: "0 auto" },
@@ -432,15 +467,18 @@ export default function Dashboard() {
 
             {/* table */}
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", boxShadow: C.shadow }}>
-              <div style={{ display: "grid", gridTemplateColumns: "150px 90px 70px 1fr 130px 64px", gap: 12, padding: "10px 16px", fontFamily: C.mono, fontSize: 10, color: C.inkMute, letterSpacing: "0.04em", borderBottom: `1px solid ${C.border}`, background: C.surfaceAlt }}>
+              <div style={{ display: "grid", gridTemplateColumns: "190px 88px 64px 1fr 124px 58px", gap: 12, padding: "10px 16px", fontFamily: C.mono, fontSize: 10, color: C.inkMute, letterSpacing: "0.04em", borderBottom: `1px solid ${C.border}`, background: C.surfaceAlt }}>
                 <span>TICKER</span><span>PRICE</span><span>RS</span><span>CAN SLIM LETTERS</span><span>BUY STATUS</span><span style={{ textAlign: "right" }}>SCORE</span>
               </div>
               {filtered.map(({ s, ev, bz }) => (
-                <div key={s.t} onClick={() => setSelected(s)} style={{ display: "grid", gridTemplateColumns: "150px 90px 70px 1fr 130px 64px", gap: 12, alignItems: "center", padding: "11px 16px", borderBottom: `1px solid ${C.border}`, cursor: "pointer", transition: "background .12s" }}
+                <div key={s.t} onClick={() => setSelected(s)} style={{ display: "grid", gridTemplateColumns: "190px 88px 64px 1fr 124px 58px", gap: 12, alignItems: "center", padding: "11px 16px", borderBottom: `1px solid ${C.border}`, cursor: "pointer", transition: "background .12s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = C.blueWash)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-                  <div>
-                    <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: C.blueDeep }}>{s.t}</div>
-                    <div style={{ fontFamily: C.mono, fontSize: 9.5, color: C.inkMute, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.group}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                    <Logo ticker={s.t} size={32} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: C.blueDeep }}>{s.t}</div>
+                      <div style={{ fontFamily: C.mono, fontSize: 9.5, color: C.inkMute, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.n}</div>
+                    </div>
                   </div>
                   <div>
                     <div style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 600, color: C.ink }}>${fmtPrice(s.price)}</div>

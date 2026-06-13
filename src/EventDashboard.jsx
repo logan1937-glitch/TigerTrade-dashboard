@@ -59,7 +59,7 @@ function buildEvents() {
   const E = [];
   let id = 0;
   const add = (date, cat, weight, title, note, opts = {}) =>
-    E.push({ id: id++, date, cat, weight, title, note, approx: !!opts.approx, span: opts.span || null, endDate: opts.endDate || null });
+    E.push({ id: id++, date, cat, weight, title, note, approx: !!opts.approx, span: opts.span || null, endDate: opts.endDate || null, logo: opts.logo || null });
 
   // ── 1. Central Bank & Sovereign Liquidity ──────────────────────────────────
   // FOMC — explicit 2-day meetings; decision lands on the second day.
@@ -116,12 +116,12 @@ function buildEvents() {
   earnings.forEach(([s, e, t]) => add(s, "growth", "HIGH", t, "Quarterly volatility cluster. Mega-cap tech heavyweights concentrate in the final week — peak single-name gamma.", { approx: true, endDate: e, span: `${fmtShort(s)} → ${fmtShort(e)}` }));
 
   // Conferences.
-  add(D(2026, 2, 17), "growth", "HIGH", "NVIDIA GTC", "The structural benchmark for the AI ecosystem. Drives immediate thematic alpha and momentum shifts across semis & power.", { approx: true });
-  add(D(2027, 2, 16), "growth", "HIGH", "NVIDIA GTC", "The structural benchmark for the AI ecosystem. Drives immediate thematic alpha and momentum shifts across semis & power.", { approx: true });
-  add(D(2026, 4, 19), "growth", "MEDIUM", "Google I/O", "Key window for software monetization & consumer-AI narratives.", { approx: true });
-  add(D(2027, 4, 18), "growth", "MEDIUM", "Google I/O", "Key window for software monetization & consumer-AI narratives.", { approx: true });
-  add(D(2026, 5, 8), "growth", "MEDIUM", "Apple WWDC", "Consumer tech & on-device-AI monetization narratives.", { approx: true });
-  add(D(2027, 5, 7), "growth", "MEDIUM", "Apple WWDC", "Consumer tech & on-device-AI monetization narratives.", { approx: true });
+  add(D(2026, 2, 17), "growth", "HIGH", "NVIDIA GTC", "The structural benchmark for the AI ecosystem. Drives immediate thematic alpha and momentum shifts across semis & power.", { approx: true, logo: "NVDA" });
+  add(D(2027, 2, 16), "growth", "HIGH", "NVIDIA GTC", "The structural benchmark for the AI ecosystem. Drives immediate thematic alpha and momentum shifts across semis & power.", { approx: true, logo: "NVDA" });
+  add(D(2026, 4, 19), "growth", "MEDIUM", "Google I/O", "Key window for software monetization & consumer-AI narratives.", { approx: true, logo: "GOOGL" });
+  add(D(2027, 4, 18), "growth", "MEDIUM", "Google I/O", "Key window for software monetization & consumer-AI narratives.", { approx: true, logo: "GOOGL" });
+  add(D(2026, 5, 8), "growth", "MEDIUM", "Apple WWDC", "Consumer tech & on-device-AI monetization narratives.", { approx: true, logo: "AAPL" });
+  add(D(2027, 5, 7), "growth", "MEDIUM", "Apple WWDC", "Consumer tech & on-device-AI monetization narratives.", { approx: true, logo: "AAPL" });
 
   // ── 4. High-Impact Macro Data (monthly) ────────────────────────────────────
   MONTHS_2YR.forEach(([y, m]) => {
@@ -158,6 +158,20 @@ const Tag = ({ color, children, solid }) => (
 
 const today = new Date(); today.setHours(0, 0, 0, 0);
 const daysUntil = (d) => Math.round((d - today) / 86400000);
+
+const POLISH_CSS = `
+.tt-card{box-shadow:0 1px 2px rgba(15,23,42,0.05), 0 3px 10px rgba(15,23,42,0.06); transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;}
+.tt-card:hover{transform:translateY(-2px); box-shadow:0 12px 26px rgba(15,23,42,0.15); border-color:#c3d0e2;}
+.tt-img{-webkit-user-drag:none; user-select:none;}
+`;
+
+function Logo({ ticker, size = 24, radius = 6 }) {
+  const [err, setErr] = useState(false);
+  if (err) return (
+    <div style={{ width: size, height: size, borderRadius: radius, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "'Syne',sans-serif", fontSize: size * 0.4, fontWeight: 800, background: "linear-gradient(135deg,#1e3a8a,#2563eb)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35)" }}>{ticker.slice(0, 1)}</div>
+  );
+  return <img className="tt-img" src={`https://financialmodelingprep.com/image-stock/${ticker}.png`} alt={ticker} onError={() => setErr(true)} style={{ width: size, height: size, borderRadius: radius, objectFit: "contain", background: "#fff", border: "1px solid #e2e8f0", padding: 2, flexShrink: 0 }} />;
+}
 
 // ── AI briefing ──────────────────────────────────────────────────────────────
 function AIBriefing({ upcoming }) {
@@ -222,16 +236,19 @@ function EventRow({ e }) {
   const past = du < 0;
   const imminent = du >= 0 && du <= 7;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "84px 1fr auto", gap: 14, alignItems: "center", padding: "11px 14px", background: past ? "#eef2f7" : "#f7f9fc", borderRadius: 5, border: `1px solid ${imminent ? w.color + "55" : "#dde3ec"}`, borderLeft: `3px solid ${cat.color}`, opacity: past ? 0.5 : 1, transition: "all 0.15s" }}>
+    <div className="tt-card" style={{ display: "grid", gridTemplateColumns: "84px 1fr auto", gap: 14, alignItems: "center", padding: "11px 14px", background: past ? "#eef2f7" : "#fdfeff", borderRadius: 9, border: `1px solid ${imminent ? w.color + "66" : "#dde3ec"}`, borderLeft: `3px solid ${cat.color}`, opacity: past ? 0.55 : 1 }}>
       <div style={{ textAlign: "left" }}>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{e.approx && <span style={{ color: "#475569" }}>~</span>}{fmtShort(e.date)}</div>
         <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9.5, color: imminent ? w.color : "#475569", marginTop: 1, fontWeight: imminent ? 700 : 400 }}>
           {past ? "PASSED" : du === 0 ? "● TODAY" : `T-${du}d`}
         </div>
       </div>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: past ? "#64748b" : "#0f172a" }}>{e.title}{e.span && <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#64748b", fontWeight: 400, marginLeft: 8 }}>{e.span}</span>}</div>
-        <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, color: "#64748b", marginTop: 3, lineHeight: 1.5 }}>{e.note}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        {e.logo && <Logo ticker={e.logo} size={28} />}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: past ? "#64748b" : "#0f172a" }}>{e.title}{e.span && <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: "#64748b", fontWeight: 400, marginLeft: 8 }}>{e.span}</span>}</div>
+          <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10.5, color: "#64748b", marginTop: 3, lineHeight: 1.5 }}>{e.note}</div>
+        </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end" }}>
         <Tag color={w.color} solid={e.weight === "EXTREME"}>{w.label}</Tag>
@@ -255,6 +272,8 @@ export default function EventDashboard() {
     const link = document.createElement("link");
     link.rel = "stylesheet"; link.href = GOOGLE_FONT;
     document.head.appendChild(link);
+    const style = document.createElement("style"); style.textContent = POLISH_CSS;
+    document.head.appendChild(style);
   }, []);
 
   const toggleCat = (k) => setActiveCats((c) => c.includes(k) ? c.filter((x) => x !== k) : [...c, k]);
