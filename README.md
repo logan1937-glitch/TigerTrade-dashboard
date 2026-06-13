@@ -1,6 +1,32 @@
-# CANSLIM RS Dashboard
+# TigerTrade Dashboards
 
-A CANSLIM-inspired relative strength trading dashboard with live AI analysis powered by Claude.
+Two trading dashboards in one app, switchable from the top bar:
+
+1. **Volatility & Momentum Radar** *(default)* — the Master Volatility & Growth
+   Momentum Event Template for 2026–2027. Tracks the scheduled catalysts that
+   drive cross-asset volatility, grouped into five regimes:
+   - **Central Bank & Sovereign Liquidity** — FOMC, BoJ, ECB, Treasury QRA, fiscal X-dates
+   - **Mechanical Flow Rebalancing** — quad witching, S&P / Nasdaq-100 / Russell reconstitutions
+   - **Growth & Tech-Thematic Catalysts** — earnings seasons, NVIDIA GTC, Apple WWDC, Google I/O, mega-cap IPOs
+   - **High-Impact Macro Data** — NFP, CPI/PPI, ISM PMIs
+   - **Geopolitical, Commodity & Regulatory** — US midterms, OPEC+, DOJ/antitrust
+
+   Views: **Radar** (countdown to upcoming events), **Full Timeline** (grouped by
+   month), **Calendar** (month grid with event dots), and **Playbook + AI**
+   (regime reference + a Claude-generated volatility briefing). Filter by
+   category, minimum weight, or free-text search.
+
+   > FOMC, quadruple-witching (3rd Friday), Russell reconstitution (last Friday
+   > of June), NFP (first Friday) and the US midterms use exact dates. Items
+   > marked `~` (BoJ, ECB, QRA, CPI/PPI, ISM, earnings windows, conferences,
+   > OPEC+) are projected from standard schedules — verify against official
+   > calendars before trading.
+
+2. **CANSLIM RS Dashboard** — a CANSLIM-inspired relative strength trading
+   dashboard with per-stock AI scorecards.
+
+Both share a Claude-backed serverless proxy (`/api/claude`) so the Anthropic
+API key never reaches the browser.
 
 ---
 
@@ -83,12 +109,14 @@ the fetch URL in Dashboard.jsx from `/api/claude` to `/.netlify/functions/claude
 ## Project structure
 
 ```
-canslim-dashboard/
+tigertrade-dashboard/
 ├── api/
-│   └── claude.js        ← Serverless proxy (keeps API key secure)
+│   └── claude.js            ← Serverless proxy (keeps API key secure)
 ├── src/
-│   ├── main.jsx         ← React entry point
-│   └── Dashboard.jsx    ← Main dashboard component
+│   ├── main.jsx             ← React entry point
+│   ├── App.jsx              ← Product switcher shell
+│   ├── EventDashboard.jsx   ← Volatility & Momentum Radar (default)
+│   └── Dashboard.jsx        ← CANSLIM RS dashboard
 ├── index.html
 ├── package.json
 ├── vercel.json
