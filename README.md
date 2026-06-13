@@ -72,6 +72,33 @@ Your dashboard is now live at `https://canslim-dashboard-[yourname].vercel.app` 
 
 ---
 
+## Automated deploys (GitHub Actions → Vercel)
+
+`.github/workflows/deploy.yml` deploys automatically:
+- **Every pull request** → a Vercel **preview** build; the workflow comments the
+  preview URL on the PR (and updates it on new pushes).
+- **Every push to `main`** → a **production** deploy.
+
+### One-time setup
+1. Run `vercel` once locally (Steps 1–5 above) to create/link the project. This
+   writes `.vercel/project.json` containing your **orgId** and **projectId**.
+2. Create a Vercel token at https://vercel.com/account/tokens.
+3. In the GitHub repo → **Settings → Secrets and variables → Actions**, add:
+   - `VERCEL_TOKEN` — the token from step 2
+   - `VERCEL_ORG_ID` — `orgId` from `.vercel/project.json`
+   - `VERCEL_PROJECT_ID` — `projectId` from `.vercel/project.json`
+4. In the Vercel project settings, add `ANTHROPIC_API_KEY` for the Production,
+   Preview, and Development environments so the AI features work in deploys.
+
+Once the secrets are set, the next push to this branch updates the PR with a
+live preview link — no manual `vercel` commands needed.
+
+> Prefer zero-config? You can instead just **Import** the repo at
+> https://vercel.com/new and Vercel will auto-deploy every push/PR without this
+> workflow. Use the Actions workflow if you want deploys gated behind CI.
+
+---
+
 ## Run locally (for development)
 
 ```bash
