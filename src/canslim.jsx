@@ -3,7 +3,7 @@ import { TT } from "./tt.js";
 import { SearchIcon, StarBtn } from "./components.jsx";
 import { RSLine, BarMeter } from "./charts.jsx";
 
-const LETTERS = ["C", "A", "N", "S", "L", "I", "M"];
+const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
 
 const fmtAsOf = (ms) => {
   try { return new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
@@ -73,7 +73,7 @@ function Screener({ rows, onOpenStock }) {
       <div className="cs-table">
         <div className="cs-head">
           <span>Ticker</span><span style={{ textAlign: "right" }}>Price</span><span>RS</span><span>Trend</span>
-          <span>CAN SLIM</span><span style={{ textAlign: "right" }}>Buy Status</span><span style={{ textAlign: "right" }}>Score</span>
+          <span>Leadership</span><span style={{ textAlign: "right" }}>Buy Status</span><span style={{ textAlign: "right" }}>Score</span>
         </div>
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}>
@@ -142,7 +142,8 @@ function MarketHealth() {
 function CanslimPlaybook({ rows, onOpenStock }) {
   const buys = rows.filter((s) => s.status === "buy").slice(0, 5);
   return (
-    <div className="wrap pb">
+    <div className="wrap">
+    <div className="pb">
       <div className="pb-card pb-brief">
         <h3><span className="hero-badge" style={{ padding: "3px 7px", fontSize: 9, "--accent": "var(--cat-growth)", color: "var(--cat-growth)" }}>AI</span> Screener read · {TT.todayLabel}</h3>
         <p>The general market is in a <b>confirmed uptrend</b> with just 3 distribution days — buying is permitted.
@@ -168,6 +169,13 @@ function CanslimPlaybook({ rows, onOpenStock }) {
         </div>
       </div>
     </div>
+    <p className="mono" style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "18px 2px 64px", maxWidth: "70ch" }}>
+      The <b style={{ color: "var(--muted)", fontWeight: 600 }}>TigerTrade Leadership Model (LEADERS)</b> is our own 7-factor
+      relative-strength growth framework — Leadership, Earnings momentum, Accumulation, Durable growth, Emerging breakout,
+      Rising sponsorship, Setup. Its factors follow classic leadership-investing principles popularized by William J. O'Neil.
+      TigerTrade is independent and not affiliated with, sponsored by, or endorsed by Investor's Business Daily;
+      “CAN SLIM” is a registered trademark of Investor's Business Daily, Inc. Educational use only — not investment advice.
+    </p>
   );
 }
 
@@ -193,7 +201,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         <div className="wrap hero-row">
           <div className="hero-left">
             <div className="hero-eyebrow mono"><span className="hero-pulse" style={{ background: dotColor }} />{isLive ? "Live relative-strength leadership" : "Relative-strength leadership"}</div>
-            <h1 className="hero-title">CANSLIM Screener</h1>
+            <h1 className="hero-title">Leadership Screener</h1>
             <span className="hero-meta" style={!isLive && live.status !== "loading" ? { color: "var(--sev-extreme)" } : undefined}>{meta}</span>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

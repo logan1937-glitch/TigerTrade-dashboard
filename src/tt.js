@@ -377,28 +377,33 @@ const _BASE = [
     hq: "Denver, Colorado", bio: "Builds data-analytics and AI software platforms — Gotham, Foundry and AIP — for government and large enterprises. Strong growth, but trades at a rich multiple." },
 ];
 
-const _CANSLIM_DEFS = (s, f) => [
-  { key: "C", name: "Current Earnings", value: `+${f.epsQ}% EPS QoQ`, pass: f.epsQ >= 25,
-    note: "Latest-quarter EPS growth vs year-ago. CAN SLIM wants ≥ 25%." },
-  { key: "A", name: "Annual Earnings",  value: `+${f.epsA}% / 3-yr`,  pass: f.epsA >= 25,
-    note: "Annual EPS growth and consistency over 3 years, ROE ≥ 17%." },
-  { key: "N", name: "New",              value: s.status === "watch" ? "Near new high" : "New 52-wk high", pass: s.status !== "watch",
-    note: "New product, management, or price high out of a sound base." },
-  { key: "S", name: "Supply & Demand",  value: `Vol +${40 + (s.tk.charCodeAt(0) % 40)}% on break`, pass: s.status !== "watch",
-    note: "Demand confirmed by volume; manageable float." },
-  { key: "L", name: "Leader/Laggard",   value: `RS ${s.rs} · grp #${s.groupRank}`, pass: s.rs >= 85,
-    note: "Buy market leaders (RS ≥ 85) in leading groups." },
-  { key: "I", name: "Institutional",    value: `${f.funds}% held · funds ${f.fundsChg > 0 ? "+" : ""}${f.fundsChg}`, pass: f.fundsChg > 0,
-    note: "Rising fund ownership and improving accumulation/distribution." },
-  { key: "M", name: "Market Direction", value: "Confirmed uptrend", pass: true,
-    note: "3-of-4 stocks follow the general market; buy only in uptrends." },
+/* The TigerTrade Leadership Model — a 7-factor relative-strength growth
+   framework. Our own naming/acronym (LEADERS); the underlying factors follow
+   classic leadership-investing principles popularized by William J. O'Neil.
+   Independent and not affiliated with or endorsed by Investor's Business Daily;
+   "CAN SLIM" is a registered trademark of Investor's Business Daily, Inc. */
+const _LEADERS_DEFS = (s, f) => [
+  { key: "f1", letter: "L", name: "Leadership (RS)", value: `RS ${s.rs} · grp #${s.groupRank}`, pass: s.rs >= 85,
+    note: "Relative-strength rank vs the market — favor leaders (RS ≥ 85) in leading groups." },
+  { key: "f2", letter: "E", name: "Earnings momentum", value: `+${f.epsQ}% EPS QoQ`, pass: f.epsQ >= 25,
+    note: "Latest-quarter EPS growth vs a year ago; we want ≥ 25%." },
+  { key: "f3", letter: "A", name: "Accumulation", value: `Vol +${40 + (s.tk.charCodeAt(0) % 40)}% on break`, pass: s.status !== "watch",
+    note: "Demand confirmed by above-average volume on up days; manageable float." },
+  { key: "f4", letter: "D", name: "Durable growth", value: `+${f.epsA}% / 3-yr`, pass: f.epsA >= 25,
+    note: "Multi-year annual EPS growth and consistency; ROE ≥ 17%." },
+  { key: "f5", letter: "E", name: "Emerging breakout", value: s.status === "watch" ? "Near new high" : "New 52-wk high", pass: s.status !== "watch",
+    note: "Price breaking to a new high out of a sound base, on a fresh catalyst." },
+  { key: "f6", letter: "R", name: "Rising sponsorship", value: `${f.funds}% held · funds ${f.fundsChg > 0 ? "+" : ""}${f.fundsChg}`, pass: f.fundsChg > 0,
+    note: "Increasing institutional ownership and improving accumulation/distribution." },
+  { key: "f7", letter: "S", name: "Setup — market", value: "Confirmed uptrend", pass: true,
+    note: "Buy only when the general market is in a confirmed uptrend." },
 ];
 
 TT.CANSLIM = _BASE.map((s) => {
   const ser = _series(s.tk.split("").reduce((a, c) => a + c.charCodeAt(0) * 31, 7), s.px, s.status);
   const pivot = ser.pivot;
   const pctExt = +(((s.px - pivot) / pivot) * 100).toFixed(1);
-  const breakdown = _CANSLIM_DEFS(s, s.f);
+  const breakdown = _LEADERS_DEFS(s, s.f);
   const pass = breakdown.filter((b) => b.pass).length;
   const score = Math.min(99, Math.round(
     pass / 7 * 40 + s.rs * 0.35 + Math.min(s.f.epsQ, 150) / 150 * 15 +

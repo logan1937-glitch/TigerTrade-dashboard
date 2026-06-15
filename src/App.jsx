@@ -107,7 +107,7 @@ export default function App() {
     const cmds = [];
     [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["playbook", "Playbook + AI"]]
       .forEach(([id, label]) => cmds.push({ id: "tab-" + id, group: "Navigate", label, hint: "View", run: () => { setProduct("radar"); setTab(id); } }));
-    cmds.push({ id: "prod-canslim", group: "Navigate", label: "CANSLIM Screener", hint: "Product", run: () => setProduct("canslim") });
+    cmds.push({ id: "prod-canslim", group: "Navigate", label: "Leadership Screener", hint: "Product", run: () => setProduct("canslim") });
     TT.CATEGORIES.forEach((c) => cmds.push({ id: "cat-" + c.id, group: "Filter", label: "Toggle " + c.label, dot: c.color, run: () => { setProduct("radar"); setTab("radar"); toggleCat(c.id); } }));
     [["all", "All"], ["medium", "Medium+"], ["high", "High+"], ["extreme", "Extreme only"]]
       .forEach(([id, label]) => cmds.push({ id: "wt-" + id, group: "Filter", label: "Min weight: " + label, run: () => { setProduct("radar"); setTab("radar"); setMinWt(id); } }));

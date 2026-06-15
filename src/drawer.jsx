@@ -199,11 +199,11 @@ export function StockDrawerBody({ stock, onClose }) {
       </div>
 
       <div className="dr-sec">
-        <div className="dr-sec-h"><h3>CAN SLIM breakdown</h3><span className="dr-sec-sub mono">{s.pass}/7 criteria</span></div>
+        <div className="dr-sec-h"><h3>Leadership model</h3><span className="dr-sec-sub mono">{s.pass}/7 factors</span></div>
         <div className="dr-canslim">
           {s.breakdown.map((b) => (
             <div className="dr-cs" key={b.key} data-pass={b.pass}>
-              <span className="dr-cs-let">{b.key}</span>
+              <span className="dr-cs-let">{b.letter}</span>
               <div className="dr-cs-body">
                 <div className="dr-cs-top"><span className="dr-cs-name">{b.name}</span><span className="dr-cs-val mono">{b.value}</span></div>
                 <p className="dr-cs-note">{b.note}</p>

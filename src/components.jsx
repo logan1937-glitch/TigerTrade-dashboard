@@ -96,7 +96,7 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
       <div className="brand"><span className="dot" /><span className="b1">Tiger</span><span className="b2">Trade</span></div>
       <div className="nav-pills">
         <button className="navpill" data-active={product === "radar"} onClick={() => setProduct("radar")}>Volatility · Momentum Radar</button>
-        <button className="navpill" data-active={product === "canslim"} onClick={() => setProduct("canslim")}>CANSLIM Screener</button>
+        <button className="navpill" data-active={product === "canslim"} onClick={() => setProduct("canslim")}>Leadership Screener</button>
       </div>
       <div className="topbar-spacer" />
       <div className="live"><span className="live-dot" /><span className="live-tx mono">LIVE</span><span className="live-clk mono">{clock} ET</span></div>

@@ -26,20 +26,26 @@ right-side analysis drawers, a persistent watchlist, and animated SVG charts.
    > OPEC+) are projected from standard schedules — verify against official
    > calendars before trading.
 
-2. **CANSLIM Screener** — a methodology-faithful CAN SLIM relative-strength
-   screener. Each name is scored on all seven criteria — **C** (current
-   earnings), **A** (annual earnings), **N** (new high / catalyst), **S** (supply
-   & demand / accumulation), **L** (leader RS rank), **I** (institutional
-   sponsorship), **M** (market direction) — into a 0–100 composite and letter
-   grade. Features:
-   - **Screener** — sortable/filterable universe with per-letter pass-fail chips,
+2. **Leadership Screener** — a relative-strength growth screener built on the
+   **TigerTrade Leadership Model (LEADERS)**, our own 7-factor framework:
+   **L** (Leadership / RS rank), **E** (Earnings momentum), **A** (Accumulation /
+   volume demand), **D** (Durable annual growth), **E** (Emerging breakout / new
+   high), **R** (Rising institutional sponsorship), **S** (Setup — market trend).
+   Each name scores 0–100 with a letter grade. Features:
+   - **Screener** — sortable/filterable universe with per-factor pass-fail chips,
      RS rank, and live **buy-zone** detection (Basing → Approaching → In Buy Zone
      → Extended vs. the pivot)
-   - **Market Health** — the "M" gate: index trend vs. 50/200-DMA, distribution-day
-     count, last follow-through day, and breadth. CAN SLIM says buy only in a
+   - **Market Health** — the "Setup" gate: index trend vs. 50/200-DMA,
+     distribution-day count, last follow-through day, and breadth. Buy only in a
      Confirmed Uptrend.
    - **Playbook** — an AI screener read plus an "actionable now" list of names in
      their buy zone.
+
+   > The TigerTrade Leadership Model's factors follow classic leadership-investing
+   > principles popularized by **William J. O'Neil**. TigerTrade is independent
+   > and not affiliated with, sponsored by, or endorsed by Investor's Business
+   > Daily; **CAN SLIM®** is a registered trademark of Investor's Business
+   > Daily, Inc. Educational use only — not investment advice.
    - Click any row for a right-side stock drawer: price/volume chart with pivot &
      buy-zone band, RS line, buy-point analysis, the 7-criteria breakdown,
      fundamentals, and thesis.
@@ -53,7 +59,7 @@ the Anthropic API key never reaches the browser.
 
 ### Live market data (recommended before trading)
 The screener attempts to load **live quotes** on every visit. Its data state is
-shown in the CANSLIM hero line:
+shown in the Leadership Screener hero line:
 
 - **Live prices · as of … · N/N live** (green pulse) — price and % change are
   live and recompute the **buy-zone status in real time** (live price vs. pivot).
@@ -68,10 +74,10 @@ tier; the dashboard tries a batch call first and falls back to per-symbol quotes
 automatically.
 
 **What's live vs. analyst-maintained:** prices, % moves, off-52-week-high and
-relative volume come live from FMP. The slower-moving / proprietary CAN SLIM
-inputs — earnings growth (C/A), RS rank (L), institutional read (I), pivot, base
-pattern and catalyst — are maintained in the editorial dataset and labeled as
-model inputs, not live quotes. Verify against your broker before trading.
+relative volume come live from FMP. The slower-moving Leadership-model inputs —
+earnings growth, RS rank, institutional read, pivot, base pattern and catalyst —
+are maintained in the editorial dataset and labeled as model inputs, not live
+quotes. Verify against your broker before trading.
 
 ---
 
@@ -187,7 +193,7 @@ tigertrade-dashboard/
 - **Volatility Radar:** next-catalyst card, polar **radar scope**, expandable
   event rows, timeline, month-grid calendar, category/weight filters, and an
   event drawer with historical reaction stats + move distribution
-- **CANSLIM Screener:** 7-criteria scoring → composite + grade, per-row trend
+- **Leadership Screener:** 7-factor (LEADERS) scoring → composite + grade, per-row trend
   sparklines, **live buy-zone detection**, RS ranking, market-health cards, and a
   full stock drawer (price/volume chart, RS line, buy-point analysis)
 - **Persistent watchlist** — star any event or ticker; survives reloads

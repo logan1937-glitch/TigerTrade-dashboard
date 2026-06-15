@@ -9,6 +9,7 @@ const POINTS = [
   "Trading and investing involve substantial risk, including the possible loss of all capital invested. Past performance does not guarantee future results.",
   "You are solely responsible for your own decisions and any resulting outcomes.",
   "To the maximum extent permitted by law, TigerTrade and its creators, owners and operators disclaim all warranties (express or implied) and shall not be liable for any losses, damages or claims of any kind arising from use of, or reliance on, this site or its content.",
+  "The TigerTrade Leadership Model (LEADERS) is our own framework whose factors follow classic leadership-investing principles popularized by William J. O'Neil. TigerTrade is independent and not affiliated with, sponsored by, or endorsed by Investor's Business Daily; “CAN SLIM” is a registered trademark of Investor's Business Daily, Inc.",
 ];
 
 export function Disclaimer() {
