@@ -128,7 +128,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope }) {
         <div className="hero-left">
           <div className="hero-eyebrow mono"><span className="hero-pulse" />Live macro-event surveillance</div>
           <h1 className="hero-title">Volatility <span className="accentword">·</span> Momentum Radar</h1>
-          <span className="hero-meta">Event template 2026–2027 · updated 2026-06-13</span>
+          <span className="hero-meta">Event template 2026–2027 · updated {TT.todayISO}</span>
           {next && (
             <button className="hero-next" style={{ "--c": nc.color }} onClick={() => onSelectEvent(next)} aria-label={`Next catalyst: ${next.title}`}>
               <span className="hero-next-top">

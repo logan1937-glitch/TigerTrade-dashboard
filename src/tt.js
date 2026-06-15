@@ -23,14 +23,6 @@ TT.DIRECTIONS = [
   { id: "signal",   label: "Signal" },
 ];
 
-TT.STATS = [
-  { lab: "NEXT FOMC",    val: "JUN 17", tm: "T-4d",   soon: true },
-  { lab: "NEXT CPI",     val: "JUL 8",  tm: "T-25d",  soon: false },
-  { lab: "NEXT WITCHING",val: "JUN 19", tm: "T-6d",   soon: true },
-  { lab: "NEXT RUSSELL", val: "JUN 26", tm: "T-13d",  soon: false },
-  { lab: "US MIDTERMS",  val: "NOV 3",  tm: "T-143d", soon: false },
-];
-
 /* sortKey = days from today (negative = past) */
 TT.EVENTS = [
   { id: 1,  date: "JUN 16", approx: true,  range: "",        t: -3,  sort: 3,   sev: "high",    cat: "cb",
@@ -101,6 +93,42 @@ TT.calEventsByDay = {
   19: [{ t: "Quad Witching", cat: "flows" }, { t: "S&P Rebal", cat: "flows" }],
   26: [{ t: "Russell Recon", cat: "flows" }],
 };
+
+/* ---- live date math: recompute T-minus / past from the real current date ----
+   The event display strings carry the date; the year is fixed to the template
+   year. T-minus, sort and the past flag are derived from today so countdowns
+   stay current and roll forward on their own (refreshed each page load). */
+const _MONTHNUM = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+const _EVENT_YEAR = 2026;
+const _MON_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function _eventDate(ev) {
+  const [mon, day] = ev.date.split(" ");
+  return new Date(_EVENT_YEAR, _MONTHNUM[mon] ?? 0, parseInt(day, 10) || 1);
+}
+(function _recomputeTiming() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  TT.EVENTS.forEach((ev) => {
+    const frac = ev.sort - Math.trunc(ev.sort);            // keep same-day ordering
+    const diff = Math.round((_eventDate(ev) - today) / 86400000);
+    ev.t = -diff;                                          // upcoming → negative, past → +days ago
+    ev.sort = diff + frac;
+    ev.past = diff < 0;
+  });
+  TT.todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  TT.todayLabel = `${now.getDate()} ${_MON_ABBR[now.getMonth()]} ${now.getFullYear()}`;
+  // highlight "today" in the calendar only when the real date is in the shown month
+  TT.MONTH.today = (now.getFullYear() === TT.MONTH.year && now.getMonth() === TT.MONTH.monthIndex) ? now.getDate() : 0;
+})();
+
+/* stat strip — derived live from the underlying events */
+const _byId = Object.fromEntries(TT.EVENTS.map((e) => [e.id, e]));
+TT.STATS = [[2, "NEXT FOMC"], [10, "NEXT CPI"], [3, "NEXT WITCHING"], [5, "NEXT RUSSELL"], [16, "US MIDTERMS"]]
+  .map(([id, lab]) => { const e = _byId[id]; return {
+    lab, val: e.date,
+    tm: e.t <= 0 ? `T${e.t}d` : `T+${e.t}d`,
+    soon: e.t < 0 && e.t >= -7,
+  }; });
 
 /* ---------------------------------- event detail + radar geometry --------- */
 TT.DETAIL = {

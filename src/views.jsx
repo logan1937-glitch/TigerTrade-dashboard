@@ -79,10 +79,18 @@ export function TimelineView({ events, onOpenFull }) {
 
 /* ---------------------------- PLAYBOOK ----------------------------- */
 export function PlaybookView() {
+  const byId = Object.fromEntries(TT.EVENTS.map((e) => [e.id, e]));
+  const watch = [
+    [1, "BoJ carry unwind", "JPY crosses, leveraged equity beta"],
+    [2, "FOMC dot plot", "Front-end rates, cross-asset vol"],
+    [3, "Gamma expiry", "Index pin risk, dealer hedging"],
+    [5, "Russell recon", "Small/mid-cap dispersion"],
+    [10, "CPI print", "Rate-path narrative reset"],
+  ];
   return (
     <div className="wrap pb">
       <div className="pb-card pb-brief">
-        <h3><span className="hero-badge" style={{ padding: "3px 7px", fontSize: 9 }}>AI</span> Desk Briefing · 13 Jun 2026</h3>
+        <h3><span className="hero-badge" style={{ padding: "3px 7px", fontSize: 9 }}>AI</span> Desk Briefing · {TT.todayLabel}</h3>
         <p>The next ten sessions are <b>front-loaded with policy risk</b>. A Bank of Japan decision (T-3d) sits
           directly ahead of the <b>FOMC</b> (T-4d) — the dominant scheduled vol driver — compressing two
           carry- and rate-sensitive catalysts into a single window.</p>
@@ -99,11 +107,15 @@ export function PlaybookView() {
       <div className="pb-card">
         <h3>Watch List</h3>
         <div className="pb-list">
-          <div className="pb-item"><span className="pb-k">T-3d</span><span className="pb-v">BoJ carry unwind<small>JPY crosses, leveraged equity beta</small></span></div>
-          <div className="pb-item"><span className="pb-k">T-4d</span><span className="pb-v">FOMC dot plot<small>Front-end rates, cross-asset vol</small></span></div>
-          <div className="pb-item"><span className="pb-k">T-6d</span><span className="pb-v">Gamma expiry<small>Index pin risk, dealer hedging</small></span></div>
-          <div className="pb-item"><span className="pb-k">T-13d</span><span className="pb-v">Russell recon<small>Small/mid-cap dispersion</small></span></div>
-          <div className="pb-item"><span className="pb-k">T-25d</span><span className="pb-v">CPI print<small>Rate-path narrative reset</small></span></div>
+          {watch.map(([id, name, sub]) => {
+            const e = byId[id];
+            return (
+              <div className="pb-item" key={id}>
+                <span className="pb-k">{e.t <= 0 ? `T${e.t}d` : `T+${e.t}d`}</span>
+                <span className="pb-v">{name}<small>{sub}</small></span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
