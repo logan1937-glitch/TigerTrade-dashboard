@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
-import { fetchQuotes } from "./liveData.js";
-import { WatchCtx, TopBar, Hero, StatStrip, SubNav, RadarView } from "./components.jsx";
+import { fetchQuotes, mergeCanslim } from "./liveData.js";
+import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView } from "./components.jsx";
+import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView, PlaybookView } from "./views.jsx";
 import { CommandPalette } from "./commandPalette.jsx";
 import { Drawer, EventDrawerBody, StockDrawerBody, WatchlistBody } from "./drawer.jsx";
@@ -45,8 +46,16 @@ export default function App() {
       : [...prev, { key, kind: meta.kind, ref: meta.ref, at: Date.now() }]),
   }), [watchArr, watchSet]);
 
+  // single source of CANSLIM data, live-merged where quotes are available
+  const csData = useMemo(() => {
+    const list = TT.CANSLIM.map((s) =>
+      (live.status === "live" && live.quotes?.[s.tk] ? mergeCanslim(s, live.quotes[s.tk]) : s));
+    return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
+  }, [live]);
+
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
-  const openStock = (s) => { setEvDrawer(null); setWatchOpen(false); setProduct("canslim"); setStockDrawer(s); };
+  // always open the live-merged record for a ticker (falls back to the passed object)
+  const openStock = (s) => { setEvDrawer(null); setWatchOpen(false); setProduct("canslim"); setStockDrawer(csData.byTicker[s.tk] || s); };
 
   // load live quotes for the screener universe once on mount
   useEffect(() => {
@@ -113,6 +122,7 @@ export default function App() {
 
   return (
     <WatchCtx.Provider value={watchApi}>
+    <CanslimCtx.Provider value={csData}>
       <div className="app" data-dir={DIR} data-density={DENSITY} data-glow={GLOW} data-motion={MOTION} data-typeface={TYPEFACE}>
         <div className="grain" />
         <TopBar product={product} setProduct={setProduct} onOpenCmd={() => setCmdOpen(true)}
@@ -128,7 +138,7 @@ export default function App() {
             {tab === "playbook" && <PlaybookView />}
           </>
         ) : (
-          <CanslimView onOpenStock={openStock} live={live} />
+          <CanslimView onOpenStock={openStock} live={live} rows={csData.list} />
         )}
 
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} commands={commands} />
@@ -142,7 +152,10 @@ export default function App() {
         <Drawer open={watchOpen} onClose={() => setWatchOpen(false)} label="Watchlist">
           {watchOpen && <WatchlistBody onClose={() => setWatchOpen(false)} onPickEvent={openEvent} onPickStock={openStock} />}
         </Drawer>
+
+        <Disclaimer />
       </div>
+    </CanslimCtx.Provider>
     </WatchCtx.Provider>
   );
 }
