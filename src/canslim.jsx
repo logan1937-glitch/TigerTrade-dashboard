@@ -144,7 +144,7 @@ function CanslimPlaybook({ rows, onOpenStock }) {
   return (
     <div className="wrap pb">
       <div className="pb-card pb-brief">
-        <h3><span className="hero-badge" style={{ padding: "3px 7px", fontSize: 9, "--accent": "var(--cat-growth)", color: "var(--cat-growth)" }}>AI</span> Screener read · 13 Jun 2026</h3>
+        <h3><span className="hero-badge" style={{ padding: "3px 7px", fontSize: 9, "--accent": "var(--cat-growth)", color: "var(--cat-growth)" }}>AI</span> Screener read · {TT.todayLabel}</h3>
         <p>The general market is in a <b>confirmed uptrend</b> with just 3 distribution days — buying is permitted.
           Leadership is concentrated in <b>semiconductors, power/electrification, and precious metals</b>.</p>
         <p>Highest-conviction actionable setups are names <b>in-range off a sound base</b> on volume —
