@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { TT } from "./tt.js";
-import { SearchIcon, StarBtn, Logo } from "./components.jsx";
+import { SearchIcon, StarBtn } from "./components.jsx";
 import { RSLine, BarMeter } from "./charts.jsx";
 
 const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
@@ -77,7 +77,7 @@ function Screener({ rows, onOpenStock }) {
         </div>
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}>
-            <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><Logo ticker={r.tk} size={24} radius={6} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
+            <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
             <div className="cs-px"><span className="cs-price mono">${fmtPx(r.px)}</span><span className="cs-chg mono" data-up={r.chg >= 0}>{r.chg >= 0 ? "+" : ""}{r.chg.toFixed(2)}%</span></div>
             <div className="cs-rs mono">{r.rs}<i style={{ width: r.rs + "%" }} /></div>
             <div><Spark data={r.spark} /></div>
