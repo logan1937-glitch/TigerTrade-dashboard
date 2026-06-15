@@ -101,3 +101,16 @@ export function mergeLive(s, q) {
 
   return { ...s, price, chg, off52, relVol, _live: true };
 }
+
+// Merge a live quote over an editorial CANSLIM record. Live price/%chg drive the
+// real buy-zone: pctExt is recomputed vs the pivot, and buy/ext flip on the live
+// price (editorial "watch" names stay watch — their base is still forming).
+export function mergeCanslim(s, q) {
+  const price = pick(q, "price");
+  if (price == null) return s;
+  const chg = pick(q, "changePercentage", "changesPercentage") ?? s.chg;
+  const pctExt = +(((price - s.pivot) / s.pivot) * 100).toFixed(1);
+  let status = s.status;
+  if (status !== "watch") status = pctExt > 5 ? "ext" : "buy";
+  return { ...s, px: price, chg, pctExt, status, _live: true };
+}

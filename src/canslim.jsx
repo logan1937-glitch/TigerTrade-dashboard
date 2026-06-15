@@ -5,21 +5,6 @@ import { RSLine, BarMeter } from "./charts.jsx";
 
 const LETTERS = ["C", "A", "N", "S", "L", "I", "M"];
 
-const num = (v) => (v == null || v === "" || Number.isNaN(+v) ? null : +v);
-
-/* merge a live FMP quote over an editorial CANSLIM record:
-   live price/%chg drive the real buy-zone (pctExt vs pivot). Editorial
-   "watch" names stay watch (base still forming); buy/ext flip on live price. */
-function mergeCs(s, q) {
-  const price = num(q?.price);
-  if (price == null) return s;
-  const chg = num(q.changePercentage) ?? num(q.changesPercentage) ?? s.chg;
-  const pctExt = +(((price - s.pivot) / s.pivot) * 100).toFixed(1);
-  let status = s.status;
-  if (status !== "watch") status = pctExt > 5 ? "ext" : "buy";
-  return { ...s, px: price, chg, pctExt, status, _live: true };
-}
-
 const fmtAsOf = (ms) => {
   try { return new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
   catch { return "—"; }
@@ -187,13 +172,8 @@ function CanslimPlaybook({ rows, onOpenStock }) {
 }
 
 /* ------------------------------ SHELL ------------------------------ */
-export function CanslimView({ onOpenStock, live = { status: "loading" } }) {
+export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM }) {
   const [tab, setTab] = useState("screener");
-
-  const rows = useMemo(
-    () => TT.CANSLIM.map((s) => (live.status === "live" && live.quotes?.[s.tk] ? mergeCs(s, live.quotes[s.tk]) : s)),
-    [live]
-  );
 
   const buyCount = rows.filter((s) => s.status === "buy").length;
   const leaders = rows.filter((s) => s.score >= 93).length;

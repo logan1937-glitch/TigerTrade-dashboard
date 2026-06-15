@@ -19,6 +19,12 @@ function Chevron() {
 export const WatchCtx = createContext({ list: [], has: () => false, toggle: () => {}, count: 0 });
 export function useWatch() { return useContext(WatchCtx); }
 
+/* -------- CANSLIM data context (live-merged where available) --------
+   Single source of truth so the watchlist and event-drawer ticker links show
+   the same live prices as the screener. Defaults to the static dataset. */
+export const CanslimCtx = createContext({ list: TT.CANSLIM, byTicker: TT.CS_BYTICKER });
+export function useCanslim() { return useContext(CanslimCtx); }
+
 export function StarIcon({ filled }) {
   return (
     <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">

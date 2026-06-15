@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, ReactionWindow, MoveDistribution, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
-import { StarBtn, StarIcon, useWatch, SEV_LABEL } from "./components.jsx";
+import { StarBtn, StarIcon, useWatch, useCanslim, SEV_LABEL } from "./components.jsx";
 
 function CloseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>;
@@ -35,6 +35,7 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
   const d = TT.detail(ev.id);
   const st = TT.stats(ev);
   const s = st.summary;
+  const { byTicker } = useCanslim();
   return (
     <div className="dr" style={{ "--c": cat.color }}>
       <div className="dr-top">
@@ -119,7 +120,7 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
         <div className="dr-k mono">Markets to watch</div>
         <div className="dr-tickers">
           {d.tickers.map((t) => {
-            const stock = TT.CS_BYTICKER && TT.CS_BYTICKER[t];
+            const stock = byTicker && byTicker[t];
             return <button key={t} className="ticker mono" data-link={!!stock}
               onClick={() => stock && onPick && onPick(stock)}>{t}{stock && " ↗"}</button>;
           })}
@@ -241,9 +242,10 @@ export function StockDrawerBody({ stock, onClose }) {
 /* ----------------------------- WATCHLIST ----------------------------- */
 export function WatchlistBody({ onClose, onPickEvent, onPickStock }) {
   const w = useWatch();
+  const { byTicker } = useCanslim();
   const statusMap = { buy: ["Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
   const events = w.list.filter((x) => x.kind === "event").map((x) => TT.EVENTS.find((e) => e.id === x.ref)).filter(Boolean).sort((a, b) => a.sort - b.sort);
-  const stocks = w.list.filter((x) => x.kind === "stock").map((x) => TT.CS_BYTICKER[x.ref]).filter(Boolean).sort((a, b) => b.score - a.score);
+  const stocks = w.list.filter((x) => x.kind === "stock").map((x) => byTicker[x.ref]).filter(Boolean).sort((a, b) => b.score - a.score);
   const empty = events.length === 0 && stocks.length === 0;
   return (
     <div className="dr">
