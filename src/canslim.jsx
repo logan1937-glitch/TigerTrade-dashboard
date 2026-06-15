@@ -176,6 +176,7 @@ function CanslimPlaybook({ rows, onOpenStock }) {
       TigerTrade is independent and not affiliated with, sponsored by, or endorsed by Investor's Business Daily;
       “CAN SLIM” is a registered trademark of Investor's Business Daily, Inc. Educational use only — not investment advice.
     </p>
+    </div>
   );
 }
 
