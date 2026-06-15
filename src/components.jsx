@@ -62,6 +62,26 @@ export function MiniReaction({ data }) {
   );
 }
 
+/* company logo (FMP image CDN → clean monogram fallback), dark-theme friendly */
+export function Logo({ ticker, size = 34, radius = "var(--radius-sm)" }) {
+  const [err, setErr] = useState(false);
+  const box = { width: size, height: size, borderRadius: radius, flex: "none" };
+  if (err) {
+    return (
+      <div style={{ ...box, display: "grid", placeItems: "center", fontFamily: "var(--font-display)", fontWeight: 800,
+        fontSize: size * 0.36, letterSpacing: "-0.02em", color: "var(--accent-ink)",
+        background: "linear-gradient(135deg, color-mix(in oklch, var(--accent) 88%, white), var(--accent))" }}>
+        {ticker.slice(0, 2)}
+      </div>
+    );
+  }
+  return (
+    <img src={`https://financialmodelingprep.com/image-stock/${ticker}.png`} alt={ticker} loading="lazy"
+      onError={() => setErr(true)}
+      style={{ ...box, objectFit: "contain", background: "#fff", border: "1px solid var(--border-2)", padding: Math.max(2, Math.round(size * 0.09)) }} />
+  );
+}
+
 /* live ET clock */
 export function useClock() {
   const [now, setNow] = useState(() => new Date());

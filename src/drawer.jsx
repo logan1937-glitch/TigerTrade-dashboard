@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, ReactionWindow, MoveDistribution, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
-import { StarBtn, StarIcon, useWatch, useCanslim, SEV_LABEL } from "./components.jsx";
+import { StarBtn, StarIcon, Logo, useWatch, useCanslim, SEV_LABEL } from "./components.jsx";
 
 function CloseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>;
@@ -141,6 +141,21 @@ export function StockDrawerBody({ stock, onClose }) {
   const s = stock;
   const statusMap = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
   const [stLabel, stColor] = statusMap[s.status];
+
+  // order-plan ticket (planning only — not connected to a broker)
+  const [planOpen, setPlanOpen] = useState(false);
+  const [alertNote, setAlertNote] = useState(false);
+  const [qty, setQty] = useState(100);
+  const stop = +(s.pivot * 0.92).toFixed(2);
+  const t1 = +(s.pivot * 1.20).toFixed(2);
+  const t2 = +(s.pivot * 1.25).toFixed(2);
+  const riskPerShare = +(s.px - stop).toFixed(2);
+  const rewardPerShare = +(t1 - s.px).toFixed(2);
+  const rr = riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : "—";
+  const posValue = qty * s.px;
+  const riskValue = qty * Math.max(0, riskPerShare);
+  const money = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
   return (
     <div className="dr" style={{ "--c": "var(--cat-growth)" }}>
       <div className="dr-top">
@@ -152,7 +167,7 @@ export function StockDrawerBody({ stock, onClose }) {
 
       <div className="dr-head dr-stockhead">
         <div>
-          <div className="dr-symrow"><span className="dr-sym">{s.tk}</span><span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span></div>
+          <div className="dr-symrow"><Logo ticker={s.tk} size={34} /><span className="dr-sym">{s.tk}</span><span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span></div>
           <h2 className="dr-title dr-stockname">{s.name}</h2>
           <div className="dr-pxrow">
             <span className="dr-px mono">${s.px.toLocaleString()}</span>
@@ -230,11 +245,43 @@ export function StockDrawerBody({ stock, onClose }) {
         <p className="dr-p">{s.why}</p>
       </div>
 
+      {planOpen && (
+        <div className="dr-sec">
+          <div className="dr-sec-h"><h3>{s.status === "buy" ? "Staged order plan" : "Pivot watch plan"}</h3><span className="dr-sec-sub mono">planning only — no broker connected</span></div>
+          <div className="dr-buygrid">
+            <div className="dr-bp"><span className="dr-bpk mono">Entry (buy zone)</span><span className="dr-bpv mono">${s.buyLo}–{s.buyHi}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Stop (−8%)</span><span className="dr-bpv mono">${stop}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Target +20%</span><span className="dr-bpv mono">${t1}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Target +25%</span><span className="dr-bpv mono">${t2}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Risk / share</span><span className="dr-bpv mono" data-up={riskPerShare < 0}>${riskPerShare}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Reward : risk</span><span className="dr-bpv mono">{rr}:1</span></div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+            <span className="dr-bpk mono">Shares</span>
+            <input className="search" type="number" min="0" value={qty}
+              onChange={(e) => setQty(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              style={{ width: 110, paddingLeft: 12 }} />
+            <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+              Position <b style={{ color: "var(--text)" }}>${money(posValue)}</b> · Risk to stop <b style={{ color: "var(--sev-extreme)" }}>${money(riskValue)}</b>
+            </span>
+          </div>
+          <div className="dr-verdict neutral" style={{ marginTop: 12 }}>
+            Planning tool only. TigerTrade is not a broker — this does not place, transmit, or execute any order.
+            Enter and manage real orders with your own brokerage.
+          </div>
+        </div>
+      )}
+
       <div className="dr-actions">
         <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
-        <button className="ed-btn">Set price alert</button>
-        <button className="ed-btn ed-btn-primary">{s.status === "buy" ? "Stage order" : "Track pivot"}</button>
+        <button className="ed-btn" onClick={() => setAlertNote((v) => !v)}>Set price alert</button>
+        <button className="ed-btn ed-btn-primary" onClick={() => setPlanOpen((v) => !v)}>{planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>
       </div>
+      {alertNote && (
+        <p className="mono" style={{ padding: "10px 26px 0", fontSize: 11, lineHeight: 1.5, color: "var(--dim)" }}>
+          Price alerts aren't connected yet — tap the ☆ to track {s.tk} on your watchlist for now.
+        </p>
+      )}
     </div>
   );
 }
