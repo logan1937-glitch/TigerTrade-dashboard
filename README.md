@@ -1,9 +1,12 @@
-# TigerTrade Dashboards
+# TigerTrade Terminal
 
-Two trading dashboards in one app, switchable from the top bar:
+A dark, institutional-desk **trading terminal** with two products under one
+shell, switchable from the top bar. Built on the *TigerTrade Terminal* design
+system (Obsidian theme): a command palette (⌘K / `/`), a polar radar scope,
+right-side analysis drawers, a persistent watchlist, and animated SVG charts.
 
-1. **Volatility & Momentum Radar** *(default)* — the Master Volatility & Growth
-   Momentum Event Template for 2026–2027. Tracks the scheduled catalysts that
+1. **Volatility & Momentum Radar** *(default)* — a macro-event surveillance
+   dashboard for 2026–2027. Tracks the scheduled catalysts that
    drive cross-asset volatility, grouped into five regimes:
    - **Central Bank & Sovereign Liquidity** — FOMC, BoJ, ECB, Treasury QRA, fiscal X-dates
    - **Mechanical Flow Rebalancing** — quad witching, S&P / Nasdaq-100 / Russell reconstitutions
@@ -11,10 +14,11 @@ Two trading dashboards in one app, switchable from the top bar:
    - **High-Impact Macro Data** — NFP, CPI/PPI, ISM PMIs
    - **Geopolitical, Commodity & Regulatory** — US midterms, OPEC+, DOJ/antitrust
 
-   Views: **Radar** (countdown to upcoming events), **Full Timeline** (grouped by
-   month), **Calendar** (month grid with event dots), and **Playbook + AI**
-   (regime reference + a Claude-generated volatility briefing). Filter by
-   category, minimum weight, or free-text search.
+   Views: **Radar** (next-catalyst card, radar scope + expandable event rows),
+   **Full Timeline** (month-grouped), **Calendar** (month grid with event chips),
+   and **Playbook + AI** (desk briefing + watch list). Each event opens a
+   right-side drawer with historical reaction stats, a move distribution, and
+   cross-asset reaction. Filter by category, minimum weight, or free-text search.
 
    > FOMC, quadruple-witching (3rd Friday), Russell reconstitution (last Friday
    > of June), NFP (first Friday) and the US midterms use exact dates. Items
@@ -34,25 +38,28 @@ Two trading dashboards in one app, switchable from the top bar:
    - **Market Health** — the "M" gate: index trend vs. 50/200-DMA, distribution-day
      count, last follow-through day, and breadth. CAN SLIM says buy only in a
      Confirmed Uptrend.
-   - **Playbook** — the seven criteria plus O'Neil's buy/sell rules
-   - Click any row for a full scorecard, an auto-generated **trade plan** (5% buy
-     zone, –8% stop, +20–25% targets), and a Claude **AI trade analysis**.
+   - **Playbook** — an AI screener read plus an "actionable now" list of names in
+     their buy zone.
+   - Click any row for a right-side stock drawer: price/volume chart with pivot &
+     buy-zone band, RS line, buy-point analysis, the 7-criteria breakdown,
+     fundamentals, and thesis.
 
-The whole site uses a crisp blue / orange / white design.
+The site uses the dark **Obsidian** terminal theme (warm amber accent) with a
+token-based design system, grain overlay, and motion that respects
+`prefers-reduced-motion`.
 
-Both dashboards share a Claude-backed serverless proxy (`/api/claude`) so the
-Anthropic API key never reaches the browser.
+A Claude-backed serverless proxy (`/api/claude`) is available for AI features so
+the Anthropic API key never reaches the browser.
 
 ### Live market data (recommended before trading)
-The screener attempts to load **live quotes** on every visit and shows its data
-state in the header:
+The screener attempts to load **live quotes** on every visit. Its data state is
+shown in the CANSLIM hero line:
 
-- **● LIVE** (green) — price, % change, distance off the 52-wk high and relative
-  volume are live, with a real "as of" timestamp. These drive the **buy-zone /
-  new-high logic in real time**.
-- **● DEMO — NOT LIVE** (red) — the live feed is unavailable, so the screener
+- **Live prices · as of … · N/N live** (green pulse) — price and % change are
+  live and recompute the **buy-zone status in real time** (live price vs. pivot).
+- **Demo prices · not live** (red) — the live feed is unavailable, so the screener
   falls back to an illustrative dataset that is **clearly labeled and never
-  presented as real**. A loud banner warns you not to trade off it.
+  presented as real**.
 
 To turn the feed on, set `FMP_API_KEY` in your Vercel project env vars (get a key
 at https://site.financialmodelingprep.com); requests route through the `/api/fmp`
@@ -140,7 +147,7 @@ Open http://localhost:5173
 6. Deploy
 
 For Netlify, rename `api/claude.js` to `netlify/functions/claude.js` and update
-the fetch URL in Dashboard.jsx from `/api/claude` to `/.netlify/functions/claude`.
+any `/api/claude` fetch URL to `/.netlify/functions/claude`.
 
 ---
 
@@ -150,12 +157,20 @@ the fetch URL in Dashboard.jsx from `/api/claude` to `/.netlify/functions/claude
 tigertrade-dashboard/
 ├── api/
 │   ├── claude.js            ← Claude proxy (keeps Anthropic key secure)
-│   └── fmp.js               ← Optional live market-data proxy (FMP)
+│   └── fmp.js               ← Live market-data proxy (FMP)
 ├── src/
-│   ├── main.jsx             ← React entry point
-│   ├── App.jsx              ← Product switcher shell
-│   ├── EventDashboard.jsx   ← Volatility & Momentum Radar (default)
-│   └── Dashboard.jsx        ← CANSLIM Screener
+│   ├── main.jsx             ← React entry point (imports terminal.css)
+│   ├── terminal.css         ← Design tokens + all terminal styling
+│   ├── App.jsx              ← Terminal shell: routing, state, drawers, watchlist
+│   ├── tt.js                ← Data namespace (events, stats, CANSLIM dataset)
+│   ├── liveData.js          ← Live FMP quote fetch + merge
+│   ├── components.jsx       ← Top bar, hero, stat strip, radar view, watch ctx
+│   ├── radarScope.jsx       ← Polar event radar scope
+│   ├── charts.jsx           ← SVG chart primitives
+│   ├── views.jsx            ← Calendar / Timeline / Playbook
+│   ├── commandPalette.jsx   ← ⌘K command palette
+│   ├── drawer.jsx           ← Drawer shell + event / stock / watchlist bodies
+│   └── canslim.jsx          ← CANSLIM screener / market health / playbook
 ├── index.html
 ├── package.json
 ├── vercel.json
@@ -165,17 +180,17 @@ tigertrade-dashboard/
 ---
 
 ## Features
-- Two dashboards in one app with a crisp blue / orange / white UI
-- **Light & dark mode** (toggle in the top bar, remembers your choice) built on a
-  shared CSS-variable design-token system
-- **Responsive** layout — cards reflow and tables scroll cleanly on mobile
-- **Volatility Radar:** 2026–2027 event calendar with countdowns, timeline,
-  month-grid calendar, category/weight filters, company logos on tech-conference
-  events, and an AI volatility briefing
-- **CANSLIM Screener:** full 7-criteria scoring → composite + letter grade,
-  per-row **trend sparklines**, buy-zone detection, RS ranking, market-health
-  gate, and a sortable/filterable table
-- Click any stock → CAN SLIM scorecard, a **price-vs-pivot chart** (buy zone /
-  stop / targets as bands), auto trade plan, company logo, and Claude AI analysis
-- Hover-lift cards and subtle depth for a crisp, modern feel
-- AI features via Claude API; optional live quotes via FMP
+- **TigerTrade Terminal** — dark Obsidian theme, token-based design system,
+  grain overlay, reduced-motion-aware animations
+- **Command palette** (⌘K / `/`) — jump to any view, toggle filters, or open any
+  event drawer
+- **Volatility Radar:** next-catalyst card, polar **radar scope**, expandable
+  event rows, timeline, month-grid calendar, category/weight filters, and an
+  event drawer with historical reaction stats + move distribution
+- **CANSLIM Screener:** 7-criteria scoring → composite + grade, per-row trend
+  sparklines, **live buy-zone detection**, RS ranking, market-health cards, and a
+  full stock drawer (price/volume chart, RS line, buy-point analysis)
+- **Persistent watchlist** — star any event or ticker; survives reloads
+- **Live prices** via FMP (price & % change drive the buy zone); honest
+  live/demo state, never fake-as-real
+- AI proxy (`/api/claude`) available for future AI features
