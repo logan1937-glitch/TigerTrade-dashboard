@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
+import { fetchHistories, computeSignals, lookbackFrom } from "./signals.js";
 import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView, PlaybookView } from "./views.jsx";
@@ -35,6 +36,7 @@ export default function App() {
   const [watchOpen, setWatchOpen] = useState(false);
 
   const [live, setLive] = useState({ status: "loading" });
+  const [hist, setHist] = useState({ rows: {}, sig: {} });
 
   const [watchArr, setWatchArr] = useStored("tt_watch", []);
   const watchSet = useMemo(() => new Set(watchArr.map((w) => w.key)), [watchArr]);
@@ -47,12 +49,20 @@ export default function App() {
       : [...prev, { key, kind: meta.kind, ref: meta.ref, at: Date.now() }]),
   }), [watchArr, watchSet]);
 
-  // single source of CANSLIM data, live-merged where quotes are available
+  // single source of screener data: live quotes + real EOD-computed signals merged
+  // over the editorial base where each is available
   const csData = useMemo(() => {
-    const list = TT.CANSLIM.map((s) =>
-      (live.status === "live" && live.quotes?.[s.tk] ? mergeCanslim(s, live.quotes[s.tk]) : s));
+    const list = TT.CANSLIM.map((s) => {
+      let r = (live.status === "live" && live.quotes?.[s.tk]) ? mergeCanslim(s, live.quotes[s.tk]) : s;
+      const sg = hist.sig?.[s.tk];
+      if (sg) {
+        // real adjusted history powers the chart + RS line + the momentum signals
+        r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine, off52: sg.off52, sig: sg, _eod: true };
+      }
+      return r;
+    });
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
-  }, [live]);
+  }, [live, hist]);
 
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
   // always open the live-merged record for a ticker (falls back to the passed object)
@@ -64,6 +74,22 @@ export default function App() {
     fetchQuotes(TT.CANSLIM.map((s) => s.tk))
       .then((r) => { if (alive) setLive(r); })
       .catch(() => { if (alive) setLive({ status: "unavailable", code: "ERROR", quotes: {} }); });
+    return () => { alive = false; };
+  }, []);
+
+  // load adjusted EOD history → compute real momentum signals (RS line, stage,
+  // ADR%, distribution days, pocket pivot). Degrades silently to the demo series.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const tickers = TT.CANSLIM.map((s) => s.tk);
+      const rows = await fetchHistories([...tickers, "SPY"], lookbackFrom());
+      if (!alive) return;
+      const spy = rows.SPY;
+      const sig = {};
+      for (const t of tickers) { const s = computeSignals(rows[t], spy); if (s) sig[t] = s; }
+      setHist({ rows, sig });
+    })().catch(() => {});
     return () => { alive = false; };
   }, []);
 

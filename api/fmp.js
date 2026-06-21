@@ -25,6 +25,9 @@ const ALLOWED = [
   "ratios-ttm",
   "key-metrics-ttm",
   "historical-price-eod/light",
+  "historical-price-eod-light",
+  "historical-price-eod-full",
+  "historical-price-eod-dividend-adjusted",
 ];
 
 export default async function handler(req, res) {

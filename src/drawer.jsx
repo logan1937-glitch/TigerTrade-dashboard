@@ -191,10 +191,26 @@ export function StockDrawerBody({ stock, onClose }) {
       )}
 
       <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Price &amp; volume</h3><span className="dr-sec-sub mono">daily · pivot {s.pivot}</span></div>
-        <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi} />
-        <div className="dr-rs-wrap"><span className="dr-rs-lab mono">RS line</span><RSLine rs={s.rsLine} /></div>
+        <div className="dr-sec-h"><h3>Price &amp; volume</h3><span className="dr-sec-sub mono">{s._eod ? `adjusted EOD · pivot ${s.pivot}` : `daily · pivot ${s.pivot}`}</span></div>
+        <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi} dates={s.dates} />
+        <div className="dr-rs-wrap"><span className="dr-rs-lab mono">RS line vs S&amp;P{s.sig?.rsLeads ? " · new high before price ✦" : s.sig?.rsNewHigh ? " · new high" : ""}</span><RSLine rs={s.rsLine} /></div>
       </div>
+
+      {s.sig && (
+        <div className="dr-sec">
+          <div className="dr-sec-h"><h3>Momentum signals</h3><span className="dr-sec-sub mono">computed from adjusted EOD · as of {s.sig.asOf}</span></div>
+          <div className="dr-buygrid">
+            <div className="dr-bp"><span className="dr-bpk mono">Stage</span><span className="dr-bpv">{s.sig.stage ?? "—"} · {s.sig.stageLabel}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">RS line</span><span className="dr-bpv" data-up={s.sig.rsNewHigh}>{s.sig.rsLeads ? "New high (leads price)" : s.sig.rsNewHigh ? "New high" : "Below high"}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">12-mo return</span><span className="dr-bpv mono" data-up={s.sig.ret12m >= 0}>{s.sig.ret12m >= 0 ? "+" : ""}{s.sig.ret12m}%</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">ADR%</span><span className="dr-bpv mono">{s.sig.adrPct}%</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Distribution days</span><span className="dr-bpv mono" data-warn={s.sig.distDays >= 5}>{s.sig.distDays} / 25</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">$ volume</span><span className="dr-bpv mono">${(s.sig.dollarVol / 1e6).toFixed(0)}M</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Off 52-wk high</span><span className="dr-bpv mono">{s.sig.atHigh ? "at high" : "−" + s.sig.off52 + "%"}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Pocket pivot</span><span className="dr-bpv" data-up={s.sig.pocketPivot}>{s.sig.pocketPivot ? "Yes ✦" : "No"}</span></div>
+          </div>
+        </div>
+      )}
 
       <div className="dr-sec">
         <div className="dr-sec-h"><h3>Buy-point analysis</h3></div>
