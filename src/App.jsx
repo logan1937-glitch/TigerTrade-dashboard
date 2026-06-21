@@ -22,6 +22,7 @@ function useStored(key, init) {
 export default function App() {
   const [product, setProduct] = useStored("tt_product", "radar");
   const [tab, setTab] = useStored("tt_tab", "radar");
+  const [mode, setMode] = useStored("tt_mode", "dark");
 
   const [cats, setCats] = useState(() => new Set());
   const [query, setQuery] = useState("");
@@ -123,10 +124,11 @@ export default function App() {
   return (
     <WatchCtx.Provider value={watchApi}>
     <CanslimCtx.Provider value={csData}>
-      <div className="app" data-dir={DIR} data-density={DENSITY} data-glow={GLOW} data-motion={MOTION} data-typeface={TYPEFACE}>
+      <div className="app" data-dir={DIR} data-mode={mode} data-density={DENSITY} data-glow={GLOW} data-motion={MOTION} data-typeface={TYPEFACE}>
         <div className="grain" />
         <TopBar product={product} setProduct={setProduct} onOpenCmd={() => setCmdOpen(true)}
-          onOpenWatch={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }} watchCount={watchApi.count} />
+          onOpenWatch={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }} watchCount={watchApi.count}
+          mode={mode} onToggleMode={() => setMode((m) => (m === "light" ? "dark" : "light"))} />
         {product === "radar" ? (
           <>
             <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} />

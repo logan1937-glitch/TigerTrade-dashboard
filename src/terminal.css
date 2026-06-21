@@ -51,6 +51,29 @@ body { background: #0a0b0d; }
   --display-transform: none;
 }
 
+/* Ember LIGHT — warm bone surfaces; same amber brand / jade signal / P&L rules.
+   Overrides only color tokens (fonts, radii, display rules inherit from above). */
+.app[data-mode="light"] {
+  --bg:        #EFE3D4;
+  --bg-grad:   radial-gradient(1100px 560px at 82% -12%, rgba(226,116,46,0.22), transparent 60%);
+  --panel:     #F7EFE6;
+  --surface:   #FBF5EE;
+  --surface-2: #ECDDCD;
+  --border:    rgba(40,26,18,0.12);
+  --border-2:  rgba(40,26,18,0.24);
+  --text:      #241308;
+  --muted:     #6E5A49;
+  --dim:       #9C8978;
+  --accent:    #138B7D;        /* jade, deepened for contrast on light */
+  --accent-2:  #138B7D;
+  --accent-ink:#FFFFFF;
+  --brand:     #D2641F;        /* amber, deepened for contrast on light */
+  --brand-ink: #FFFFFF;
+  --cat-growth: #1FA85F;       /* P&L up (legible on light) */
+  --sev-extreme:#DC3A3A;       /* P&L down */
+  color-scheme: light;
+}
+
 /* ===================== DIRECTION 2 · QUANT MONO ====================== */
 .app[data-dir="quant"] {
   --bg:        oklch(0.155 0.012 165);
@@ -182,6 +205,7 @@ body { background: #0a0b0d; }
 .icon-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
 .icon-btn:hover { border-color: var(--border-2); color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; }
 
 /* ============================ HERO ============================ */
 .hero { padding: 30px 0 22px; }
