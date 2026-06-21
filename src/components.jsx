@@ -121,8 +121,15 @@ export function CountUp({ value, dur = 700 }) {
   return <span>{n}</span>;
 }
 
+function SunIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" /></svg>;
+}
+function MoonIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z" /></svg>;
+}
+
 /* ----------------------------- TOP BAR ----------------------------- */
-export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount }) {
+export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount, mode, onToggleMode }) {
   const clock = useClock();
   return (
     <div className="topbar">
@@ -137,6 +144,9 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
       <button className="watch-btn" onClick={onOpenWatch} aria-label="Open watchlist">
         <StarIcon filled={watchCount > 0} />
         {watchCount > 0 && <span className="watch-ct mono">{watchCount}</span>}
+      </button>
+      <button className="icon-btn" onClick={onToggleMode} aria-label="Toggle light / dark" title={mode === "light" ? "Switch to dark" : "Switch to light"}>
+        {mode === "light" ? <MoonIcon /> : <SunIcon />}
       </button>
     </div>
   );
