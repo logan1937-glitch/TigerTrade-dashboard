@@ -4,6 +4,19 @@ import { RadarScope, ScopeLegend } from "./radarScope.jsx";
 
 export const SEV_LABEL = { extreme: "Extreme", high: "High", medium: "Medium", low: "Low" };
 
+/* TigerTrade rising-bars mark — amber bars, tallest in jade (the signal) */
+export function BrandMark() {
+  return (
+    <span className="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="14" width="4.4" height="7" rx="1.3" fill="var(--brand)" />
+        <rect x="9.8" y="9" width="4.4" height="12" rx="1.3" fill="var(--brand)" />
+        <rect x="16.6" y="4" width="4.4" height="17" rx="1.3" fill="var(--accent)" />
+      </svg>
+    </span>
+  );
+}
+
 export function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -113,7 +126,7 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
   const clock = useClock();
   return (
     <div className="topbar">
-      <div className="brand"><span className="dot" /><span className="b1">Tiger</span><span className="b2">Trade</span></div>
+      <div className="brand"><BrandMark /><span className="brand-tx"><span className="b1">Tiger</span><span className="b2">Trade</span></span></div>
       <div className="nav-pills">
         <button className="navpill" data-active={product === "radar"} onClick={() => setProduct("radar")}>Volatility · Momentum Radar</button>
         <button className="navpill" data-active={product === "canslim"} onClick={() => setProduct("canslim")}>Leadership Screener</button>

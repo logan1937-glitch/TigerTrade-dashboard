@@ -22,29 +22,33 @@ body { background: #0a0b0d; }
   --sev-low:     oklch(0.65 0.025 250);
 }
 
-/* ===================== DIRECTION 1 · OBSIDIAN DESK ===================== */
+/* ===================== EMBER · AMBER BRAND / JADE SIGNAL ===================== */
 .app[data-dir="obsidian"] {
-  --bg:        oklch(0.165 0.006 255);
-  --bg-grad:   radial-gradient(1200px 600px at 80% -10%, oklch(0.22 0.02 65 / 0.25), transparent 60%);
-  --panel:     oklch(0.195 0.007 255);
-  --surface:   oklch(0.215 0.008 255);
-  --surface-2: oklch(0.255 0.010 255);
-  --border:    oklch(0.30 0.010 255);
-  --border-2:  oklch(0.40 0.012 255);
-  --text:      oklch(0.95 0.005 255);
-  --muted:     oklch(0.74 0.010 255);
-  --dim:       oklch(0.56 0.012 255);
-  --accent:    oklch(0.77 0.115 64);
-  --accent-2:  oklch(0.77 0.115 64);
-  --accent-ink:oklch(0.20 0.04 62);
-  --font-ui:   'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --font-display:'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --bg:        #100A06;
+  --bg-grad:   radial-gradient(1200px 600px at 80% -10%, rgba(226,116,46,0.16), transparent 60%);
+  --panel:     #0E0805;
+  --surface:   #160D08;
+  --surface-2: #2A1A12;
+  --border:    rgba(255,255,255,0.08);
+  --border-2:  rgba(255,255,255,0.16);
+  --text:      #F1E9E2;
+  --muted:     #A99B8D;
+  --dim:       #7C6B5C;
+  --accent:    #19B5A3;        /* jade — interactive / signal only */
+  --accent-2:  #19B5A3;
+  --accent-ink:#06201D;        /* dark text on jade */
+  --brand:     #E2742E;        /* amber — brand + primary CTA */
+  --brand-ink: #1A0E06;        /* dark text on amber */
+  --cat-growth: #3BD685;       /* P&L up */
+  --sev-extreme:#FF5C5C;       /* P&L down / extreme */
+  --font-ui:   'Space Grotesk', system-ui, sans-serif;
+  --font-display:'Space Grotesk', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --radius:    9px;
-  --radius-sm: 6px;
-  --display-weight: 800;
+  --radius:    11px;
+  --radius-sm: 7px;
+  --display-weight: 700;
   --display-tracking: -0.02em;
-  --display-transform: uppercase;
+  --display-transform: none;
 }
 
 /* ===================== DIRECTION 2 · QUANT MONO ====================== */
@@ -136,10 +140,14 @@ body { background: #0a0b0d; }
   backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--border);
 }
-.brand { display: flex; align-items: baseline; gap: 1px; font-family: var(--font-display);
-  font-weight: 800; font-size: 18px; letter-spacing: 0.01em; text-transform: uppercase; }
+.brand { display: flex; align-items: center; gap: 9px; font-family: var(--font-display);
+  font-weight: 700; font-size: 18px; letter-spacing: -0.01em; text-transform: none; }
 .brand .b1 { color: var(--text); }
-.brand .b2 { color: var(--accent); }
+.brand .b2 { color: var(--brand); }
+.brand-mark { width: 28px; height: 28px; flex: none; display: grid; place-items: center;
+  border-radius: 7px; background: var(--surface); border: 1px solid var(--border-2); }
+.brand-mark svg { width: 16px; height: 16px; display: block; }
+.brand-tx { display: flex; align-items: baseline; gap: 1px; }
 .brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
   margin-right: 9px; align-self: center; box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent); }
 
@@ -360,8 +368,8 @@ body { background: #0a0b0d; }
 .ed-btn { flex: 1; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--muted);
   background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-sm); padding: 9px 10px; cursor: pointer; transition: all .14s; }
 .ed-btn:hover { color: var(--text); border-color: var(--dim); }
-.ed-btn-primary { background: color-mix(in oklch, var(--accent) 16%, transparent); color: var(--accent); border-color: color-mix(in oklch, var(--accent) 40%, transparent); }
-.ed-btn-primary:hover { background: color-mix(in oklch, var(--accent) 26%, transparent); color: var(--text); }
+.ed-btn-primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); font-weight: 600; }
+.ed-btn-primary:hover { filter: brightness(1.06); color: var(--brand-ink); }
 
 .event-date { display: flex; flex-direction: column; gap: 2px; }
 .event-d { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: 0.01em; color: var(--text); white-space: nowrap; }
@@ -440,7 +448,7 @@ body { background: #0a0b0d; }
   border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; outline: none; }
 .pb-ai-input input:focus { border-color: color-mix(in oklch, var(--accent) 50%, var(--border)); }
 .pb-ai-input button { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
-  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--radius-sm); padding: 0 18px; cursor: pointer; }
+  background: var(--brand); color: var(--brand-ink); border: 0; border-radius: var(--radius-sm); padding: 0 18px; cursor: pointer; }
 
 /* ============================ CANSLIM TABLE ============================ */
 .cs-table { padding-bottom: 64px; }
@@ -455,7 +463,7 @@ body { background: #0a0b0d; }
 .cs-row:hover { background: var(--surface); }
 .cs-tk { display: flex; align-items: center; gap: 5px; }
 .cs-tk-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.cs-sym { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--accent); letter-spacing: 0.02em; }
+.cs-sym { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); letter-spacing: 0.02em; }
 .app[data-dir="signal"] .cs-sym { color: var(--accent); }
 .cs-name { font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
 .cs-px { text-align: right; display: flex; flex-direction: column; gap: 2px; }
@@ -557,16 +565,16 @@ body { background: #0a0b0d; }
 .wl-row:hover { background: var(--surface-2); border-color: var(--border-2); border-left-color: var(--c); transform: translateX(2px); }
 .wl-date { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; font-weight: 600; color: var(--text); white-space: nowrap; }
 .wl-date small { font-size: 10.5px; font-weight: 400; color: var(--c); }
-.wl-sym { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--cat-growth); letter-spacing: 0.02em; }
+.wl-sym { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); letter-spacing: 0.02em; }
 .wl-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13.5px; color: var(--text); }
 .wl-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wl-name small { font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; }
 
 /* ============================ TOP BAR EXTRAS ============================ */
 .live { display: flex; align-items: center; gap: 7px; padding: 0 4px; }
-.live-dot { width: 7px; height: 7px; border-radius: 50%; background: oklch(0.74 0.16 145); }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 .app[data-motion="full"] .live-dot { animation: pulse 2s infinite; }
-.live-tx { font-size: 10px; letter-spacing: 0.14em; color: oklch(0.74 0.16 145); }
+.live-tx { font-size: 10px; letter-spacing: 0.14em; color: var(--accent); }
 .live-clk { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cmdk-btn { display: flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-size: 12.5px; color: var(--muted);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px 7px 11px; cursor: pointer; transition: all .15s; }
