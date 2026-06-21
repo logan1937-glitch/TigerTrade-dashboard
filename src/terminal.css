@@ -54,23 +54,23 @@ body { background: #0a0b0d; }
 /* Ember LIGHT — warm bone surfaces; same amber brand / jade signal / P&L rules.
    Overrides only color tokens (fonts, radii, display rules inherit from above). */
 .app[data-mode="light"] {
-  --bg:        #EFE3D4;
-  --bg-grad:   radial-gradient(1100px 560px at 82% -12%, rgba(226,116,46,0.22), transparent 60%);
-  --panel:     #F7EFE6;
-  --surface:   #FBF5EE;
-  --surface-2: #ECDDCD;
-  --border:    rgba(40,26,18,0.12);
-  --border-2:  rgba(40,26,18,0.24);
-  --text:      #241308;
-  --muted:     #6E5A49;
-  --dim:       #9C8978;
-  --accent:    #138B7D;        /* jade, deepened for contrast on light */
-  --accent-2:  #138B7D;
+  --bg:        #DEC8AC;        /* warm sand — a real color, not near-white */
+  --bg-grad:   radial-gradient(1000px 520px at 84% -16%, rgba(194,87,26,0.14), transparent 62%);
+  --panel:     #DBC4A6;        /* insets / chips (slightly under bg) */
+  --surface:   #F3E8D6;        /* cards lift off the sand */
+  --surface-2: #E7D6BC;        /* hover / raised */
+  --border:    rgba(46,26,12,0.18);
+  --border-2:  rgba(46,26,12,0.34);
+  --text:      #1C1108;        /* near-black warm */
+  --muted:     #564433;
+  --dim:       #836E58;
+  --accent:    #0C7468;        /* deep saturated jade */
+  --accent-2:  #0C7468;
   --accent-ink:#FFFFFF;
-  --brand:     #D2641F;        /* amber, deepened for contrast on light */
+  --brand:     #BD5316;        /* deep saturated amber */
   --brand-ink: #FFFFFF;
-  --cat-growth: #1FA85F;       /* P&L up (legible on light) */
-  --sev-extreme:#DC3A3A;       /* P&L down */
+  --cat-growth: #147A43;       /* P&L up */
+  --sev-extreme:#C32C2C;       /* P&L down */
   color-scheme: light;
 }
 
