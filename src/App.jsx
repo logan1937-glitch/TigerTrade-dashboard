@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView } from "./components.jsx";
@@ -154,6 +155,7 @@ export default function App() {
         </Drawer>
 
         <Disclaimer />
+        <SpeedInsights />
       </div>
     </CanslimCtx.Provider>
     </WatchCtx.Provider>
