@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 
 /* animate a 0→1 progress value once on mount (motion-aware via CSS data-motion) */
 export function useGrow(dur = 650) {
@@ -18,35 +18,102 @@ export function useGrow(dur = 650) {
 }
 
 /* ---------- PRICE CHART: line + area + volume + pivot + buy zone ---------- */
+/* Interactive: hover crosshair (date · price · % vs prior bar) and drag-to-zoom
+   (drag horizontally to zoom a range; double-click or "reset zoom" to restore). */
+const _fmtP = (n) => (n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2));
+
 export function PriceChart({ closes, volume, pivot, buyLo, buyHi, h = 184 }) {
   const grow = useGrow(750);
+  const clipId = useId().replace(/:/g, "");
+  const wrapRef = useRef(null);
+  const N = closes.length;
   const W = 600, H = h, padB = 34, padT = 10;
-  const min = Math.min(...closes, pivot), max = Math.max(...closes, buyHi || pivot);
-  const range = max - min || 1;
-  const x = (i) => (i / (closes.length - 1)) * W;
-  const y = (v) => padT + (1 - (v - min) / range) * (H - padB - padT);
-  const n = Math.max(2, Math.round(closes.length * grow));
-  const vis = closes.slice(0, n);
-  const line = vis.map((c, i) => `${x(i).toFixed(1)},${y(c).toFixed(1)}`).join(" ");
-  const area = `0,${y(min)} ${line} ${x(vis.length - 1).toFixed(1)},${y(min)}`;
-  const vmax = Math.max(...volume);
-  const last = closes[closes.length - 1];
-  const up = last >= closes[0];
+
+  const [domain, setDomain] = useState({ lo: 0, hi: N - 1 });
+  const [hover, setHover] = useState(null);   // global index
+  const [drag, setDrag] = useState(null);     // { a, b } fractions 0..1
+
+  const lo = Math.max(0, Math.min(domain.lo, N - 2));
+  const hi = Math.min(N - 1, Math.max(domain.hi, lo + 1));
+  const zoomed = !(lo === 0 && hi === N - 1);
+  const vis = closes.slice(lo, hi + 1);
+  const visVol = volume.slice(lo, hi + 1);
+  const M = vis.length;
+
+  let minV = Math.min(...vis), maxV = Math.max(...vis);
+  if (pivot >= minV * 0.9 && pivot <= maxV * 1.1) { minV = Math.min(minV, pivot); maxV = Math.max(maxV, buyHi || pivot); }
+  const range = (maxV - minV) || 1;
+  const x = (j) => (M <= 1 ? 0 : (j / (M - 1)) * W);
+  const y = (v) => padT + (1 - (v - minV) / range) * (H - padB - padT);
+
+  const nGrow = Math.max(2, Math.round(M * grow));
+  const visG = vis.slice(0, nGrow);
+  const line = visG.map((c, j) => `${x(j).toFixed(1)},${y(c).toFixed(1)}`).join(" ");
+  const area = `0,${y(minV)} ${line} ${x(visG.length - 1).toFixed(1)},${y(minV)}`;
+  const vmax = Math.max(...visVol);
+  const last = vis[vis.length - 1], up = last >= vis[0];
+
+  const fracOf = (e) => {
+    const r = wrapRef.current.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  };
+  const fracToGlobal = (frac) => lo + Math.round(frac * (M - 1));
+  const onMove = (e) => { const f = fracOf(e); setHover(fracToGlobal(f)); if (drag) setDrag((d) => ({ ...d, b: f })); };
+  const onDown = (e) => { const f = fracOf(e); setDrag({ a: f, b: f }); };
+  const onUp = () => {
+    if (drag) {
+      const a = fracToGlobal(Math.min(drag.a, drag.b)), b = fracToGlobal(Math.max(drag.a, drag.b));
+      if (b - a >= 3) setDomain({ lo: a, hi: b });
+      setDrag(null);
+    }
+  };
+  const onLeave = () => { setHover(null); setDrag(null); };
+  const reset = () => setDomain({ lo: 0, hi: N - 1 });
+
+  const hj = hover != null ? hover - lo : null;
+  const hx = hj != null ? x(hj) : null;
+  const dateFor = (gi) => { const d = new Date(); d.setDate(d.getDate() - (N - 1 - gi)); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
+  const pctPrev = hover != null && hover > 0 ? ((closes[hover] - closes[hover - 1]) / closes[hover - 1]) * 100 : 0;
+  const tipLeft = hx != null ? Math.min(92, Math.max(8, (hx / W) * 100)) : 0;
+
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Price chart">
-      {buyLo != null && (
-        <rect x="0" y={y(buyHi)} width={W} height={Math.max(0, y(buyLo) - y(buyHi))}
-          fill="color-mix(in oklch, var(--cat-growth) 13%, transparent)" />
+    <div className="pchart" ref={wrapRef} onMouseMove={onMove} onMouseDown={onDown} onMouseUp={onUp} onMouseLeave={onLeave} onDoubleClick={reset}
+      style={{ position: "relative", cursor: drag ? "ew-resize" : "crosshair", userSelect: "none" }}>
+      <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Price chart">
+        <defs><clipPath id={clipId}><rect x="0" y="0" width={W} height={H} /></clipPath></defs>
+        <g clipPath={`url(#${clipId})`}>
+          {buyLo != null && (
+            <rect x="0" y={y(buyHi)} width={W} height={Math.max(0, y(buyLo) - y(buyHi))}
+              fill="color-mix(in oklch, var(--cat-growth) 13%, transparent)" />
+          )}
+          {pivot != null && <line x1="0" y1={y(pivot)} x2={W} y2={y(pivot)} className="chart-pivot" />}
+          {visVol.map((v, j) => j < nGrow && (
+            <rect key={j} x={x(j) - 1.6} width="3.2" y={H - padB - (v / vmax) * 24} height={(v / vmax) * 24}
+              className="chart-vol" data-up={vis[j] >= (vis[j - 1] ?? vis[j])} />
+          ))}
+          <polygon points={area} className="chart-area" />
+          <polyline points={line} className="chart-line" data-up={up} />
+          {grow > 0.98 && <circle cx={x(visG.length - 1)} cy={y(last)} r="3.2" className="chart-dot" />}
+          {hx != null && !drag && (
+            <>
+              <line x1={hx} y1={padT - 4} x2={hx} y2={H - padB} className="chart-cross" />
+              <circle cx={hx} cy={y(closes[hover])} r="3.4" className="chart-cross-dot" />
+            </>
+          )}
+          {drag && (
+            <rect x={Math.min(drag.a, drag.b) * W} y={padT} width={Math.abs(drag.b - drag.a) * W} height={H - padB - padT} className="chart-sel" />
+          )}
+        </g>
+      </svg>
+      {hover != null && !drag && (
+        <div className="pchart-tip" style={{ left: `${tipLeft}%` }}>
+          <span className="pchart-tip-d mono">{dateFor(hover)}</span>
+          <span className="pchart-tip-p mono">${_fmtP(closes[hover])}</span>
+          <span className="pchart-tip-c mono" data-up={pctPrev >= 0}>{pctPrev >= 0 ? "+" : ""}{pctPrev.toFixed(2)}%</span>
+        </div>
       )}
-      {pivot != null && <line x1="0" y1={y(pivot)} x2={W} y2={y(pivot)} className="chart-pivot" />}
-      {volume.map((v, i) => i < n && (
-        <rect key={i} x={x(i) - 1.6} width="3.2" y={H - padB - (v / vmax) * 24} height={(v / vmax) * 24}
-          className="chart-vol" data-up={closes[i] >= (closes[i - 1] ?? closes[i])} />
-      ))}
-      <polygon points={area} className="chart-area" />
-      <polyline points={line} className="chart-line" data-up={up} />
-      {grow > 0.98 && <circle cx={x(closes.length - 1)} cy={y(last)} r="3.2" className="chart-dot" />}
-    </svg>
+      {zoomed && <button className="pchart-reset mono" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); reset(); }}>reset zoom ✕</button>}
+    </div>
   );
 }
 

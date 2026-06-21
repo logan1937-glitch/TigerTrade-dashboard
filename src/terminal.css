@@ -700,6 +700,24 @@ body { background: #0a0b0d; }
 .chart-bar[data-up="false"] { fill: var(--sev-extreme); }
 .chart-rs { fill: none; stroke: var(--cat-data); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; opacity: 0.9; }
 
+/* interactive price chart — crosshair, drag-zoom selection, readout */
+.pchart { width: 100%; }
+.chart-cross { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.85; }
+.chart-cross-dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.chart-sel { fill: color-mix(in oklch, var(--accent) 16%, transparent); stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.9; }
+.pchart-tip { position: absolute; top: 2px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+  padding: 4px 9px; background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-sm);
+  pointer-events: none; white-space: nowrap; box-shadow: 0 8px 20px -10px #000; z-index: 2; }
+.pchart-tip span { font-size: 11px; line-height: 1; }
+.pchart-tip-d { color: var(--dim); }
+.pchart-tip-p { color: var(--text); font-weight: 600; }
+.pchart-tip-c[data-up="true"] { color: var(--cat-growth); }
+.pchart-tip-c[data-up="false"] { color: var(--sev-extreme); }
+.pchart-reset { position: absolute; top: 2px; right: 2px; font-size: 10px; letter-spacing: 0.04em;
+  color: var(--accent); background: var(--panel); border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--border));
+  border-radius: var(--radius-sm); padding: 3px 8px; cursor: pointer; z-index: 2; }
+.pchart-reset:hover { background: var(--surface-2); }
+
 .meter { height: 6px; border-radius: 6px; background: var(--panel); border: 1px solid var(--border); overflow: hidden; }
 .meter i { display: block; height: 100%; border-radius: 6px; transition: width .5s cubic-bezier(.2,.7,.2,1); }
 
