@@ -725,6 +725,12 @@ body { background: #0a0b0d; }
 .chart-rs { fill: none; stroke: var(--cat-data); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; opacity: 0.9; }
 
 /* interactive price chart — crosshair, drag-zoom selection, readout */
+.pchart-wrap { width: 100%; }
+.pchart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; flex-wrap: wrap; }
+.pchart-toolbar .seg-btn { padding: 4px 10px; font-size: 10.5px; }
+.pchart-range { font-size: 10.5px; letter-spacing: 0.04em; color: var(--dim); white-space: nowrap; }
+.pchart-axis { position: relative; height: 15px; margin-top: 6px; }
+.pchart-axis span { position: absolute; top: 0; font-size: 9.5px; letter-spacing: 0.02em; color: var(--dim); white-space: nowrap; }
 .pchart { width: 100%; }
 .chart-cross { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.85; }
 .chart-cross-dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
