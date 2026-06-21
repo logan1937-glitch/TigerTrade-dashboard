@@ -193,7 +193,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
     : live.status === "loading"
       ? "Connecting to live feed…"
       : "Demo prices · not live — set FMP_API_KEY to go live";
-  const dotColor = isLive ? "var(--cat-growth)" : live.status === "loading" ? "var(--accent)" : "var(--sev-extreme)";
+  const dotColor = isLive ? "var(--accent)" : live.status === "loading" ? "var(--accent)" : "var(--sev-extreme)";
 
   return (
     <>

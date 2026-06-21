@@ -9,7 +9,7 @@ import { Drawer, EventDrawerBody, StockDrawerBody, WatchlistBody } from "./drawe
 import { CanslimView } from "./canslim.jsx";
 
 /* fixed presentation settings (the prototype's design-tool tweaks, pinned for production) */
-const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "geist", GLOW = "on", SHOW_SCOPE = true;
+const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grotesk", GLOW = "on", SHOW_SCOPE = true;
 
 function useStored(key, init) {
   const [v, setV] = useState(() => {
