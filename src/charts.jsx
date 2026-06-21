@@ -76,9 +76,29 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, h = 184 }) {
   const pctPrev = hover != null && hover > 0 ? ((closes[hover] - closes[hover - 1]) / closes[hover - 1]) * 100 : 0;
   const tipLeft = hx != null ? Math.min(92, Math.max(8, (hx / W) * 100)) : 0;
 
+  // date-range presets + x-axis timeline ticks
+  const RANGES = [["1W", 5], ["1M", 21], ["3M", 63], ["All", N]];
+  const span = hi - lo + 1;
+  const isRange = (cnt) => (cnt >= N ? lo === 0 && hi === N - 1 : hi === N - 1 && span === cnt);
+  const setRange = (cnt) => setDomain(cnt >= N ? { lo: 0, hi: N - 1 } : { lo: Math.max(0, N - cnt), hi: N - 1 });
+  const TICKS = 5;
+  const ticks = Array.from({ length: TICKS }, (_, k) => {
+    const j = M <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (M - 1));
+    return { left: M <= 1 ? 0 : (j / (M - 1)) * 100, label: dateFor(lo + j) };
+  });
+
   return (
-    <div className="pchart" ref={wrapRef} onMouseMove={onMove} onMouseDown={onDown} onMouseUp={onUp} onMouseLeave={onLeave} onDoubleClick={reset}
-      style={{ position: "relative", cursor: drag ? "ew-resize" : "crosshair", userSelect: "none" }}>
+    <div className="pchart-wrap">
+      <div className="pchart-toolbar">
+        <div className="seg">
+          {RANGES.map(([label, cnt]) => (
+            <button key={label} className="seg-btn" data-active={isRange(cnt)} onClick={() => setRange(cnt)}>{label}</button>
+          ))}
+        </div>
+        <span className="pchart-range mono">{dateFor(lo)} – {dateFor(hi)}</span>
+      </div>
+      <div className="pchart" ref={wrapRef} onMouseMove={onMove} onMouseDown={onDown} onMouseUp={onUp} onMouseLeave={onLeave} onDoubleClick={reset}
+        style={{ position: "relative", cursor: drag ? "ew-resize" : "crosshair", userSelect: "none" }}>
       <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Price chart">
         <defs><clipPath id={clipId}><rect x="0" y="0" width={W} height={H} /></clipPath></defs>
         <g clipPath={`url(#${clipId})`}>
@@ -113,6 +133,12 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, h = 184 }) {
         </div>
       )}
       {zoomed && <button className="pchart-reset mono" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); reset(); }}>reset zoom ✕</button>}
+      </div>
+      <div className="pchart-axis" aria-hidden="true">
+        {ticks.map((t, k) => (
+          <span key={k} className="mono" style={{ left: `${t.left}%`, transform: k === 0 ? "none" : k === ticks.length - 1 ? "translateX(-100%)" : "translateX(-50%)" }}>{t.label}</span>
+        ))}
+      </div>
     </div>
   );
 }
