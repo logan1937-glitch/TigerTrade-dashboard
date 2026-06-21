@@ -22,7 +22,7 @@ export function useGrow(dur = 650) {
    (drag horizontally to zoom a range; double-click or "reset zoom" to restore). */
 const _fmtP = (n) => (n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2));
 
-export function PriceChart({ closes, volume, pivot, buyLo, buyHi, h = 184 }) {
+export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184 }) {
   const grow = useGrow(750);
   const clipId = useId().replace(/:/g, "");
   const wrapRef = useRef(null);
@@ -72,7 +72,10 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, h = 184 }) {
 
   const hj = hover != null ? hover - lo : null;
   const hx = hj != null ? x(hj) : null;
-  const dateFor = (gi) => { const d = new Date(); d.setDate(d.getDate() - (N - 1 - gi)); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
+  const dateFor = (gi) => {
+    if (dates && dates[gi]) { const d = new Date(dates[gi] + "T00:00:00"); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
+    const d = new Date(); d.setDate(d.getDate() - (N - 1 - gi)); return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  };
   const pctPrev = hover != null && hover > 0 ? ((closes[hover] - closes[hover - 1]) / closes[hover - 1]) * 100 : 0;
   const tipLeft = hx != null ? Math.min(92, Math.max(8, (hx / W) * 100)) : 0;
 
