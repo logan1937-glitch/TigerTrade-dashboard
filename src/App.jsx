@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom } from "./signals.js";
@@ -182,6 +183,7 @@ export default function App() {
         </Drawer>
 
         <Disclaimer />
+        <Analytics />
       </div>
     </CanslimCtx.Provider>
     </WatchCtx.Provider>
