@@ -94,7 +94,7 @@ function Screener({ rows, onOpenStock }) {
       <div className="cs-table">
         <div className="cs-head">
           <span>Ticker</span><span style={{ textAlign: "right" }}>Price · Δ{tf}</span><span>RS</span><span>Trend</span>
-          <span>Leadership</span><span style={{ textAlign: "right" }}>Buy Status</span><span style={{ textAlign: "right" }}>Score</span>
+          <span>Leadership</span><span>Signals</span><span style={{ textAlign: "right" }}>Buy Status</span><span style={{ textAlign: "right" }}>Score</span>
         </div>
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}>
@@ -103,6 +103,15 @@ function Screener({ rows, onOpenStock }) {
             <div className="cs-rs mono">{r.rs}<i style={{ width: r.rs + "%" }} /></div>
             <div><Spark data={r.spark} /></div>
             <div className="cs-letters">{LETTERS.map((L, j) => <span key={j} className="cs-let" data-on={r.breakdown[j].pass}>{L}</span>)}</div>
+            <div className="cs-sig">
+              {r.sig ? (
+                <>
+                  <span className="cs-stage" data-stage={r.sig.stage || 0} title={`Stage ${r.sig.stage || "?"} — ${r.sig.stageLabel || ""}`}>{r.sig.stage ? "S" + r.sig.stage : "—"}</span>
+                  {r.sig.rsNewHigh && <span className="cs-flag" data-lead={r.sig.rsLeads || undefined} title={r.sig.rsLeads ? "RS line at a new high before price" : "RS line at a new high"}>RS↑</span>}
+                  {r.sig.pocketPivot && <span className="cs-flag" title="Pocket pivot">◆</span>}
+                </>
+              ) : <span className="cs-sig-na mono">—</span>}
+            </div>
             <div style={{ textAlign: "right" }}><StatusPill status={r.status} /></div>
             <div className="cs-score mono" data-grade={r.score >= 93 ? "a" : "b"}>{r.score}</div>
           </div>
