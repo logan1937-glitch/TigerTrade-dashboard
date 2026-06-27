@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
-import { fetchHistories, computeSignals, lookbackFrom } from "./signals.js";
+import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
 import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
@@ -50,18 +50,39 @@ export default function App() {
       : [...prev, { key, kind: meta.kind, ref: meta.ref, at: Date.now() }]),
   }), [watchArr, watchSet]);
 
-  // single source of screener data: live quotes + real EOD-computed signals merged
-  // over the editorial base where each is available
+  // single source of screener data: live quotes + real EOD signals merged over the
+  // editorial base, then a real universe-wide RS rating + momentum score so curated
+  // and extended (signals-only) names are ranked on the same honest, technical basis
   const csData = useMemo(() => {
-    const list = TT.CANSLIM.map((s) => {
+    let list = TT.CANSLIM.map((s) => {
       let r = (live.status === "live" && live.quotes?.[s.tk]) ? mergeCanslim(s, live.quotes[s.tk]) : s;
       const sg = hist.sig?.[s.tk];
       if (sg) {
-        // real adjusted history powers the chart + RS line + the momentum signals
         r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine, off52: sg.off52, sig: sg, _eod: true };
       }
       return r;
     });
+
+    const rsMap = rsRatings(list);             // 1–99 percentile of 12-mo return
+    const sampleSpark = (c) => (c && c.length ? c.filter((_, i) => i % Math.max(1, Math.floor(c.length / 8)) === 0) : null);
+
+    list = list.map((r) => {
+      if (!r.sig) return r;
+      const rs = rsMap[r.tk] != null ? rsMap[r.tk] : (r.rs || 50);
+      const score = momentumScore(r.sig, rs);
+      const grade = score >= 80 ? "a" : score >= 60 ? "b" : "c";
+      const spark = sampleSpark(r.sig.closes) || r.spark;
+      // derive buy-status for signals-only names from the trend (no curated pivot)
+      let status = r.status;
+      if (r.coverage === "signals") status = r.sig.stage === 2 && r.sig.off52 <= 6 ? "buy" : null;
+      // keep the LEADERS 'L' chip in sync with the real RS rating for covered names
+      let breakdown = r.breakdown;
+      if (r.coverage === "full" && breakdown.length) {
+        breakdown = breakdown.map((b) => (b.letter === "L" ? { ...b, pass: rs >= 85, value: `RS ${rs} · grp #${r.groupRank}` } : b));
+      }
+      return { ...r, rs, score, grade, spark, status, breakdown };
+    });
+
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
   }, [live, hist]);
 

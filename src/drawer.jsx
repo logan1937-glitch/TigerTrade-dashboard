@@ -140,20 +140,23 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
 export function StockDrawerBody({ stock, onClose }) {
   const s = stock;
   const statusMap = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
-  const [stLabel, stColor] = statusMap[s.status];
+  const [stLabel, stColor] = statusMap[s.status] || [null, null];
+  const hasBase = s.pivot != null;                  // curated buy-point base
+  const hasChart = s.closes && s.closes.length > 0; // real EOD history loaded
+  const signalsOnly = s.coverage === "signals";
 
   // order-plan ticket (planning only — not connected to a broker)
   const [planOpen, setPlanOpen] = useState(false);
   const [alertNote, setAlertNote] = useState(false);
   const [qty, setQty] = useState(100);
-  const stop = +(s.pivot * 0.92).toFixed(2);
-  const t1 = +(s.pivot * 1.20).toFixed(2);
-  const t2 = +(s.pivot * 1.25).toFixed(2);
-  const riskPerShare = +(s.px - stop).toFixed(2);
-  const rewardPerShare = +(t1 - s.px).toFixed(2);
-  const rr = riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : "—";
-  const posValue = qty * s.px;
-  const riskValue = qty * Math.max(0, riskPerShare);
+  const stop = hasBase ? +(s.pivot * 0.92).toFixed(2) : null;
+  const t1 = hasBase ? +(s.pivot * 1.20).toFixed(2) : null;
+  const t2 = hasBase ? +(s.pivot * 1.25).toFixed(2) : null;
+  const riskPerShare = hasBase ? +(s.px - stop).toFixed(2) : null;
+  const rewardPerShare = hasBase ? +(t1 - s.px).toFixed(2) : null;
+  const rr = hasBase && riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : "—";
+  const posValue = (qty * (s.px || 0));
+  const riskValue = qty * Math.max(0, riskPerShare || 0);
   const money = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
   return (
@@ -167,13 +170,15 @@ export function StockDrawerBody({ stock, onClose }) {
 
       <div className="dr-head dr-stockhead">
         <div>
-          <div className="dr-symrow"><Logo ticker={s.tk} size={34} /><span className="dr-sym">{s.tk}</span><span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span></div>
+          <div className="dr-symrow"><Logo ticker={s.tk} size={34} /><span className="dr-sym">{s.tk}</span>
+            {stLabel ? <span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span>
+              : signalsOnly && <span className="badge badge-cat" style={{ "--c": "var(--dim)" }}>Signals-only</span>}</div>
           <h2 className="dr-title dr-stockname">{s.name}</h2>
           <div className="dr-pxrow">
-            <span className="dr-px mono">${s.px.toLocaleString()}</span>
-            <span className="dr-chg mono" data-up={s.chg >= 0}>{s.chg >= 0 ? "+" : ""}{s.chg}%</span>
-            <span className="dr-rs mono">RS {s.rs}</span>
-            <span className="dr-grp mono">Group #{s.groupRank}</span>
+            <span className="dr-px mono">{s.px != null ? "$" + s.px.toLocaleString() : "—"}</span>
+            {s.chg != null && <span className="dr-chg mono" data-up={s.chg >= 0}>{s.chg >= 0 ? "+" : ""}{s.chg}%</span>}
+            {s.rs != null && <span className="dr-rs mono">RS {s.rs}</span>}
+            {s.groupRank != null && <span className="dr-grp mono">Group #{s.groupRank}</span>}
           </div>
         </div>
         <ScoreDonut score={s.score} label="Score" />
@@ -190,11 +195,21 @@ export function StockDrawerBody({ stock, onClose }) {
         </div>
       )}
 
-      <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Price &amp; volume</h3><span className="dr-sec-sub mono">{s._eod ? `adjusted EOD · pivot ${s.pivot}` : `daily · pivot ${s.pivot}`}</span></div>
-        <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi} dates={s.dates} />
-        <div className="dr-rs-wrap"><span className="dr-rs-lab mono">RS line vs S&amp;P{s.sig?.rsLeads ? " · new high before price ✦" : s.sig?.rsNewHigh ? " · new high" : ""}</span><RSLine rs={s.rsLine} /></div>
-      </div>
+      {signalsOnly && (
+        <div className="dr-bioblock">
+          <p className="dr-bio">Signals-only coverage — ranked purely on real technical momentum from live EOD history (RS, stage, breakout). No fundamental overlay or curated buy-point base for this name.</p>
+        </div>
+      )}
+
+      {hasChart && (
+        <div className="dr-sec">
+          <div className="dr-sec-h"><h3>Price &amp; volume</h3><span className="dr-sec-sub mono">{s.pivot != null ? `adjusted EOD · pivot ${s.pivot}` : "adjusted EOD"}</span></div>
+          <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi} dates={s.dates} />
+          {s.rsLine && s.rsLine.length > 1 && (
+            <div className="dr-rs-wrap"><span className="dr-rs-lab mono">RS line vs S&amp;P{s.sig?.rsLeads ? " · new high before price ✦" : s.sig?.rsNewHigh ? " · new high" : ""}</span><RSLine rs={s.rsLine} /></div>
+          )}
+        </div>
+      )}
 
       {s.sig && (
         <div className="dr-sec">
@@ -212,6 +227,7 @@ export function StockDrawerBody({ stock, onClose }) {
         </div>
       )}
 
+      {hasBase && (
       <div className="dr-sec">
         <div className="dr-sec-h"><h3>Buy-point analysis</h3></div>
         <div className="dr-buygrid">
@@ -228,7 +244,9 @@ export function StockDrawerBody({ stock, onClose }) {
           {s.status === "watch" && `Base still forming — no valid pivot yet. Add to watchlist.`}
         </div>
       </div>
+      )}
 
+      {s.breakdown && s.breakdown.length > 0 && (
       <div className="dr-sec">
         <div className="dr-sec-h"><h3>Leadership model</h3><span className="dr-sec-sub mono">{s.pass}/7 factors</span></div>
         <div className="dr-canslim">
@@ -244,7 +262,9 @@ export function StockDrawerBody({ stock, onClose }) {
           ))}
         </div>
       </div>
+      )}
 
+      {s.f && (
       <div className="dr-sec">
         <div className="dr-sec-h"><h3>Fundamentals</h3></div>
         <div className="dr-funds">
@@ -255,13 +275,16 @@ export function StockDrawerBody({ stock, onClose }) {
           ))}
         </div>
       </div>
+      )}
 
-      <div className="dr-sec">
-        <div className="dr-k mono">Thesis</div>
-        <p className="dr-p">{s.why}</p>
-      </div>
+      {s.why && (
+        <div className="dr-sec">
+          <div className="dr-k mono">Thesis</div>
+          <p className="dr-p">{s.why}</p>
+        </div>
+      )}
 
-      {planOpen && (
+      {planOpen && hasBase && (
         <div className="dr-sec">
           <div className="dr-sec-h"><h3>{s.status === "buy" ? "Staged order plan" : "Pivot watch plan"}</h3><span className="dr-sec-sub mono">planning only — no broker connected</span></div>
           <div className="dr-buygrid">
@@ -291,7 +314,7 @@ export function StockDrawerBody({ stock, onClose }) {
       <div className="dr-actions">
         <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
         <button className="ed-btn" onClick={() => setAlertNote((v) => !v)}>Set price alert</button>
-        <button className="ed-btn ed-btn-primary" onClick={() => setPlanOpen((v) => !v)}>{planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>
+        {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => setPlanOpen((v) => !v)}>{planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
       </div>
       {alertNote && (
         <p className="mono" style={{ padding: "10px 26px 0", fontSize: 11, lineHeight: 1.5, color: "var(--dim)" }}>

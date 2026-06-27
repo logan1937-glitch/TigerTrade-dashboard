@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   const tickers = TT.CANSLIM.map((s) => s.tk);
   const all = [...tickers, "SPY"];
   const data = {};
-  await pool(all, async (t) => { const d = await yahooBars(t); if (d) data[t] = d; }, 5);
+  await pool(all, async (t) => { const d = await yahooBars(t); if (d) data[t] = d; }, 6);
 
   const spy = data.SPY && data.SPY.rows;
   const quotes = {}, sig = {};
