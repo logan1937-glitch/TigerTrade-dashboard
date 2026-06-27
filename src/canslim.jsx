@@ -58,7 +58,7 @@ function Screener({ rows, onOpenStock }) {
     r = r.map((x) => ({ ...x, _ret: periodReturn(x, tf) }));
     if (sort === "chg") return [...r].sort((a, b) => b._ret - a._ret);
     const key = { score: "score", rs: "rs", pass: "pass" }[sort];
-    return [...r].sort((a, b) => b[key] - a[key]);
+    return [...r].sort((a, b) => (b[key] || 0) - (a[key] || 0));
   }, [rows, q, sort, statusF, tf]);
 
   return (
@@ -100,9 +100,9 @@ function Screener({ rows, onOpenStock }) {
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}>
             <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
             <div className="cs-px"><span className="cs-price mono">${fmtPx(r.px)}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{r._ret.toFixed(2)}%</span></div>
-            <div className="cs-rs mono">{r.rs}<i style={{ width: r.rs + "%" }} /></div>
-            <div><Spark data={r.spark} /></div>
-            <div className="cs-letters">{LETTERS.map((L, j) => <span key={j} className="cs-let" data-on={r.breakdown[j].pass}>{L}</span>)}</div>
+            <div className="cs-rs mono">{r.rs != null ? r.rs : "—"}{r.rs != null && <i style={{ width: r.rs + "%" }} />}</div>
+            <div>{r.spark && r.spark.length ? <Spark data={r.spark} /> : <span className="cs-sig-na mono">—</span>}</div>
+            <div className="cs-letters">{r.coverage === "full" && r.breakdown.length ? LETTERS.map((L, j) => <span key={j} className="cs-let" data-on={r.breakdown[j].pass}>{L}</span>) : <span className="cs-sig-na mono">—</span>}</div>
             <div className="cs-sig">
               {r.sig ? (
                 <>
@@ -112,8 +112,8 @@ function Screener({ rows, onOpenStock }) {
                 </>
               ) : <span className="cs-sig-na mono">—</span>}
             </div>
-            <div style={{ textAlign: "right" }}><StatusPill status={r.status} /></div>
-            <div className="cs-score mono" data-grade={r.score >= 93 ? "a" : "b"}>{r.score}</div>
+            <div style={{ textAlign: "right" }}>{r.status ? <StatusPill status={r.status} /> : <span className="cs-sig-na mono">—</span>}</div>
+            <div className="cs-score mono" data-grade={r.grade || (r.score >= 93 ? "a" : "b")}>{(r.sig || r.coverage === "full") ? r.score : "—"}</div>
           </div>
         ))}
       </div>
@@ -170,7 +170,7 @@ function MarketHealth() {
 
 /* ----------------------------- PLAYBOOK ----------------------------- */
 function CanslimPlaybook({ rows, onOpenStock }) {
-  const buys = rows.filter((s) => s.status === "buy").slice(0, 5);
+  const buys = rows.filter((s) => s.status === "buy" && s.buyLo != null).slice(0, 5);
   return (
     <div className="wrap">
     <div className="pb">
@@ -215,7 +215,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
   const [tab, setTab] = useState("screener");
 
   const buyCount = rows.filter((s) => s.status === "buy").length;
-  const leaders = rows.filter((s) => s.score >= 93).length;
+  const leaders = rows.filter((s) => (s.score || 0) >= 80).length;
 
   const isLive = live.status === "live";
   const meta = isLive

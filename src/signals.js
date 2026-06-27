@@ -134,3 +134,29 @@ export function computeSignals(rows, spyRows) {
 export function lookbackFrom(days = 430) {
   return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 }
+
+// pure-technical momentum score (0–100) from real signals + the universe RS
+// rating. No fundamentals — works for every name with a signal bundle, so it
+// ranks curated and extended-universe names on the same honest basis.
+export function momentumScore(sig, rs) {
+  if (!sig) return null;
+  let s = (rs == null ? 50 : rs) * 0.45;                 // leadership (RS) — the biggest weight
+  const st = sig.stage;
+  s += st === 2 ? 20 : st === 1 ? 8 : st === 3 ? 4 : st === 4 ? 0 : 6;  // Weinstein stage
+  s += sig.rsLeads ? 10 : sig.rsNewHigh ? 6 : 0;          // RS line new high (esp. before price)
+  s += sig.off52 <= 3 ? 8 : sig.off52 <= 12 ? 5 : sig.off52 <= 25 ? 2 : 0;  // proximity to 52-wk high
+  s += sig.distDays <= 2 ? 6 : sig.distDays <= 4 ? 3 : 0; // few distribution days
+  s += sig.pocketPivot ? 5 : 0;                           // constructive volume signature
+  if (sig.dollarVol && sig.dollarVol < 3e6) s *= 0.85;    // illiquidity penalty
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+
+// universe-wide RS rating (1–99) from the percentile of 12-month return.
+// Pass the rows that have a signal bundle; returns { TICKER: rating }.
+export function rsRatings(rows) {
+  const withRet = rows.filter((r) => r.sig && r.sig.ret12m != null);
+  const sorted = [...withRet].sort((a, b) => a.sig.ret12m - b.sig.ret12m);
+  const map = {};
+  sorted.forEach((r, i) => { map[r.tk] = sorted.length > 1 ? Math.round(1 + (i / (sorted.length - 1)) * 98) : 50; });
+  return map;
+}

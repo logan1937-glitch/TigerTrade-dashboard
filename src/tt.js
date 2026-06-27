@@ -602,7 +602,8 @@ const _LEADERS_DEFS = (s, f) => [
     note: "Buy only when the general market is in a confirmed uptrend." },
 ];
 
-TT.CANSLIM = _BASE.map((s) => {
+// fully-covered names: editorial fundamentals + LEADERS scorecard + buy-point base
+function _buildFull(s) {
   const ser = _series(s.tk.split("").reduce((a, c) => a + c.charCodeAt(0) * 31, 7), s.px, s.status);
   const pivot = ser.pivot;
   const pctExt = +(((s.px - pivot) / pivot) * 100).toFixed(1);
@@ -612,9 +613,87 @@ TT.CANSLIM = _BASE.map((s) => {
     pass / 7 * 40 + s.rs * 0.35 + Math.min(s.f.epsQ, 150) / 150 * 15 +
     (s.status === "buy" ? 10 : s.status === "ext" ? 3 : 4)));
   const buyLo = pivot, buyHi = +(pivot * 1.05).toFixed(2);
-  return { ...s, ...ser, pivot, pctExt, breakdown, pass, score, buyLo, buyHi,
+  return { ...s, ...ser, coverage: "full", pivot, pctExt, breakdown, pass, score, buyLo, buyHi,
     spark: ser.closes.filter((_, i) => i % 9 === 0).map((c) => c) };
-});
+}
+
+// Extended universe — lightweight (symbol · name · sector · group only). No
+// fabricated fundamentals: these names are ranked purely on real momentum
+// signals (price, RS, stage, breakout) computed from live EOD history at runtime.
+const _EXTENDED = [
+  ["FTNT", "Fortinet", "Technology", "Software –Security"],
+  ["ZS", "Zscaler", "Technology", "Software –Security"],
+  ["OKTA", "Okta", "Technology", "Software –Security"],
+  ["WDAY", "Workday", "Technology", "Software –Application"],
+  ["ADBE", "Adobe", "Technology", "Software –Application"],
+  ["INTU", "Intuit", "Technology", "Software –Application"],
+  ["CRM", "Salesforce", "Technology", "Software –Application"],
+  ["PYPL", "PayPal", "Financials", "Software –Infrastructure"],
+  ["SQ", "Block", "Financials", "Software –Infrastructure"],
+  ["AFRM", "Affirm", "Financials", "Software –Infrastructure"],
+  ["QCOM", "Qualcomm", "Technology", "Elec –Semiconductor"],
+  ["TXN", "Texas Instruments", "Technology", "Elec –Semiconductor"],
+  ["ADI", "Analog Devices", "Technology", "Elec –Semiconductor"],
+  ["NXPI", "NXP Semiconductors", "Technology", "Elec –Semiconductor"],
+  ["ON", "ON Semiconductor", "Technology", "Elec –Semiconductor"],
+  ["INTC", "Intel", "Technology", "Elec –Semiconductor"],
+  ["ARM", "Arm Holdings", "Technology", "Elec –Semiconductor"],
+  ["SMCI", "Super Micro Computer", "Technology", "Computer –Hardware"],
+  ["GS", "Goldman Sachs", "Financials", "Banks –Money Center"],
+  ["MS", "Morgan Stanley", "Financials", "Banks –Money Center"],
+  ["C", "Citigroup", "Financials", "Banks –Money Center"],
+  ["BAC", "Bank of America", "Financials", "Banks –Money Center"],
+  ["WFC", "Wells Fargo", "Financials", "Banks –Money Center"],
+  ["SCHW", "Charles Schwab", "Financials", "Capital Markets"],
+  ["BLK", "BlackRock", "Financials", "Asset Management"],
+  ["SPGI", "S&P Global", "Financials", "Capital Markets"],
+  ["ICE", "Intercontinental Exchange", "Financials", "Capital Markets"],
+  ["REGN", "Regeneron", "Healthcare", "Drug –Biotech"],
+  ["VRTX", "Vertex Pharma", "Healthcare", "Drug –Biotech"],
+  ["AMGN", "Amgen", "Healthcare", "Drug –Biotech"],
+  ["MRK", "Merck", "Healthcare", "Drug –Pharma"],
+  ["ABBV", "AbbVie", "Healthcare", "Drug –Pharma"],
+  ["UNH", "UnitedHealth", "Healthcare", "Medical –Managed Care"],
+  ["TMO", "Thermo Fisher", "Healthcare", "Medical –Products"],
+  ["SYK", "Stryker", "Healthcare", "Medical –Systems"],
+  ["BSX", "Boston Scientific", "Healthcare", "Medical –Systems"],
+  ["NKE", "Nike", "Consumer Cyclical", "Apparel –Shoes"],
+  ["SBUX", "Starbucks", "Consumer Cyclical", "Retail –Restaurants"],
+  ["MCD", "McDonald's", "Consumer Cyclical", "Retail –Restaurants"],
+  ["CMG", "Chipotle", "Consumer Cyclical", "Retail –Restaurants"],
+  ["LULU", "Lululemon", "Consumer Cyclical", "Apparel –Clothing"],
+  ["NU", "Nu Holdings", "Financials", "Banks –Foreign"],
+  ["DASH", "DoorDash", "Consumer Cyclical", "Internet –Retail"],
+  ["SPOT", "Spotify", "Communication Services", "Media –Streaming"],
+  ["RBLX", "Roblox", "Communication Services", "Software –Gaming"],
+  ["DKNG", "DraftKings", "Consumer Cyclical", "Gambling –Online"],
+  ["BA", "Boeing", "Industrials", "Aerospace –Defense"],
+  ["LMT", "Lockheed Martin", "Industrials", "Aerospace –Defense"],
+  ["GD", "General Dynamics", "Industrials", "Aerospace –Defense"],
+  ["HON", "Honeywell", "Industrials", "Diversified –Industrial"],
+  ["ETN", "Eaton", "Industrials", "Elec –Power/Thermal"],
+  ["UNP", "Union Pacific", "Industrials", "Transport –Rail"],
+  ["FDX", "FedEx", "Industrials", "Transport –Logistics"],
+  ["LIN", "Linde", "Materials", "Chemicals –Specialty"],
+  ["FCX", "Freeport-McMoRan", "Materials", "Mining –Copper"],
+  ["NEM", "Newmont", "Materials", "Mining –Gold/Silver"],
+  ["XOM", "Exxon Mobil", "Energy", "Oil –Integrated"],
+  ["CVX", "Chevron", "Energy", "Oil –Integrated"],
+  ["COP", "ConocoPhillips", "Energy", "Oil –E&P"],
+  ["SLB", "Schlumberger", "Energy", "Oil –Services"],
+].map(([tk, name, sector, group]) => ({ tk, name, sector, group }));
+
+// signals-only names: no fundamentals; real momentum signals fill in at runtime
+function _buildSignals(s) {
+  return {
+    ...s, coverage: "signals", groupRank: null, rs: null, status: null, px: null, chg: null,
+    f: null, breakdown: [], pass: 0, score: 0, pivot: null, buyLo: null, buyHi: null, pctExt: null,
+    closes: [], volume: [], rsLine: [], spark: [],
+    baseType: null, baseWeeks: 0, baseDepth: 0, why: null, bio: null, hq: null, mktCap: null, avgVol: null,
+  };
+}
+
+TT.CANSLIM = [..._BASE.map(_buildFull), ..._EXTENDED.map(_buildSignals)];
 TT.CS_BYTICKER = Object.fromEntries(TT.CANSLIM.map((s) => [s.tk, s]));
 
 TT.MKT = {
