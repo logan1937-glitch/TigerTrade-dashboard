@@ -35,16 +35,31 @@ function StatusPill({ status }) {
 function fmtPx(n) { return n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2); }
 
 /* ----------------------------- SCREENER ----------------------------- */
+const TF_BARS = { "1W": 5, "1M": 21, "3M": 63, "1Y": 252 };
+// % return over the selected timeframe, from real adjusted closes (1D uses the
+// live quote change; falls back to daily change when history isn't available)
+function periodReturn(s, tf) {
+  const c = s.closes, n = c ? c.length : 0;
+  if (tf === "1D") return s.chg != null ? s.chg : (n >= 2 ? (c[n - 1] / c[n - 2] - 1) * 100 : 0);
+  if (!c || n < 2) return s.chg || 0;
+  const back = TF_BARS[tf] || 21;
+  const i = Math.max(0, n - 1 - back);
+  return (c[n - 1] / c[i] - 1) * 100;
+}
+
 function Screener({ rows, onOpenStock }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
   const [statusF, setStatusF] = useState("all");
+  const [tf, setTf] = useState("1D");
   const view = useMemo(() => {
     let r = rows.filter((x) => (x.tk + " " + x.name + " " + x.group).toLowerCase().includes(q.toLowerCase()));
     if (statusF !== "all") r = r.filter((x) => x.status === statusF);
-    const key = { score: "score", rs: "rs", pass: "pass", chg: "chg" }[sort];
+    r = r.map((x) => ({ ...x, _ret: periodReturn(x, tf) }));
+    if (sort === "chg") return [...r].sort((a, b) => b._ret - a._ret);
+    const key = { score: "score", rs: "rs", pass: "pass" }[sort];
     return [...r].sort((a, b) => b[key] - a[key]);
-  }, [rows, q, sort, statusF]);
+  }, [rows, q, sort, statusF, tf]);
 
   return (
     <div className="wrap">
@@ -58,6 +73,12 @@ function Screener({ rows, onOpenStock }) {
           </div>
         </div>
         <div className="filters-right">
+          <span className="minwt-lab">Δ</span>
+          <div className="seg">
+            {["1D", "1W", "1M", "3M", "1Y"].map((id) => (
+              <button key={id} className="seg-btn" data-active={tf === id} onClick={() => setTf(id)}>{id}</button>
+            ))}
+          </div>
           <span className="minwt-lab">Sort</span>
           <div className="seg">
             {[["score", "Score"], ["rs", "RS"], ["pass", "Pass"], ["chg", "% Chg"]].map(([id, l]) => (
@@ -72,13 +93,13 @@ function Screener({ rows, onOpenStock }) {
 
       <div className="cs-table">
         <div className="cs-head">
-          <span>Ticker</span><span style={{ textAlign: "right" }}>Price</span><span>RS</span><span>Trend</span>
+          <span>Ticker</span><span style={{ textAlign: "right" }}>Price · Δ{tf}</span><span>RS</span><span>Trend</span>
           <span>Leadership</span><span style={{ textAlign: "right" }}>Buy Status</span><span style={{ textAlign: "right" }}>Score</span>
         </div>
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}>
             <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
-            <div className="cs-px"><span className="cs-price mono">${fmtPx(r.px)}</span><span className="cs-chg mono" data-up={r.chg >= 0}>{r.chg >= 0 ? "+" : ""}{r.chg.toFixed(2)}%</span></div>
+            <div className="cs-px"><span className="cs-price mono">${fmtPx(r.px)}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{r._ret.toFixed(2)}%</span></div>
             <div className="cs-rs mono">{r.rs}<i style={{ width: r.rs + "%" }} /></div>
             <div><Spark data={r.spark} /></div>
             <div className="cs-letters">{LETTERS.map((L, j) => <span key={j} className="cs-let" data-on={r.breakdown[j].pass}>{L}</span>)}</div>
