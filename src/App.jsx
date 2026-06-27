@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom } from "./signals.js";
+import { fetchMarket } from "./marketData.js";
 import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView, PlaybookView } from "./views.jsx";
@@ -68,28 +69,44 @@ export default function App() {
   // always open the live-merged record for a ticker (falls back to the passed object)
   const openStock = (s) => { setEvDrawer(null); setWatchOpen(false); setProduct("canslim"); setStockDrawer(csData.byTicker[s.tk] || s); };
 
-  // load live quotes for the screener universe once on mount
-  useEffect(() => {
-    let alive = true;
-    fetchQuotes(TT.CANSLIM.map((s) => s.tk))
-      .then((r) => { if (alive) setLive(r); })
-      .catch(() => { if (alive) setLive({ status: "unavailable", code: "ERROR", quotes: {} }); });
-    return () => { alive = false; };
-  }, []);
-
-  // load adjusted EOD history → compute real momentum signals (RS line, stage,
-  // ADR%, distribution days, pocket pivot). Degrades silently to the demo series.
+  // one combined feed: Yahoo first (quote + adjusted history in one call), FMP as
+  // fallback for anything Yahoo misses. Quotes drive the buy zone; history powers
+  // the chart + momentum signals. Degrades to the demo series, never fakes data.
   useEffect(() => {
     let alive = true;
     (async () => {
       const tickers = TT.CANSLIM.map((s) => s.tk);
-      const rows = await fetchHistories([...tickers, "SPY"], lookbackFrom());
+      const all = [...tickers, "SPY"];
+
+      const y = await fetchMarket(all);
+      const quotes = { ...y.quotes };
+      const rows = { ...y.rows };
+
+      // FMP fallback for any quote Yahoo didn't return
+      const missingQ = tickers.filter((t) => !quotes[t]);
+      let source = Object.keys(y.quotes).length ? "Yahoo" : "FMP";
+      if (missingQ.length) {
+        const fmp = await fetchQuotes(missingQ);
+        if (fmp.status === "live") { Object.assign(quotes, fmp.quotes); if (source === "FMP") source = "FMP"; }
+      }
+      // FMP fallback for any history Yahoo didn't return
+      const missingH = all.filter((t) => !rows[t]);
+      if (missingH.length) Object.assign(rows, await fetchHistories(missingH, lookbackFrom()));
+
       if (!alive) return;
+
+      const covered = tickers.filter((t) => quotes[t]);
+      let asOf = 0;
+      for (const t of covered) { const ts = quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts * 1000); }
+      setLive(covered.length
+        ? { status: "live", quotes, asOf: asOf || Date.now(), count: covered.length, total: tickers.length, source }
+        : { status: "unavailable", code: "NO_DATA", quotes: {} });
+
       const spy = rows.SPY;
       const sig = {};
       for (const t of tickers) { const s = computeSignals(rows[t], spy); if (s) sig[t] = s; }
       setHist({ rows, sig });
-    })().catch(() => {});
+    })().catch(() => { if (alive) setLive({ status: "unavailable", code: "ERROR", quotes: {} }); });
     return () => { alive = false; };
   }, []);
 
