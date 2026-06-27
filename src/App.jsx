@@ -69,14 +69,33 @@ export default function App() {
   // always open the live-merged record for a ticker (falls back to the passed object)
   const openStock = (s) => { setEvDrawer(null); setWatchOpen(false); setProduct("canslim"); setStockDrawer(csData.byTicker[s.tk] || s); };
 
-  // one combined feed: Yahoo first (quote + adjusted history in one call), FMP as
-  // fallback for anything Yahoo misses. Quotes drive the buy zone; history powers
-  // the chart + momentum signals. Degrades to the demo series, never fakes data.
+  // Data feed, in priority order:
+  //  1) /api/snapshot — the nightly precompute (one cached request, all signals)
+  //  2) live per-ticker: Yahoo first, FMP fallback (used until/if the snapshot
+  //     exists, or if it fails). Quotes drive the buy zone; history powers the
+  //     chart + momentum signals. Degrades to the demo series, never fakes data.
   useEffect(() => {
     let alive = true;
     (async () => {
       const tickers = TT.CANSLIM.map((s) => s.tk);
       const all = [...tickers, "SPY"];
+
+      // 1) precomputed snapshot — instant, edge-cached, no per-ticker fetching
+      try {
+        const r = await fetch("/api/snapshot");
+        if (r.ok) {
+          const snap = await r.json();
+          if (snap && snap.quotes && snap.sig && Object.keys(snap.quotes).length) {
+            if (!alive) return;
+            const covered = tickers.filter((t) => snap.quotes[t]);
+            let asOf = 0;
+            for (const t of covered) { const ts = snap.quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts * 1000); }
+            setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: tickers.length, source: snap.source || "snapshot" });
+            setHist({ rows: {}, sig: snap.sig });
+            return; // snapshot covered it — skip live per-ticker fetching
+          }
+        }
+      } catch { /* fall through to live fetching */ }
 
       const y = await fetchMarket(all);
       const quotes = { ...y.quotes };
