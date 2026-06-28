@@ -79,6 +79,19 @@ earnings growth, RS rank, institutional read, pivot, base pattern and catalyst �
 are maintained in the editorial dataset and labeled as model inputs, not live
 quotes. Verify against your broker before trading.
 
+### Precompute snapshot + durable storage (optional, for scale)
+`/api/snapshot` computes the whole universe's quotes + momentum signals server-side
+and serves them in one request, so the browser doesn't fetch every name. A daily
+**cron** (`vercel.json`, weekdays 22:00 UTC) refreshes it after the US close.
+
+By default the snapshot is edge-cached. To make it **durable** (the cron writes it
+once; user requests only *read* it, never recompute — needed as the universe grows
+to hundreds), connect a **Vercel Blob** store:
+1. Vercel → your project → **Storage → Create → Blob** → connect it.
+2. Vercel auto-adds the `BLOB_READ_WRITE_TOKEN` env var. Redeploy.
+3. The snapshot now reads/writes Blob automatically; without it, it falls back to
+   compute-on-demand + edge cache (zero setup, still works).
+
 ---
 
 ## Deploy to Vercel (recommended — free, ~5 minutes)

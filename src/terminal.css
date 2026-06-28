@@ -934,6 +934,36 @@ body { background: #0a0b0d; }
 .cs-lookup { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cs-lookup-err { font-size: 11px; color: var(--sev-extreme); white-space: nowrap; }
 
+/* ============================ MOBILE TAB BAR ============================ */
+.mobile-tabbar { display: none; }
+@media (max-width: 640px) {
+  .mobile-tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 130;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    background: color-mix(in oklch, var(--bg) 92%, transparent); backdrop-filter: blur(16px) saturate(1.2);
+    border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-tabbar button {
+    background: none; border: 0; cursor: pointer; min-height: 52px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    padding: 7px 4px; color: var(--dim); position: relative;
+    font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .mobile-tabbar button[data-active="true"] { color: var(--accent); }
+  .mobile-tabbar button:active { background: var(--surface); }
+  .mobile-tabbar button svg { width: 21px; height: 21px; }
+  .mobile-tabbar .tb-badge {
+    position: absolute; top: 5px; left: calc(50% + 6px); min-width: 15px; height: 15px; padding: 0 4px;
+    display: grid; place-items: center; font-size: 9px; font-weight: 700; border-radius: 8px;
+    background: var(--accent); color: var(--accent-ink); border: 2px solid var(--bg);
+  }
+  .tt-disclaimer-bar { bottom: calc(54px + env(safe-area-inset-bottom)) !important; }
+  .eventlist, .cs-table, .mh, .pb, .tl, .cal-grid { padding-bottom: 160px !important; }
+  .seg-btn { padding: 8px 12px; }
+  .star { width: 32px; height: 32px; }
+  .linkbtn, .subtab { padding-top: 11px; padding-bottom: 11px; }
+}
+
 /* ============================ MOBILE / iOS ============================ */
 /* iOS standalone safe areas (notch / home indicator) */
 .topbar { padding-top: env(safe-area-inset-top); }

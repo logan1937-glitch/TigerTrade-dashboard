@@ -29,7 +29,7 @@ export function Disclaimer() {
   return (
     <>
       {/* persistent footer */}
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60,
+      <div className="tt-disclaimer-bar" style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60,
         display: "flex", alignItems: "center", gap: 12, justifyContent: "center", flexWrap: "wrap",
         padding: "7px 16px", background: "color-mix(in oklch, var(--bg) 86%, transparent)",
         backdropFilter: "blur(10px)", borderTop: "1px solid var(--border)" }}>

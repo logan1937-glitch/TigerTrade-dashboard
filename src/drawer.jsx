@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, ReactionWindow, MoveDistribution, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
 import { StarBtn, StarIcon, Logo, useWatch, useCanslim, SEV_LABEL } from "./components.jsx";
@@ -12,6 +12,10 @@ function PinIcon() {
 
 /* ---------------------------- DRAWER SHELL ---------------------------- */
 export function Drawer({ open, onClose, children, label }) {
+  const startX = useRef(null);
+  const startY = useRef(null);
+  const [dx, setDx] = useState(0);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -19,10 +23,27 @@ export function Drawer({ open, onClose, children, label }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  useEffect(() => { if (!open) setDx(0); }, [open]);
+
+  // swipe-right to dismiss (touch)
+  const onTouchStart = (e) => { startX.current = e.touches[0].clientX; startY.current = e.touches[0].clientY; };
+  const onTouchMove = (e) => {
+    if (startX.current == null) return;
+    const ddx = e.touches[0].clientX - startX.current;
+    const ddy = e.touches[0].clientY - startY.current;
+    if (Math.abs(ddx) > Math.abs(ddy)) setDx(Math.max(0, ddx)); // horizontal intent only
+  };
+  const onTouchEnd = () => {
+    if (dx > 80) onClose();
+    setDx(0); startX.current = null; startY.current = null;
+  };
+
   return (
     <div className="drawer-root" data-open={open || undefined} aria-hidden={!open}>
       <div className="drawer-scrim" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label={label}>
+      <aside className="drawer" role="dialog" aria-modal="true" aria-label={label}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        style={dx ? { transform: `translateX(${dx}px)`, transition: "none" } : undefined}>
         {open && children}
       </aside>
     </div>
