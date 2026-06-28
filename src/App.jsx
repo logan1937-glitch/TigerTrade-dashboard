@@ -3,7 +3,7 @@ import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
-import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView } from "./components.jsx";
+import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView, PlaybookView } from "./views.jsx";
 import { CommandPalette } from "./commandPalette.jsx";
@@ -293,6 +293,23 @@ export default function App() {
         </Drawer>
 
         <Disclaimer />
+
+        <nav className="mobile-tabbar" aria-label="Primary">
+          <button data-active={product === "radar" || undefined} onClick={() => setProduct("radar")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /></svg>
+            <span>Radar</span>
+          </button>
+          <button data-active={product === "canslim" || undefined} onClick={() => setProduct("canslim")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="14" y2="17" /></svg>
+            <span>Screener</span>
+          </button>
+          <button onClick={() => setCmdOpen(true)}><SearchIcon /><span>Search</span></button>
+          <button onClick={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }}>
+            <StarIcon filled={watchApi.count > 0} />
+            {watchApi.count > 0 && <span className="tb-badge mono">{watchApi.count}</span>}
+            <span>Watch</span>
+          </button>
+        </nav>
       </div>
     </CanslimCtx.Provider>
     </WatchCtx.Provider>

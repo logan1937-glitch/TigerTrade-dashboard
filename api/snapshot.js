@@ -1,18 +1,39 @@
 // api/snapshot.js — Vercel Serverless Function (precompute snapshot)
-// Computes the whole universe's quote + momentum signals server-side in ONE
-// place, then serves it edge-cached. The browser makes a single request instead
-// of N Yahoo calls per visit. A daily cron (see vercel.json) warms it after the
-// US close so users always hit a fresh, cached snapshot.
+// Computes the universe's quote + momentum signals and serves a single payload.
 //
-// This is the "precompute into a snapshot" step: it decouples table size from
-// per-visit fetch cost, which is what unlocks growing the universe to hundreds.
+// Durable storage (optional): when a Vercel Blob store is connected
+// (BLOB_READ_WRITE_TOKEN present), the daily cron writes the computed snapshot
+// to Blob and normal reads return it INSTANTLY — no per-request recompute, no
+// timeout risk as the universe grows. Without Blob it falls back to computing on
+// demand and edge-caching, so it works with zero setup.
 
 import { TT } from "../src/tt.js";
 import { computeSignals } from "../src/signals.js";
+import { put, list } from "@vercel/blob";
 
 export const maxDuration = 60;
 
+const BLOB_KEY = "snapshot.json";
+const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
+
+async function readBlob() {
+  if (!hasBlob) return null;
+  try {
+    const { blobs } = await list({ prefix: BLOB_KEY, limit: 1 });
+    if (!blobs.length) return null;
+    const r = await fetch(blobs[0].url, { cache: "no-store" });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { console.error("blob read:", e); return null; }
+}
+
+async function writeBlob(obj) {
+  if (!hasBlob) return;
+  try {
+    await put(BLOB_KEY, JSON.stringify(obj), { access: "public", contentType: "application/json", addRandomSuffix: false, allowOverwrite: true });
+  } catch (e) { console.error("blob write:", e); }
+}
 
 async function yahooBars(symbol) {
   try {
@@ -40,15 +61,12 @@ async function yahooBars(symbol) {
   } catch { return null; }
 }
 
-async function pool(items, worker, c = 5) {
+async function pool(items, worker, c = 6) {
   const q = [...items];
   await Promise.all(Array.from({ length: Math.min(c, q.length) }, async () => { while (q.length) await worker(q.shift()); }));
 }
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET");
-
+async function compute() {
   const tickers = TT.CANSLIM.map((s) => s.tk);
   const all = [...tickers, "SPY"];
   const data = {};
@@ -63,21 +81,30 @@ export default async function handler(req, res) {
     const s = computeSignals(d.rows, spy);
     if (s) sig[t] = s;
   }
-
   const count = Object.keys(quotes).length;
   let asOf = 0;
   for (const t of Object.keys(quotes)) { const ts = quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts); }
+  return { generatedAt: new Date().toISOString(), source: "Yahoo", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig };
+}
 
-  const body = {
-    generatedAt: new Date().toISOString(),
-    source: "Yahoo",
-    count, total: tickers.length,
-    asOf: asOf ? asOf * 1000 : null,
-    quotes, sig,
-  };
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
 
-  // serve fresh for 6h, then serve stale up to a day while revalidating; the
-  // nightly cron keeps it warm so users rarely trigger a cold recompute
-  if (count > 0) res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate=86400");
-  return res.status(200).json(body);
+  const refresh = req.query.refresh != null || !!req.headers["x-vercel-cron"];
+
+  // normal read: serve the stored snapshot instantly (no recompute)
+  if (!refresh) {
+    const stored = await readBlob();
+    if (stored && stored.count > 0) {
+      res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+      return res.status(200).json({ ...stored, served: "blob" });
+    }
+  }
+
+  // cron refresh, or no stored snapshot yet: compute and persist
+  const body = await compute();
+  if (body.count > 0) await writeBlob(body);
+  res.setHeader("Cache-Control", body.count > 0 ? "s-maxage=300, stale-while-revalidate=86400" : "no-store");
+  return res.status(200).json({ ...body, served: refresh ? "compute-refresh" : "compute" });
 }
