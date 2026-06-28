@@ -32,7 +32,7 @@ function StatusPill({ status }) {
   return <span className="badge badge-cat" style={{ "--c": color }}>{label}</span>;
 }
 
-function fmtPx(n) { return n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2); }
+function fmtPx(n) { if (n == null || Number.isNaN(+n)) return "—"; return n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2); }
 
 /* ----------------------------- SCREENER ----------------------------- */
 const TF_BARS = { "1W": 5, "1M": 21, "3M": 63, "1Y": 252 };
@@ -109,7 +109,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr }) {
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}>
             <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
-            <div className="cs-px"><span className="cs-price mono">${fmtPx(r.px)}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{r._ret.toFixed(2)}%</span></div>
+            <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{(r._ret || 0).toFixed(2)}%</span></div>
             <div className="cs-rs mono">{r.rs != null ? r.rs : "—"}{r.rs != null && <i style={{ width: r.rs + "%" }} />}</div>
             <div>{r.spark && r.spark.length ? <Spark data={r.spark} /> : <span className="cs-sig-na mono">—</span>}</div>
             <div className="cs-letters">{r.coverage === "full" && r.breakdown.length ? LETTERS.map((L, j) => <span key={j} className="cs-let" data-on={r.breakdown[j].pass}>{L}</span>) : <span className="cs-sig-na mono">—</span>}</div>
