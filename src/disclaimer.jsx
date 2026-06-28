@@ -28,16 +28,15 @@ export function Disclaimer() {
 
   return (
     <>
-      {/* persistent footer */}
+      {/* persistent footer (compact) */}
       <div className="tt-disclaimer-bar" style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60,
-        display: "flex", alignItems: "center", gap: 12, justifyContent: "center", flexWrap: "wrap",
-        padding: "7px 16px", background: "color-mix(in oklch, var(--bg) 86%, transparent)",
+        display: "flex", alignItems: "center", gap: 8, justifyContent: "center",
+        padding: "4px 12px", background: "color-mix(in oklch, var(--bg) 88%, transparent)",
         backdropFilter: "blur(10px)", borderTop: "1px solid var(--border)" }}>
-        <span style={{ ...txt, fontSize: 10.5, letterSpacing: "0.02em", textAlign: "center" }}>
-          For educational use only — <b style={{ color: "var(--text)", fontWeight: 600 }}>not investment advice</b>.
-          Data may be delayed or illustrative; verify before trading. No liability assumed.
+        <span style={{ ...txt, fontSize: 9.5, letterSpacing: "0.01em", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          Educational use only — <b style={{ color: "var(--text)", fontWeight: 600 }}>not investment advice</b>.<span className="disc-extra"> Data may be delayed; verify before trading.</span>
         </span>
-        <button onClick={() => setOpen(true)} className="linkbtn" style={{ fontSize: 9.5, padding: "4px 9px" }}>Full disclaimer</button>
+        <button onClick={() => setOpen(true)} className="linkbtn" style={{ fontSize: 9, padding: "3px 8px", flex: "none" }}>Terms</button>
       </div>
 
       {showModal && (
