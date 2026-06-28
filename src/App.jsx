@@ -39,6 +39,12 @@ export default function App() {
   const [live, setLive] = useState({ status: "loading" });
   const [hist, setHist] = useState({ rows: {}, sig: {} });
 
+  // custom tickers — look up ANY symbol on demand (unlimited search)
+  const [customSyms, setCustomSyms] = useStored("tt_custom", []);
+  const [customData, setCustomData] = useState({});   // { SYM: { quote, sig } }
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupErr, setLookupErr] = useState("");
+
   const [watchArr, setWatchArr] = useStored("tt_watch", []);
   const watchSet = useMemo(() => new Set(watchArr.map((w) => w.key)), [watchArr]);
   const watchApi = useMemo(() => ({
@@ -53,10 +59,24 @@ export default function App() {
   // single source of screener data: live quotes + real EOD signals merged over the
   // editorial base, then a real universe-wide RS rating + momentum score so curated
   // and extended (signals-only) names are ranked on the same honest, technical basis
+  // universe = curated + extended + any custom-looked-up tickers
+  const universe = useMemo(() => {
+    const baseSet = new Set(TT.CANSLIM.map((s) => s.tk));
+    const extra = customSyms.filter((sym) => !baseSet.has(sym)).map((sym) => ({
+      tk: sym, name: sym, sector: "Custom", group: "Custom lookup", coverage: "signals", custom: true,
+      groupRank: null, rs: null, status: null, px: null, chg: null,
+      f: null, breakdown: [], pass: 0, score: 0, pivot: null, buyLo: null, buyHi: null, pctExt: null,
+      closes: [], volume: [], rsLine: [], spark: [],
+      baseType: null, baseWeeks: 0, baseDepth: 0, why: null, bio: null, hq: null, mktCap: null, avgVol: null,
+    }));
+    return [...TT.CANSLIM, ...extra];
+  }, [customSyms]);
+
   const csData = useMemo(() => {
-    let list = TT.CANSLIM.map((s) => {
-      let r = (live.status === "live" && live.quotes?.[s.tk]) ? mergeCanslim(s, live.quotes[s.tk]) : s;
-      const sg = hist.sig?.[s.tk];
+    let list = universe.map((s) => {
+      const quote = (live.status === "live" && live.quotes?.[s.tk]) || customData[s.tk]?.quote;
+      let r = quote ? mergeCanslim(s, quote) : s;
+      const sg = hist.sig?.[s.tk] || customData[s.tk]?.sig;
       if (sg) {
         r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine, off52: sg.off52, sig: sg, _eod: true };
       }
@@ -84,11 +104,44 @@ export default function App() {
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
-  }, [live, hist]);
+  }, [universe, live, hist, customData]);
 
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
   // always open the live-merged record for a ticker (falls back to the passed object)
   const openStock = (s) => { setEvDrawer(null); setWatchOpen(false); setProduct("canslim"); setStockDrawer(csData.byTicker[s.tk] || s); };
+
+  // look up ANY ticker on demand — fetch it live, compute its signals, add it
+  const lookupTicker = async (raw) => {
+    const sym = (raw || "").toUpperCase().trim().replace(/[^A-Z0-9.\-]/g, "");
+    setLookupErr("");
+    if (!sym) return;
+    if (TT.CS_BYTICKER[sym] || customData[sym]) { openStock(csData.byTicker[sym] || TT.CS_BYTICKER[sym]); return; }
+    setLookupBusy(true);
+    try {
+      const r = await fetchMarket([sym, "SPY"]);
+      if (!r.quotes[sym]) { setLookupErr(`“${sym}” not found`); return; }
+      setCustomData((prev) => ({ ...prev, [sym]: { quote: r.quotes[sym], sig: r.rows[sym] ? computeSignals(r.rows[sym], r.rows.SPY) : null } }));
+      setCustomSyms((prev) => (prev.includes(sym) ? prev : [...prev, sym]));
+    } catch { setLookupErr("Lookup failed — try again."); }
+    finally { setLookupBusy(false); }
+  };
+
+  // re-fetch persisted custom tickers (e.g. after reload) that have no data yet
+  useEffect(() => {
+    const missing = customSyms.filter((sym) => !customData[sym] && !TT.CS_BYTICKER[sym]);
+    if (!missing.length) return;
+    let alive = true;
+    (async () => {
+      const r = await fetchMarket([...missing, "SPY"]);
+      if (!alive) return;
+      setCustomData((prev) => {
+        const next = { ...prev };
+        for (const sym of missing) { if (r.quotes[sym]) next[sym] = { quote: r.quotes[sym], sig: r.rows[sym] ? computeSignals(r.rows[sym], r.rows.SPY) : null }; }
+        return next;
+      });
+    })().catch(() => {});
+    return () => { alive = false; };
+  }, [customSyms]);
 
   // Data feed, in priority order:
   //  1) /api/snapshot — the nightly precompute (one cached request, all signals)
@@ -223,7 +276,8 @@ export default function App() {
             {tab === "playbook" && <PlaybookView />}
           </>
         ) : (
-          <CanslimView onOpenStock={openStock} live={live} rows={csData.list} />
+          <CanslimView onOpenStock={openStock} live={live} rows={csData.list}
+            onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr} />
         )}
 
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} commands={commands} />

@@ -929,3 +929,43 @@ body { background: #0a0b0d; }
   .dr-2col { grid-template-columns: 1fr; }
   .dr-funds { grid-template-columns: 1fr; }
 }
+
+/* ============================ TICKER LOOKUP ============================ */
+.cs-lookup { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cs-lookup-err { font-size: 11px; color: var(--sev-extreme); white-space: nowrap; }
+
+/* ============================ MOBILE / iOS ============================ */
+/* iOS standalone safe areas (notch / home indicator) */
+.topbar { padding-top: env(safe-area-inset-top); }
+.app { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+@media (max-width: 640px) {
+  .app { font-size: 14px; }
+  .wrap { width: 100%; padding: 0 14px; }
+  .topbar { gap: 10px; padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .nav-pills { flex: 1; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav-pills::-webkit-scrollbar { display: none; }
+  .navpill { white-space: nowrap; }
+  .brand .brand-tx { display: none; }            /* keep just the mark to save room */
+  .hero { padding: 18px 0 14px; }
+  .hero-title { font-size: clamp(22px, 7vw, 30px); white-space: normal; line-height: 1.02; }
+  .hero-next { width: 100%; }
+  .hero-row { gap: 14px; }
+  .statgrid { grid-template-columns: repeat(2, 1fr) !important; }
+  .statcell { padding: 13px 14px; }
+  .statcell:nth-child(odd) { border-left: 0; }
+  .subnav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .subnav::-webkit-scrollbar { display: none; }
+  .filters, .filters-right { gap: 9px; }
+  .search { width: 100%; min-width: 0; }
+  .search-wrap { flex: 1; min-width: 140px; }
+  .cs-row { padding: 12px 12px; }
+  .cs-head { padding: 0 12px 10px; }
+  .dr-head, .dr-bioblock { padding-left: 18px; padding-right: 18px; }
+  .dr-sec { padding-left: 18px; padding-right: 18px; }
+  .dr-tiles, .dr-actions { margin-left: 18px; margin-right: 18px; }
+  .dr-tiles { grid-template-columns: repeat(2, 1fr); }
+  .dr-buygrid { grid-template-columns: repeat(2, 1fr); }
+  .pchart-toolbar { gap: 6px; }
+  .event-head { gap: 10px; }
+}

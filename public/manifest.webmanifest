@@ -1,0 +1,16 @@
+{
+  "name": "TigerTrade Terminal",
+  "short_name": "TigerTrade",
+  "description": "Volatility & Momentum Radar + Leadership Screener",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#100A06",
+  "theme_color": "#100A06",
+  "icons": [
+    { "src": "/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180", "purpose": "any" }
+  ]
+}

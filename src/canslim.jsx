@@ -47,11 +47,13 @@ function periodReturn(s, tf) {
   return (c[n - 1] / c[i] - 1) * 100;
 }
 
-function Screener({ rows, onOpenStock }) {
+function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
   const [statusF, setStatusF] = useState("all");
   const [tf, setTf] = useState("1D");
+  const [addSym, setAddSym] = useState("");
+  const submitLookup = (e) => { e.preventDefault(); if (onLookup) onLookup(addSym); setAddSym(""); };
   const view = useMemo(() => {
     let r = rows.filter((x) => (x.tk + " " + x.name + " " + x.group).toLowerCase().includes(q.toLowerCase()));
     if (statusF !== "all") r = r.filter((x) => x.status === statusF);
@@ -66,6 +68,14 @@ function Screener({ rows, onOpenStock }) {
       <div className="filters" style={{ justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <div className="search-wrap"><SearchIcon /><input className="search" placeholder="search ticker / group…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+          {onLookup && (
+            <form onSubmit={submitLookup} className="cs-lookup" title="Look up any ticker">
+              <input className="search" style={{ width: 150, paddingLeft: 12 }} placeholder="add any ticker…" value={addSym}
+                onChange={(e) => setAddSym(e.target.value)} aria-label="Add any ticker" />
+              <button type="submit" className="seg-btn" data-active="true" disabled={lookupBusy} style={{ padding: "8px 12px" }}>{lookupBusy ? "…" : "＋ Add"}</button>
+              {lookupErr && <span className="cs-lookup-err mono">{lookupErr}</span>}
+            </form>
+          )}
           <div className="seg">
             {[["all", "All"], ["buy", "Buy zone"], ["ext", "Extended"], ["watch", "Watch"]].map(([id, l]) => (
               <button key={id} className="seg-btn" data-active={statusF === id} onClick={() => setStatusF(id)}>{l}</button>
@@ -211,7 +221,7 @@ function CanslimPlaybook({ rows, onOpenStock }) {
 }
 
 /* ------------------------------ SHELL ------------------------------ */
-export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM }) {
+export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, onLookup, lookupBusy, lookupErr }) {
   const [tab, setTab] = useState("screener");
 
   const buyCount = rows.filter((s) => s.status === "buy").length;
@@ -263,7 +273,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
       </div>
 
       <div key={tab}>
-        {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} />}
+        {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr} />}
         {tab === "health" && <MarketHealth />}
         {tab === "playbook" && <CanslimPlaybook rows={rows} onOpenStock={onOpenStock} />}
       </div>
