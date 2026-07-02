@@ -932,6 +932,13 @@ body { background: #0a0b0d; }
   .dr-funds { grid-template-columns: 1fr; }
 }
 
+/* ============================ LIVE ECON DATA ============================ */
+.live-tag { color: var(--accent); font-size: 8px; margin-left: 5px; vertical-align: 2px; }
+.ed-econ { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 11px; color: var(--dim); letter-spacing: 0.03em; }
+.ed-econ b { color: var(--text); font-weight: 600; margin-left: 2px; }
+.ed-econ [data-beat="true"] b { color: var(--cat-growth); }
+.ed-econ [data-beat="false"] b { color: var(--sev-extreme); }
+
 /* ============================ TICKER LOOKUP ============================ */
 .cs-lookup { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cs-lookup-err { font-size: 11px; color: var(--sev-extreme); white-space: nowrap; }

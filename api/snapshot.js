@@ -8,8 +8,16 @@
 // demand and edge-caching, so it works with zero setup.
 
 import { TT } from "../src/tt.js";
-import { computeSignals } from "../src/signals.js";
+import { computeSignals, computeMarketHealth } from "../src/signals.js";
 import { put, list } from "@vercel/blob";
+
+// index set for market health; ETF proxies cover any index symbol Yahoo denies
+const INDICES = [
+  { sym: "^GSPC", proxy: "SPY", label: "S&P 500" },
+  { sym: "^IXIC", proxy: "QQQ", label: "Nasdaq" },
+  { sym: "^RUT",  proxy: "IWM", label: "Russell 2000" },
+  { sym: "^DJI",  proxy: "DIA", label: "Dow" },
+];
 
 export const maxDuration = 60;
 
@@ -68,9 +76,13 @@ async function pool(items, worker, c = 6) {
 
 async function compute() {
   const tickers = TT.CANSLIM.map((s) => s.tk);
-  const all = [...tickers, "SPY"];
+  const idxSyms = INDICES.flatMap((x) => [x.sym]);
+  const all = [...tickers, "SPY", ...idxSyms];
   const data = {};
   await pool(all, async (t) => { const d = await yahooBars(t); if (d) data[t] = d; }, 6);
+  // ETF proxy for any index Yahoo didn't return
+  const misses = INDICES.filter((x) => !data[x.sym] && !data[x.proxy]).map((x) => x.proxy);
+  if (misses.length) await pool(misses, async (t) => { const d = await yahooBars(t); if (d) data[t] = d; }, 4);
 
   const spy = data.SPY && data.SPY.rows;
   const quotes = {}, sig = {};
@@ -84,7 +96,15 @@ async function compute() {
   const count = Object.keys(quotes).length;
   let asOf = 0;
   for (const t of Object.keys(quotes)) { const ts = quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts); }
-  return { generatedAt: new Date().toISOString(), source: "Yahoo", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig };
+
+  // market health from real index data + universe breadth
+  const indices = INDICES.map((x) => {
+    const d = data[x.sym] || data[x.proxy] || (x.proxy === "SPY" ? data.SPY : null);
+    return d ? { label: x.label, price: d.quote.price, chgPct: d.quote.changePercentage, rows: d.rows } : null;
+  });
+  const market = computeMarketHealth(indices, tickers.map((t) => ({ chg: quotes[t]?.changePercentage, sig: sig[t] })));
+
+  return { generatedAt: new Date().toISOString(), source: "Yahoo", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, market };
 }
 
 export default async function handler(req, res) {

@@ -68,10 +68,19 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
       </div>
 
       <div className="dr-head">
-        <div className="dr-date mono">{ev.approx ? "~" : ""}{ev.date}{ev.range ? ` · ${ev.range}` : ""}<span className="dr-t" style={{ color: cat.color }}>{ev.past ? `T+${ev.t}d` : `T${ev.t}d`}</span></div>
+        <div className="dr-date mono">{ev.approx ? "~" : ""}{ev.date}{ev.range ? ` · ${ev.range}` : ""}<span className="dr-t" style={{ color: cat.color }}>{ev.past ? `T+${ev.t}d` : `T${ev.t}d`}</span>{ev.live && <span className="live-tag mono" title="Live-dated from the economic calendar"> ● live</span>}</div>
         <h2 className="dr-title">{ev.title}</h2>
         <p className="dr-lead">{ev.desc}</p>
       </div>
+
+      {ev.econ && (ev.econ.previous != null || ev.econ.estimate != null || ev.econ.actual != null) && (
+        <div className="dr-tiles" style={{ marginBottom: 0 }}>
+          <div className="dr-tile"><span className="dr-tk mono">Previous</span><span className="dr-tv mono">{ev.econ.previous != null ? `${ev.econ.previous}${ev.econ.unit}` : "—"}</span></div>
+          <div className="dr-tile"><span className="dr-tk mono">Consensus</span><span className="dr-tv mono">{ev.econ.estimate != null ? `${ev.econ.estimate}${ev.econ.unit}` : "—"}</span></div>
+          <div className="dr-tile"><span className="dr-tk mono">Actual</span><span className="dr-tv mono" data-neg={ev.econ.actual != null && ev.econ.estimate != null && ev.econ.actual >= ev.econ.estimate}>{ev.econ.actual != null ? `${ev.econ.actual}${ev.econ.unit}` : "pending"}</span></div>
+          <div className="dr-tile"><span className="dr-tk mono">Surprise</span><span className="dr-tv mono">{ev.econ.actual != null && ev.econ.estimate != null ? `${(ev.econ.actual - ev.econ.estimate) > 0 ? "+" : ""}${+(ev.econ.actual - ev.econ.estimate).toFixed(2)}${ev.econ.unit}` : "—"}</span></div>
+        </div>
+      )}
 
       <div className="dr-tiles">
         <div className="dr-tile"><span className="dr-tk mono">Avg |move|</span><span className="dr-tv mono">±{s.avgAbs}%</span></div>

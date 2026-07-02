@@ -153,7 +153,7 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
 }
 
 /* ------------------------------- HERO ------------------------------ */
-export function Hero({ events, onSelectEvent, activeId, showScope }) {
+export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
   const ref = useRef(null);
   const onMove = (e) => {
     const el = ref.current; if (!el) return;
@@ -171,7 +171,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope }) {
         <div className="hero-left">
           <div className="hero-eyebrow mono"><span className="hero-pulse" />Live macro-event surveillance</div>
           <h1 className="hero-title">Volatility <span className="accentword">·</span> Momentum Radar</h1>
-          <span className="hero-meta">Event template 2026–2027 · updated {TT.todayISO}</span>
+          <span className="hero-meta">{live ? "Live economic calendar · " : "Event template 2026–2027 · "}updated {TT.todayISO}</span>
           {next && (
             <button className="hero-next" style={{ "--c": nc.color }} onClick={() => onSelectEvent(next)} aria-label={`Next catalyst: ${next.title}`}>
               <span className="hero-next-top">
@@ -208,18 +208,26 @@ export function Hero({ events, onSelectEvent, activeId, showScope }) {
 }
 
 /* ---------------------------- STAT STRIP --------------------------- */
-export function StatStrip() {
+// derives the five countdown cells from the (possibly live re-dated) event list
+const STAT_IDS = [[2, "NEXT FOMC"], [10, "NEXT CPI"], [3, "NEXT WITCHING"], [5, "NEXT RUSSELL"], [16, "US MIDTERMS"]];
+export function StatStrip({ events }) {
   const horizon = 150;
+  const byId = events ? Object.fromEntries(events.map((e) => [e.id, e])) : null;
+  const cells = byId
+    ? STAT_IDS.map(([id, lab]) => { const e = byId[id]; return e ? {
+        lab, val: e.date, tm: e.t <= 0 ? `T${e.t}d` : `T+${e.t}d`, soon: e.t < 0 && e.t >= -7, live: !!e.live,
+      } : null; }).filter(Boolean)
+    : TT.STATS;
   return (
     <div className="statstrip">
       <div className="wrap">
         <div className="statgrid">
-          {TT.STATS.map((s, i) => {
+          {cells.map((s, i) => {
             const days = parseInt((s.tm.match(/\d+/) || [0])[0], 10);
             const prox = Math.max(0.04, 1 - Math.min(days, horizon) / horizon);
             return (
               <div className="statcell reveal" data-soon={s.soon} key={i} style={{ "--i": i }}>
-                <div className="lab">{s.lab}</div>
+                <div className="lab">{s.lab}{s.live && <span className="live-tag mono" title="Live-dated from the economic calendar">●</span>}</div>
                 <div className="val">{s.val}</div>
                 <div className="tm mono">{s.tm}</div>
                 <div className="prox"><i style={{ width: (prox * 100) + "%" }} /></div>
@@ -289,7 +297,7 @@ function EventRow({ ev, index, open, onToggle, flash, onOpenFull }) {
       <div className="event-head">
         <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} />
         <div className="event-date">
-          <span className="event-d">{ev.approx && <span className="approx">~</span>}{ev.date}</span>
+          <span className="event-d">{ev.approx && <span className="approx">~</span>}{ev.date}{ev.live && <span className="live-tag mono" title="Live-dated from the economic calendar">●</span>}</span>
           <span className="event-t mono">{ev.past ? `T+${ev.t}d` : `T${ev.t}d`}</span>
         </div>
         <div className="event-main">
@@ -298,6 +306,13 @@ function EventRow({ ev, index, open, onToggle, flash, onOpenFull }) {
             {ev.range && <span className="range">{ev.range}</span>}
           </div>
           <div className="event-desc">{ev.desc}</div>
+          {ev.econ && (ev.econ.previous != null || ev.econ.estimate != null || ev.econ.actual != null) && (
+            <div className="ed-econ mono">
+              {ev.econ.previous != null && <span>Prev <b>{ev.econ.previous}{ev.econ.unit}</b></span>}
+              {ev.econ.estimate != null && <span>Cons <b>{ev.econ.estimate}{ev.econ.unit}</b></span>}
+              {ev.econ.actual != null && <span data-beat={ev.econ.estimate != null ? (ev.econ.actual >= ev.econ.estimate) : undefined}>Act <b>{ev.econ.actual}{ev.econ.unit}</b></span>}
+            </div>
+          )}
         </div>
         <div className="event-badges">
           <span className="badge badge-sev" data-sev={ev.sev}>{SEV_LABEL[ev.sev]}</span>

@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
-import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings } from "./signals.js";
+import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
+import { fetchEcon, mergeEcon } from "./econ.js";
 import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView, PlaybookView } from "./views.jsx";
@@ -38,6 +39,8 @@ export default function App() {
 
   const [live, setLive] = useState({ status: "loading" });
   const [hist, setHist] = useState({ rows: {}, sig: {} });
+  const [market, setMarket] = useState(null);   // live market health (index + universe breadth)
+  const [econ, setEcon] = useState(null);       // live economic calendar (null = unavailable)
 
   // custom tickers — look up ANY symbol on demand (unlimited search)
   const [customSyms, setCustomSyms] = useStored("tt_custom", []);
@@ -95,16 +98,20 @@ export default function App() {
       // derive buy-status for signals-only names from the trend (no curated pivot)
       let status = r.status;
       if (r.coverage === "signals") status = r.sig.stage === 2 && r.sig.off52 <= 6 ? "buy" : null;
-      // keep the LEADERS 'L' chip in sync with the real RS rating for covered names
+      // keep the LEADERS 'L' chip + the market 'S' factor in sync with real data
       let breakdown = r.breakdown;
       if (r.coverage === "full" && breakdown.length) {
-        breakdown = breakdown.map((b) => (b.letter === "L" ? { ...b, pass: rs >= 85, value: `RS ${rs} · grp #${r.groupRank}` } : b));
+        breakdown = breakdown.map((b) => {
+          if (b.letter === "L") return { ...b, pass: rs >= 85, value: `RS ${rs} · grp #${r.groupRank}` };
+          if (b.key === "f7" && market) return { ...b, pass: market.trend === "Confirmed Uptrend", value: market.trend };
+          return b;
+        });
       }
       return { ...r, rs, score, grade, spark, status, breakdown };
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
-  }, [universe, live, hist, customData]);
+  }, [universe, live, hist, customData, market]);
 
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
   // always open the live-merged record for a ticker (falls back to the passed object)
@@ -166,12 +173,14 @@ export default function App() {
             for (const t of covered) { const ts = snap.quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts * 1000); }
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: tickers.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
+            if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
             return; // snapshot covered it — skip live per-ticker fetching
           }
         }
       } catch { /* fall through to live fetching */ }
 
-      const y = await fetchMarket(all);
+      const IDX = [["^GSPC", "S&P 500", "SPY"], ["^IXIC", "Nasdaq", "QQQ"], ["^RUT", "Russell 2000", "IWM"], ["^DJI", "Dow", "DIA"]];
+      const y = await fetchMarket([...all, ...IDX.map((x) => x[0])]);
       const quotes = { ...y.quotes };
       const rows = { ...y.rows };
 
@@ -199,7 +208,23 @@ export default function App() {
       const sig = {};
       for (const t of tickers) { const s = computeSignals(rows[t], spy); if (s) sig[t] = s; }
       setHist({ rows, sig });
+
+      // market health from the index data (SPY rows back any index Yahoo denied)
+      const indices = IDX.map(([sym, label, proxy]) => {
+        const r2 = rows[sym] || rows[proxy] || (proxy === "SPY" ? spy : null);
+        const q2 = quotes[sym] || quotes[proxy];
+        return r2 && q2 ? { label, price: q2.price, chgPct: q2.changePercentage, rows: r2 } : null;
+      });
+      const mh = computeMarketHealth(indices, tickers.map((t) => ({ chg: quotes[t]?.changePercentage, sig: sig[t] })));
+      if (mh) setMarket({ ...mh, asOf: asOf || Date.now() });
     })().catch(() => { if (alive) setLive({ status: "unavailable", code: "ERROR", quotes: {} }); });
+    return () => { alive = false; };
+  }, []);
+
+  // live economic calendar (silently unavailable if the key's tier excludes it)
+  useEffect(() => {
+    let alive = true;
+    fetchEcon().then((d) => { if (alive && d && d.length) setEcon(d); }).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -207,10 +232,14 @@ export default function App() {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
   });
 
+  // radar events: curated template, re-dated + augmented by the live economic
+  // calendar when available (ids/briefings preserved; `~` dates become exact)
+  const allEvents = useMemo(() => mergeEcon(TT.EVENTS, econ).events, [econ]);
+
   const events = useMemo(() => {
     const minRank = TT.SEV[minWt] || 0;
     const q = query.trim().toLowerCase();
-    const list = TT.EVENTS.filter((e) => {
+    const list = allEvents.filter((e) => {
       if (!showPast && e.past) return false;
       if (cats.size && !cats.has(e.cat)) return false;
       if (minWt !== "all" && TT.SEV[e.sev] < minRank) return false;
@@ -218,9 +247,9 @@ export default function App() {
       return true;
     });
     return list.sort((a, b) => a.sort - b.sort);
-  }, [cats, query, minWt, showPast]);
+  }, [allEvents, cats, query, minWt, showPast]);
 
-  const upcoming = useMemo(() => TT.EVENTS.filter((e) => !e.past).sort((a, b) => a.sort - b.sort), []);
+  const upcoming = useMemo(() => allEvents.filter((e) => !e.past).sort((a, b) => a.sort - b.sort), [allEvents]);
 
   const selectEvent = (ev) => {
     setProduct("radar"); setTab("radar");
@@ -267,16 +296,16 @@ export default function App() {
           mode={mode} onToggleMode={() => setMode((m) => (m === "light" ? "dark" : "light"))} />
         {product === "radar" ? (
           <>
-            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} />
-            <StatStrip />
+            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} live={!!econ} />
+            <StatStrip events={allEvents} />
             <SubNav tab={tab} setTab={setTab} counts={events.length} />
             {tab === "radar" && <RadarView {...radarProps} />}
             {tab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
             {tab === "calendar" && <CalendarView />}
-            {tab === "playbook" && <PlaybookView />}
+            {tab === "playbook" && <PlaybookView events={allEvents} />}
           </>
         ) : (
-          <CanslimView onOpenStock={openStock} live={live} rows={csData.list}
+          <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr} />
         )}
 

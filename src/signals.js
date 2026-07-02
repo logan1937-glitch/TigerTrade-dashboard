@@ -119,6 +119,12 @@ export function computeSignals(rows, spyRows) {
     pocketPivot = upDay && maxDownVol > 0 && vols[n - 1] > maxDownVol && near;
   }
 
+  // breadth inputs: position vs 50-day MA and distance off the 52-week low
+  const sma50b = smaAt(closes, 50, n - 1);
+  const above50 = sma50b != null ? last > sma50b : null;
+  const lo52 = Math.min(...lows.slice(n - win));
+  const atLow = lo52 > 0 ? last <= lo52 * 1.02 : false;
+
   return {
     closes, volume: vols, dates, last, chgPct,
     off52, atHigh: off52 <= 1, ret12m,
@@ -126,7 +132,95 @@ export function computeSignals(rows, spyRows) {
     stage, stageLabel: stage ? STAGE_LABEL[stage] : "—",
     adrPct, dollarVol,
     distDays, pocketPivot,
+    above50, atLow,
     asOf: dates[n - 1],
+  };
+}
+
+// ── market health, computed from real index + universe data ──────────────────
+// indices: [{ key, label, price, chgPct, rows }] — first entry is the S&P (or
+// its ETF proxy) and drives trend / distribution days / follow-through.
+// universe: [{ chg, dollarVol?, sig }] — drives the breadth block (labeled as
+// universe breadth in the UI, since true exchange-wide breadth needs paid data).
+export function computeMarketHealth(indices, universe) {
+  const idx = indices.filter((x) => x && x.rows && x.rows.length >= 60 && x.price != null);
+  if (!idx.length) return null;
+
+  const idxStats = idx.map((x) => {
+    const closes = x.rows.map((r) => r.close);
+    const n = closes.length;
+    const sma50 = smaAt(closes, 50, n - 1);
+    const sma200 = smaAt(closes, 200, n - 1);
+    const sma50prev = smaAt(closes, 50, Math.max(49, n - 11));
+    return {
+      k: x.label, price: x.price, chg: x.chgPct,
+      above50: sma50 != null ? x.price > sma50 : null,
+      above200: sma200 != null ? x.price > sma200 : null,
+      rising50: sma50 != null && sma50prev != null ? sma50 > sma50prev : null,
+    };
+  });
+
+  // S&P drives the regime read
+  const spx = idx[0];
+  const closes = spx.rows.map((r) => r.close);
+  const vols = spx.rows.map((r) => r.volume || 0);
+  const n = closes.length;
+
+  let distDays = 0;
+  for (let i = Math.max(1, n - 25); i < n; i++) {
+    if (closes[i] < closes[i - 1] * 0.998 && vols[i] > 0 && vols[i] > vols[i - 1]) distDays++;
+  }
+
+  // last power day: ≥1.25% gain on higher volume (simplified follow-through read)
+  let lastFTD = null;
+  for (let i = n - 1; i >= Math.max(1, n - 90); i--) {
+    const gain = closes[i] / closes[i - 1] - 1;
+    if (gain >= 0.0125 && (vols[i] === 0 || vols[i] > vols[i - 1])) {
+      const d = new Date(spx.rows[i].date + "T00:00:00");
+      lastFTD = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      break;
+    }
+  }
+
+  const s = idxStats[0];
+  let trend, trendNote;
+  if (s.above50 && s.above200 && s.rising50 && distDays < 6) {
+    trend = "Confirmed Uptrend";
+    trendNote = "Buying permitted — S&P above its rising 50-day and 200-day lines.";
+  } else if (s.above200 && (!s.above50 || distDays >= 6)) {
+    trend = "Uptrend Under Pressure";
+    trendNote = distDays >= 6
+      ? "Distribution is stacking up — tighten stops and slow new buying."
+      : "S&P below its 50-day line — reduce exposure until it's reclaimed.";
+  } else if (!s.above200 && !s.above50) {
+    trend = "Market In Correction";
+    trendNote = "S&P below its 50-day and 200-day lines — defense first; new buys need exceptional setups.";
+  } else {
+    trend = "Mixed / Rangebound";
+    trendNote = "Signals conflict across moving averages — size down and be selective.";
+  }
+
+  // universe breadth (honest proxy — our tracked names, not the whole exchange)
+  const withSig = universe.filter((u) => u && u.sig);
+  const withChg = universe.filter((u) => u && u.chg != null);
+  const adv = withChg.filter((u) => u.chg > 0).length;
+  const dec = withChg.filter((u) => u.chg < 0).length;
+  const above = withSig.filter((u) => u.sig.above50 === true).length;
+  const withMa = withSig.filter((u) => u.sig.above50 != null).length;
+  const upDollar = withChg.reduce((t, u) => t + (u.chg > 0 ? (u.sig?.dollarVol || 0) : 0), 0);
+  const totDollar = withChg.reduce((t, u) => t + (u.sig?.dollarVol || 0), 0);
+
+  return {
+    trend, trendNote, distDays, distMax: 6, lastFTD,
+    indexes: idxStats,
+    breadth: {
+      n: withSig.length,
+      newHighs: withSig.filter((u) => u.sig.atHigh).length,
+      newLows: withSig.filter((u) => u.sig.atLow).length,
+      pctAbove50: withMa ? Math.round((above / withMa) * 100) : null,
+      advDec: dec > 0 ? +(adv / dec).toFixed(1) : adv,
+      upVolPct: totDollar > 0 ? Math.round((upDollar / totDollar) * 100) : null,
+    },
   };
 }
 

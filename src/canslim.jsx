@@ -132,21 +132,39 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr }) {
 }
 
 /* --------------------------- MARKET HEALTH --------------------------- */
-function MarketHealth() {
-  const m = TT.MKT;
+const fmtIdx = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: v >= 1000 ? 0 : 2 }));
+
+function MarketHealth({ market }) {
+  const liveMh = !!market;
+  // live computed data when available; illustrative fallback, clearly labeled
+  const m = liveMh
+    ? {
+        trend: market.trend, trendNote: market.trendNote,
+        distDays: market.distDays, distMax: market.distMax, lastFTD: market.lastFTD || "—",
+        indexes: market.indexes.map((ix) => ({ k: ix.k, v: fmtIdx(ix.price), chg: ix.chg != null ? +ix.chg.toFixed(2) : 0, above50: !!ix.above50, above200: !!ix.above200 })),
+        breadth: market.breadth,
+      }
+    : TT.MKT;
+  const b = m.breadth;
   return (
     <div className="wrap mh">
+      <div className="listmeta" style={{ marginBottom: 14 }}>
+        <span className="count">{liveMh
+          ? <><b>Live</b> · computed from index EOD data{market.asOf ? ` · as of ${new Date(market.asOf).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}</>
+          : <><b>Illustrative</b> · live market data unavailable</>}</span>
+        {liveMh && <span className="count mono" style={{ opacity: .8 }}>trend & distribution from the S&amp;P 500</span>}
+      </div>
       <div className="mh-grid">
         <div className="mh-card mh-trend reveal" style={{ "--i": 0 }}>
           <span className="mh-k mono">Market trend</span>
-          <span className="mh-trend-v">{m.trend}</span>
+          <span className="mh-trend-v" style={m.trend !== "Confirmed Uptrend" ? { color: m.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--sev-high)" } : undefined}>{m.trend}</span>
           <p className="mh-note">{m.trendNote}</p>
           <div className="mh-dist">
             <span className="mh-k mono">Distribution days</span>
             <div className="mh-dots">{Array.from({ length: m.distMax }).map((_, i) => <span key={i} data-on={i < m.distDays} />)}</div>
             <span className="mono" style={{ color: "var(--muted)" }}>{m.distDays} / {m.distMax}</span>
           </div>
-          <div className="mh-ftd"><span className="mh-k mono">Last follow-through day</span><b className="mono">{m.lastFTD}</b></div>
+          <div className="mh-ftd"><span className="mh-k mono">{liveMh ? "Last 1.25%+ up day on volume" : "Last follow-through day"}</span><b className="mono">{m.lastFTD}</b></div>
         </div>
 
         <div className="mh-card reveal" style={{ "--i": 1 }}>
@@ -165,12 +183,12 @@ function MarketHealth() {
         </div>
 
         <div className="mh-card reveal" style={{ "--i": 2 }}>
-          <span className="mh-k mono">Breadth</span>
+          <span className="mh-k mono">{liveMh ? `Breadth · tracked universe (${b.n})` : "Breadth"}</span>
           <div className="mh-breadth">
-            <div className="mh-b"><span className="mh-bk mono">New highs / lows</span><span className="mh-bv mono"><b className="up">{m.breadth.newHighs}</b> / <b className="dn">{m.breadth.newLows}</b></span></div>
-            <div className="mh-b"><span className="mh-bk mono">% above 50-day</span><span className="mh-bv mono">{m.breadth.pctAbove50}%</span><BarMeter value={m.breadth.pctAbove50} c="var(--cat-growth)" /></div>
-            <div className="mh-b"><span className="mh-bk mono">Up volume</span><span className="mh-bv mono">{m.breadth.upVolPct}%</span><BarMeter value={m.breadth.upVolPct} c="var(--cat-growth)" /></div>
-            <div className="mh-b"><span className="mh-bk mono">Adv/Dec ratio</span><span className="mh-bv mono">{m.breadth.advDec}:1</span></div>
+            <div className="mh-b"><span className="mh-bk mono">New 52-wk highs / lows</span><span className="mh-bv mono"><b className="up">{b.newHighs}</b> / <b className="dn">{b.newLows}</b></span></div>
+            {b.pctAbove50 != null && <div className="mh-b"><span className="mh-bk mono">% above 50-day</span><span className="mh-bv mono">{b.pctAbove50}%</span><BarMeter value={b.pctAbove50} c="var(--cat-growth)" /></div>}
+            {b.upVolPct != null && <div className="mh-b"><span className="mh-bk mono">Up $-volume</span><span className="mh-bv mono">{b.upVolPct}%</span><BarMeter value={b.upVolPct} c="var(--cat-growth)" /></div>}
+            <div className="mh-b"><span className="mh-bk mono">Adv/Dec ratio</span><span className="mh-bv mono">{b.advDec}:1</span></div>
           </div>
         </div>
       </div>
@@ -179,15 +197,21 @@ function MarketHealth() {
 }
 
 /* ----------------------------- PLAYBOOK ----------------------------- */
-function CanslimPlaybook({ rows, onOpenStock }) {
+function CanslimPlaybook({ rows, onOpenStock, market }) {
   const buys = rows.filter((s) => s.status === "buy" && s.buyLo != null).slice(0, 5);
+  // lead with the live regime read when we have it
+  const lead = market
+    ? <p>The general market reads <b>{market.trend.toLowerCase()}</b> with {market.distDays} distribution day{market.distDays === 1 ? "" : "s"} on the S&amp;P —
+        {market.trend === "Confirmed Uptrend" ? " buying is permitted." : " prioritize risk management over new exposure."}{" "}
+        {market.breadth.pctAbove50 != null && <>Across the tracked universe, <b>{market.breadth.pctAbove50}%</b> of names hold their 50-day line.</>}</p>
+    : <p>The general market is in a <b>confirmed uptrend</b> with just 3 distribution days — buying is permitted.
+        Leadership is concentrated in <b>semiconductors, power/electrification, and precious metals</b>.</p>;
   return (
     <div className="wrap">
     <div className="pb">
       <div className="pb-card pb-brief">
         <h3><span className="hero-badge" style={{ padding: "3px 7px", fontSize: 9, "--accent": "var(--cat-growth)", color: "var(--cat-growth)" }}>AI</span> Screener read · {TT.todayLabel}</h3>
-        <p>The general market is in a <b>confirmed uptrend</b> with just 3 distribution days — buying is permitted.
-          Leadership is concentrated in <b>semiconductors, power/electrification, and precious metals</b>.</p>
+        {lead}
         <p>Highest-conviction actionable setups are names <b>in-range off a sound base</b> on volume —
           not the extended megacaps. {buys.map((b) => b.tk).join(", ")} are clearing or holding pivots.</p>
         <p>Risk discipline: keep individual entries within 5% of the pivot, cap losses at 7–8%, and
@@ -221,7 +245,7 @@ function CanslimPlaybook({ rows, onOpenStock }) {
 }
 
 /* ------------------------------ SHELL ------------------------------ */
-export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, onLookup, lookupBusy, lookupErr }) {
+export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, onLookup, lookupBusy, lookupErr }) {
   const [tab, setTab] = useState("screener");
 
   const buyCount = rows.filter((s) => s.status === "buy").length;
@@ -256,10 +280,25 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
       <div className="statstrip">
         <div className="wrap">
           <div className="statgrid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            <div className="statcell reveal" data-soon="true" style={{ "--i": 0 }}><div className="lab">Market Trend</div><div className="val" style={{ fontSize: 18, color: "var(--cat-growth)" }}>Confirmed Uptrend</div><div className="tm mono">buying permitted</div></div>
-            <div className="statcell reveal" style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">3</div><div className="tm mono">rolling 25-session</div></div>
-            <div className="statcell reveal" style={{ "--i": 2 }}><div className="lab">Last FTD</div><div className="val">MAY 1</div><div className="tm mono">follow-through day</div></div>
-            <div className="statcell reveal" style={{ "--i": 3 }}><div className="lab">New Highs / Lows</div><div className="val">184 / 41</div><div className="tm mono">NYSE + Nasdaq</div></div>
+            {market ? (
+              <>
+                <div className="statcell reveal" data-soon={market.trend === "Confirmed Uptrend"} style={{ "--i": 0 }}>
+                  <div className="lab">Market Trend</div>
+                  <div className="val" style={{ fontSize: 18, color: market.trend === "Confirmed Uptrend" ? "var(--cat-growth)" : market.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--sev-high)" }}>{market.trend}</div>
+                  <div className="tm mono">{market.trend === "Confirmed Uptrend" ? "buying permitted" : "risk management first"}</div>
+                </div>
+                <div className="statcell reveal" style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">{market.distDays}</div><div className="tm mono">S&amp;P · rolling 25-session</div></div>
+                <div className="statcell reveal" style={{ "--i": 2 }}><div className="lab">Last Power Day</div><div className="val">{(market.lastFTD || "—").toUpperCase()}</div><div className="tm mono">1.25%+ gain on volume</div></div>
+                <div className="statcell reveal" style={{ "--i": 3 }}><div className="lab">New Highs / Lows</div><div className="val">{market.breadth.newHighs} / {market.breadth.newLows}</div><div className="tm mono">tracked universe ({market.breadth.n})</div></div>
+              </>
+            ) : (
+              <>
+                <div className="statcell reveal" style={{ "--i": 0 }}><div className="lab">Market Trend</div><div className="val" style={{ fontSize: 18 }}>—</div><div className="tm mono">awaiting live data</div></div>
+                <div className="statcell reveal" style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">—</div><div className="tm mono">rolling 25-session</div></div>
+                <div className="statcell reveal" style={{ "--i": 2 }}><div className="lab">Last Power Day</div><div className="val">—</div><div className="tm mono">1.25%+ gain on volume</div></div>
+                <div className="statcell reveal" style={{ "--i": 3 }}><div className="lab">New Highs / Lows</div><div className="val">—</div><div className="tm mono">tracked universe</div></div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -274,8 +313,8 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
       <div key={tab}>
         {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr} />}
-        {tab === "health" && <MarketHealth />}
-        {tab === "playbook" && <CanslimPlaybook rows={rows} onOpenStock={onOpenStock} />}
+        {tab === "health" && <MarketHealth market={market} />}
+        {tab === "playbook" && <CanslimPlaybook rows={rows} onOpenStock={onOpenStock} market={market} />}
       </div>
     </>
   );

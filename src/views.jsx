@@ -78,15 +78,15 @@ export function TimelineView({ events, onOpenFull }) {
 }
 
 /* ---------------------------- PLAYBOOK ----------------------------- */
-export function PlaybookView() {
-  const byId = Object.fromEntries(TT.EVENTS.map((e) => [e.id, e]));
+export function PlaybookView({ events }) {
+  const byId = Object.fromEntries((events || TT.EVENTS).map((e) => [e.id, e]));
   const watch = [
     [1, "BoJ carry unwind", "JPY crosses, leveraged equity beta"],
     [2, "FOMC dot plot", "Front-end rates, cross-asset vol"],
     [3, "Gamma expiry", "Index pin risk, dealer hedging"],
     [5, "Russell recon", "Small/mid-cap dispersion"],
     [10, "CPI print", "Rate-path narrative reset"],
-  ];
+  ].filter(([id]) => byId[id]);
   return (
     <div className="wrap pb">
       <div className="pb-card pb-brief">

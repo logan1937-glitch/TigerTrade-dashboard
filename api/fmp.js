@@ -28,6 +28,8 @@ const ALLOWED = [
   "historical-price-eod-light",
   "historical-price-eod-full",
   "historical-price-eod-dividend-adjusted",
+  "economic-calendar",
+  "economics-calendar",
 ];
 
 export default async function handler(req, res) {
