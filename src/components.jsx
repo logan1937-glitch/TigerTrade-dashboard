@@ -163,7 +163,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
   };
   const next = events[0];
   const nc = next ? TT.CAT_MAP[next.cat] : null;
-  const nstat = next ? TT.stats(next) : null;
+  const nEcon = next && next.econ && (next.econ.previous != null || next.econ.estimate != null) ? next.econ : null;
   return (
     <div className="hero" ref={ref} onMouseMove={onMove}>
       <div className="hero-glow" />
@@ -185,11 +185,16 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
                   <span className="badge badge-sev" data-sev={next.sev}>{SEV_LABEL[next.sev]}</span>
                 </span>
               </span>
-              <span className="hero-next-react">
-                <span className="hero-next-react-k mono">Typical S&amp;P reaction</span>
-                <MiniReaction data={nstat.window} />
-                <span className="hero-next-react-cap mono">±{nstat.summary.avgAbs}% avg · n={nstat.summary.n}</span>
-              </span>
+              {nEcon && (
+                <span className="hero-next-react">
+                  <span className="hero-next-react-k mono">Release data</span>
+                  <span className="hero-next-react-cap mono" style={{ marginLeft: 0 }}>
+                    {nEcon.previous != null && <>prev <b style={{ color: "var(--text)" }}>{nEcon.previous}{nEcon.unit}</b></>}
+                    {nEcon.estimate != null && <> · cons <b style={{ color: "var(--text)" }}>{nEcon.estimate}{nEcon.unit}</b></>}
+                    {nEcon.actual != null && <> · act <b style={{ color: "var(--text)" }}>{nEcon.actual}{nEcon.unit}</b></>}
+                  </span>
+                </span>
+              )}
             </button>
           )}
         </div>
@@ -242,7 +247,7 @@ export function StatStrip({ events }) {
 
 /* ------------------------------ SUBNAV ----------------------------- */
 export function SubNav({ tab, setTab, counts }) {
-  const tabs = [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["playbook", "Playbook + AI"]];
+  const tabs = [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["playbook", "Catalysts"]];
   return (
     <div className="wrap">
       <div className="subnav">

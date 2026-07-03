@@ -105,12 +105,46 @@ function _eventDate(ev) {
   const [mon, day] = ev.date.split(" ");
   return new Date(_EVENT_YEAR, _MONTHNUM[mon] ?? 0, parseInt(day, 10) || 1);
 }
+// rule-based structural dates, computed so they always roll forward:
+// quad witching / S&P rebalance = 3rd Friday of Mar/Jun/Sep/Dec;
+// Russell reconstitution = last Friday of June.
+function _nthFriday(year, month, n) {
+  const d = new Date(year, month, 1);
+  const off = (5 - d.getDay() + 7) % 7;          // first Friday
+  return new Date(year, month, 1 + off + (n - 1) * 7);
+}
+function _lastFriday(year, month) {
+  const d = new Date(year, month + 1, 0);        // last day of month
+  return new Date(year, month, d.getDate() - ((d.getDay() - 5 + 7) % 7));
+}
+function _nextWitching(today) {
+  for (let k = 0; k < 8; k++) {
+    const m = [2, 5, 8, 11][(Math.floor(today.getMonth() / 3) + k) % 4];
+    const y = today.getFullYear() + Math.floor((Math.floor(today.getMonth() / 3) + k) / 4);
+    const d = _nthFriday(y, m, 3);
+    if (d >= today) return d;
+  }
+  return _nthFriday(today.getFullYear() + 1, 2, 3);
+}
+function _nextRussellRecon(today) {
+  const thisYr = _lastFriday(today.getFullYear(), 5);
+  return thisYr >= today ? thisYr : _lastFriday(today.getFullYear() + 1, 5);
+}
+
 (function _recomputeTiming() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // re-date the rolling structural events before computing countdowns
+  const witch = _nextWitching(today);
+  const recon = _nextRussellRecon(today);
+  const lbl = (d) => `${Object.keys(_MONTHNUM)[d.getMonth()]} ${d.getDate()}`;
+  const byId = Object.fromEntries(TT.EVENTS.map((e) => [e.id, e]));
+  if (byId[3]) { byId[3].date = lbl(witch); byId[3]._exact = witch; }
+  if (byId[4]) { byId[4].date = lbl(witch); byId[4]._exact = witch; }
+  if (byId[5]) { byId[5].date = lbl(recon); byId[5]._exact = recon; }
   TT.EVENTS.forEach((ev) => {
     const frac = ev.sort - Math.trunc(ev.sort);            // keep same-day ordering
-    const diff = Math.round((_eventDate(ev) - today) / 86400000);
+    const diff = Math.round(((ev._exact || _eventDate(ev)) - today) / 86400000);
     ev.t = -diff;                                          // upcoming → negative, past → +days ago
     ev.sort = diff + frac;
     ev.past = diff < 0;

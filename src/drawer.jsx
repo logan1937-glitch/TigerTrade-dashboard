@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { TT } from "./tt.js";
-import { PriceChart, ReactionWindow, MoveDistribution, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
+import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
 import { StarBtn, StarIcon, Logo, useWatch, useCanslim, SEV_LABEL } from "./components.jsx";
 
 function CloseIcon() {
@@ -54,8 +54,6 @@ export function Drawer({ open, onClose, children, label }) {
 export function EventDrawerBody({ ev, onClose, onPick }) {
   const cat = TT.CAT_MAP[ev.cat];
   const d = TT.detail(ev.id);
-  const st = TT.stats(ev);
-  const s = st.summary;
   const { byTicker } = useCanslim();
   return (
     <div className="dr" style={{ "--c": cat.color }}>
@@ -82,41 +80,6 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
         </div>
       )}
 
-      <div className="dr-tiles">
-        <div className="dr-tile"><span className="dr-tk mono">Avg |move|</span><span className="dr-tv mono">±{s.avgAbs}%</span></div>
-        <div className="dr-tile"><span className="dr-tk mono">Hit rate ↑</span><span className="dr-tv mono">{s.hitUp}%</span></div>
-        <div className="dr-tile"><span className="dr-tk mono">VIX Δ</span><span className="dr-tv mono" data-neg={s.avgVix < 0}>{s.avgVix > 0 ? "+" : ""}{s.avgVix}</span></div>
-        <div className="dr-tile"><span className="dr-tk mono">Sample</span><span className="dr-tv mono">{s.n}</span></div>
-      </div>
-
-      <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Average S&amp;P reaction</h3><span className="dr-sec-sub mono">cumulative %, T-5 → T+5</span></div>
-        <ReactionWindow data={st.window} />
-      </div>
-
-      <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Historical outcomes</h3><span className="dr-sec-sub mono">close-to-close move, last {s.n}</span></div>
-        <MoveDistribution instances={st.instances} />
-        <div className="dr-rangepill">
-          <span>Best <b className="up">+{s.maxUp}%</b></span>
-          <span>Median <b>{s.median > 0 ? "+" : ""}{s.median}%</b></span>
-          <span>Worst <b className="dn">{s.maxDn}%</b></span>
-        </div>
-      </div>
-
-      <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Cross-asset reaction</h3><span className="dr-sec-sub mono">typical magnitude</span></div>
-        <div className="dr-cross">
-          {st.cross.map((x) => (
-            <div className="dr-crow" key={x.k}>
-              <span className="dr-ck mono">{x.k}</span>
-              <BarMeter value={x.v} max={Math.max(...st.cross.map((c) => c.v)) * 1.1} c={x.up ? "var(--cat-growth)" : "var(--sev-extreme)"} />
-              <span className="dr-cv mono" data-up={x.up}>±{x.v}%</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="dr-sec dr-2col">
         <div>
           <div className="dr-k mono">Scenario</div>
@@ -126,23 +89,8 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
           <div className="dr-k mono">Desk hedge</div>
           <p className="dr-p">{d.hedge}</p>
           <div className="dr-meta-row">
-            <div><span className="dr-mk mono">Conviction</span><div className="dr-mv mono">{d.conviction}/100</div><BarMeter value={d.conviction} c="var(--accent)" /></div>
+            <div><span className="dr-mk mono">Conviction <span style={{ opacity: .6 }}>· editorial</span></span><div className="dr-mv mono">{d.conviction}/100</div><BarMeter value={d.conviction} c="var(--accent)" /></div>
           </div>
-        </div>
-      </div>
-
-      <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Past instances</h3></div>
-        <div className="dr-table">
-          <div className="dr-tr dr-th"><span>Period</span><span>Surprise</span><span>S&amp;P move</span><span>VIX Δ</span></div>
-          {st.instances.map((it, i) => (
-            <div className="dr-tr" key={i}>
-              <span className="mono">{it.label}</span>
-              <span className="mono" data-up={it.surprise >= 0}>{it.surprise > 0 ? "+" : ""}{it.surprise}</span>
-              <span className="mono" data-up={it.move >= 0}>{it.move > 0 ? "+" : ""}{it.move}%</span>
-              <span className="mono" data-neg={it.vix < 0}>{it.vix > 0 ? "+" : ""}{it.vix}</span>
-            </div>
-          ))}
         </div>
       </div>
 

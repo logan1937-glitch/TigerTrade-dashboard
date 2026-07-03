@@ -152,11 +152,15 @@ export function computeMarketHealth(indices, universe) {
     const sma50 = smaAt(closes, 50, n - 1);
     const sma200 = smaAt(closes, 200, n - 1);
     const sma50prev = smaAt(closes, 50, Math.max(49, n - 11));
+    // ~30-point sparkline of the last 3 months
+    const tail = closes.slice(-63);
+    const step = Math.max(1, Math.floor(tail.length / 30));
     return {
       k: x.label, price: x.price, chg: x.chgPct,
       above50: sma50 != null ? x.price > sma50 : null,
       above200: sma200 != null ? x.price > sma200 : null,
       rising50: sma50 != null && sma50prev != null ? sma50 > sma50prev : null,
+      spark: tail.filter((_, i) => i % step === 0),
     };
   });
 

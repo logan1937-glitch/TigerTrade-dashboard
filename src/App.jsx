@@ -6,7 +6,8 @@ import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
 import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
-import { CalendarView, TimelineView, PlaybookView } from "./views.jsx";
+import { CalendarView, TimelineView } from "./views.jsx";
+import { CatalystTimeline } from "./catalystTimeline.jsx";
 import { CommandPalette } from "./commandPalette.jsx";
 import { Drawer, EventDrawerBody, StockDrawerBody, WatchlistBody } from "./drawer.jsx";
 import { CanslimView } from "./canslim.jsx";
@@ -271,7 +272,7 @@ export default function App() {
 
   const commands = useMemo(() => {
     const cmds = [];
-    [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["playbook", "Playbook + AI"]]
+    [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["playbook", "Catalysts"]]
       .forEach(([id, label]) => cmds.push({ id: "tab-" + id, group: "Navigate", label, hint: "View", run: () => { setProduct("radar"); setTab(id); } }));
     cmds.push({ id: "prod-canslim", group: "Navigate", label: "Leadership Screener", hint: "Product", run: () => setProduct("canslim") });
     TT.CATEGORIES.forEach((c) => cmds.push({ id: "cat-" + c.id, group: "Filter", label: "Toggle " + c.label, dot: c.color, run: () => { setProduct("radar"); setTab("radar"); toggleCat(c.id); } }));
@@ -302,7 +303,7 @@ export default function App() {
             {tab === "radar" && <RadarView {...radarProps} />}
             {tab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
             {tab === "calendar" && <CalendarView />}
-            {tab === "playbook" && <PlaybookView events={allEvents} />}
+            {tab === "playbook" && <CatalystTimeline events={allEvents} onOpen={openEvent} />}
           </>
         ) : (
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market}

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { TT } from "./tt.js";
 import { SearchIcon, StarBtn } from "./components.jsx";
 import { RSLine, BarMeter } from "./charts.jsx";
+import { MarketMap } from "./marketMap.jsx";
 
 const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
 
@@ -47,7 +48,7 @@ function periodReturn(s, tf) {
   return (c[n - 1] / c[i] - 1) * 100;
 }
 
-function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr }) {
+function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
   const [statusF, setStatusF] = useState("all");
@@ -56,12 +57,13 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr }) {
   const submitLookup = (e) => { e.preventDefault(); if (onLookup) onLookup(addSym); setAddSym(""); };
   const view = useMemo(() => {
     let r = rows.filter((x) => (x.tk + " " + x.name + " " + x.group).toLowerCase().includes(q.toLowerCase()));
+    if (sectorF) r = r.filter((x) => x.sector === sectorF);
     if (statusF !== "all") r = r.filter((x) => x.status === statusF);
     r = r.map((x) => ({ ...x, _ret: periodReturn(x, tf) }));
     if (sort === "chg") return [...r].sort((a, b) => b._ret - a._ret);
     const key = { score: "score", rs: "rs", pass: "pass" }[sort];
     return [...r].sort((a, b) => (b[key] || 0) - (a[key] || 0));
-  }, [rows, q, sort, statusF, tf]);
+  }, [rows, q, sort, statusF, tf, sectorF]);
 
   return (
     <div className="wrap">
@@ -98,7 +100,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr }) {
         </div>
       </div>
 
-      <div className="listmeta"><span className="count"><b>{view.length}</b> leaders · sorted by {sort}</span>
+      <div className="listmeta"><span className="count"><b>{view.length}</b> leaders{sectorF && <> · <b>{sectorF}</b> <button className="linkbtn" style={{ fontSize: 9, padding: "2px 7px", marginLeft: 4 }} onClick={onClearSector}>clear ✕</button></>} · sorted by {sort}</span>
         <span className="count mono" style={{ opacity: .8 }}>click a row for full analysis</span></div>
 
       <div className="cs-table">
@@ -127,6 +129,12 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr }) {
           </div>
         ))}
       </div>
+      <p className="mono" style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "-46px 2px 64px", maxWidth: "70ch" }}>
+        The <b style={{ color: "var(--muted)", fontWeight: 600 }}>TigerTrade Leadership Model (LEADERS)</b> is our own 7-factor
+        relative-strength growth framework. Its factors follow classic leadership-investing principles popularized by William
+        J. O'Neil. TigerTrade is independent and not affiliated with, sponsored by, or endorsed by Investor's Business Daily;
+        “CAN SLIM” is a registered trademark of Investor's Business Daily, Inc. Educational use only — not investment advice.
+      </p>
     </div>
   );
 }
@@ -141,7 +149,7 @@ function MarketHealth({ market }) {
     ? {
         trend: market.trend, trendNote: market.trendNote,
         distDays: market.distDays, distMax: market.distMax, lastFTD: market.lastFTD || "—",
-        indexes: market.indexes.map((ix) => ({ k: ix.k, v: fmtIdx(ix.price), chg: ix.chg != null ? +ix.chg.toFixed(2) : 0, above50: !!ix.above50, above200: !!ix.above200 })),
+        indexes: market.indexes.map((ix) => ({ k: ix.k, v: fmtIdx(ix.price), chg: ix.chg != null ? +ix.chg.toFixed(2) : 0, above50: !!ix.above50, above200: !!ix.above200, spark: ix.spark })),
         breadth: market.breadth,
       }
     : TT.MKT;
@@ -171,8 +179,9 @@ function MarketHealth({ market }) {
           <span className="mh-k mono">Index health</span>
           <div className="mh-idx">
             {m.indexes.map((ix) => (
-              <div className="mh-irow" key={ix.k}>
+              <div className="mh-irow" data-spark={!!(ix.spark && ix.spark.length) || undefined} key={ix.k}>
                 <span className="mh-iname">{ix.k}</span>
+                {ix.spark && ix.spark.length > 2 && <span className="mh-ispark"><Spark data={ix.spark} /></span>}
                 <span className="mono mh-iv">{ix.v}</span>
                 <span className="mono mh-ichg" data-up={ix.chg >= 0}>{ix.chg >= 0 ? "+" : ""}{ix.chg}%</span>
                 <span className="mh-ima" data-on={ix.above50}>50d</span>
@@ -196,57 +205,10 @@ function MarketHealth({ market }) {
   );
 }
 
-/* ----------------------------- PLAYBOOK ----------------------------- */
-function CanslimPlaybook({ rows, onOpenStock, market }) {
-  const buys = rows.filter((s) => s.status === "buy" && s.buyLo != null).slice(0, 5);
-  // lead with the live regime read when we have it
-  const lead = market
-    ? <p>The general market reads <b>{market.trend.toLowerCase()}</b> with {market.distDays} distribution day{market.distDays === 1 ? "" : "s"} on the S&amp;P —
-        {market.trend === "Confirmed Uptrend" ? " buying is permitted." : " prioritize risk management over new exposure."}{" "}
-        {market.breadth.pctAbove50 != null && <>Across the tracked universe, <b>{market.breadth.pctAbove50}%</b> of names hold their 50-day line.</>}</p>
-    : <p>The general market is in a <b>confirmed uptrend</b> with just 3 distribution days — buying is permitted.
-        Leadership is concentrated in <b>semiconductors, power/electrification, and precious metals</b>.</p>;
-  return (
-    <div className="wrap">
-    <div className="pb">
-      <div className="pb-card pb-brief">
-        <h3><span className="hero-badge" style={{ padding: "3px 7px", fontSize: 9, "--accent": "var(--cat-growth)", color: "var(--cat-growth)" }}>AI</span> Screener read · {TT.todayLabel}</h3>
-        {lead}
-        <p>Highest-conviction actionable setups are names <b>in-range off a sound base</b> on volume —
-          not the extended megacaps. {buys.map((b) => b.tk).join(", ")} are clearing or holding pivots.</p>
-        <p>Risk discipline: keep individual entries within 5% of the pivot, cap losses at 7–8%, and
-          tighten up if distribution days climb toward 5–6.</p>
-        <div className="pb-ai-input">
-          <input placeholder="Ask the screener… e.g. ‘semis in buy range under $150’" />
-          <button style={{ background: "var(--cat-growth)" }}>Ask</button>
-        </div>
-      </div>
-      <div className="pb-card">
-        <h3 style={{ color: "var(--cat-growth)" }}>Actionable now</h3>
-        <div className="pb-list">
-          {buys.map((b) => (
-            <button className="pb-item pb-item-btn" key={b.tk} onClick={() => onOpenStock(b)}>
-              <span className="pb-k">{b.tk}</span>
-              <span className="pb-v">{b.name}<small>Buy ${b.buyLo}–{b.buyHi} · RS {b.rs} · score {b.score}</small></span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-    <p className="mono" style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "18px 2px 64px", maxWidth: "70ch" }}>
-      The <b style={{ color: "var(--muted)", fontWeight: 600 }}>TigerTrade Leadership Model (LEADERS)</b> is our own 7-factor
-      relative-strength growth framework — Leadership, Earnings momentum, Accumulation, Durable growth, Emerging breakout,
-      Rising sponsorship, Setup. Its factors follow classic leadership-investing principles popularized by William J. O'Neil.
-      TigerTrade is independent and not affiliated with, sponsored by, or endorsed by Investor's Business Daily;
-      “CAN SLIM” is a registered trademark of Investor's Business Daily, Inc. Educational use only — not investment advice.
-    </p>
-    </div>
-  );
-}
-
 /* ------------------------------ SHELL ------------------------------ */
 export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, onLookup, lookupBusy, lookupErr }) {
   const [tab, setTab] = useState("screener");
+  const [sectorF, setSectorF] = useState(null);   // sector filter set from the Market Map
 
   const buyCount = rows.filter((s) => s.status === "buy").length;
   const leaders = rows.filter((s) => (s.score || 0) >= 80).length;
@@ -305,16 +267,18 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
       <div className="wrap">
         <div className="subnav">
-          {[["screener", "Screener"], ["health", "Market Health"], ["playbook", "Playbook"]].map(([id, l]) => (
+          {[["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"]].map(([id, l]) => (
             <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>{l}</button>
           ))}
         </div>
       </div>
 
       <div key={tab}>
-        {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr} />}
+        {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr}
+          sectorF={sectorF} onClearSector={() => setSectorF(null)} />}
+        {tab === "map" && <MarketMap rows={rows} live={live} onOpenStock={onOpenStock}
+          onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} />}
         {tab === "health" && <MarketHealth market={market} />}
-        {tab === "playbook" && <CanslimPlaybook rows={rows} onOpenStock={onOpenStock} market={market} />}
       </div>
     </>
   );
