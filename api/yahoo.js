@@ -48,7 +48,17 @@ export default async function handler(req, res) {
     }
 
     const price = meta.regularMarketPrice ?? null;
-    const prev = meta.chartPreviousClose ?? meta.previousClose ?? null;
+    // prior-session close = the bar before the last one. meta.chartPreviousClose
+    // is the close before the CHART RANGE (a year ago on range=1y) — using it
+    // made the "daily %" show the 12-month move. Fall back only if bars are thin.
+    let prev = null;
+    if (bars.length >= 2) {
+      const lastClose = bars[bars.length - 1].close;
+      prev = price != null && Math.abs(price - lastClose) < 1e-9
+        ? bars[bars.length - 2].close      // market closed: last bar IS the price
+        : lastClose;                        // market open: last full bar = yesterday
+    }
+    if (prev == null) prev = meta.previousClose ?? meta.chartPreviousClose ?? null;
     const out = {
       symbol: meta.symbol || symbol,
       price,

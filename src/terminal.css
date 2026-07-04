@@ -758,9 +758,9 @@ body { background: #0a0b0d; }
 .pchart-tip-p { color: var(--text); font-weight: 600; }
 .pchart-tip-c[data-up="true"] { color: var(--cat-growth); }
 .pchart-tip-c[data-up="false"] { color: var(--sev-extreme); }
-.pchart-reset { position: absolute; top: 2px; right: 2px; font-size: 10px; letter-spacing: 0.04em;
+.pchart-reset { font-size: 10px; letter-spacing: 0.04em;
   color: var(--accent); background: var(--panel); border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--border));
-  border-radius: var(--radius-sm); padding: 3px 8px; cursor: pointer; z-index: 2; }
+  border-radius: var(--radius-sm); padding: 3px 8px; cursor: pointer; }
 .pchart-reset:hover { background: var(--surface-2); }
 
 .meter { height: 6px; border-radius: 6px; background: var(--panel); border: 1px solid var(--border); overflow: hidden; }

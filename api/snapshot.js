@@ -64,7 +64,13 @@ async function yahooBars(symbol) {
         low: fin(q.low ? q.low[i] : null), close: fin(close), volume: fin(q.volume ? q.volume[i] : null) });
     }
     const price = fin(meta.regularMarketPrice);
-    const prev = fin(meta.chartPreviousClose != null ? meta.chartPreviousClose : meta.previousClose);
+    // prior-session close from the bars (chartPreviousClose = range start, wrong)
+    let prev = null;
+    if (rows.length >= 2) {
+      const lastClose = rows[rows.length - 1].close;
+      prev = price != null && Math.abs(price - lastClose) < 1e-9 ? rows[rows.length - 2].close : lastClose;
+    }
+    if (prev == null) prev = fin(meta.previousClose != null ? meta.previousClose : meta.chartPreviousClose);
     return { rows, quote: { price, changePercentage: price != null && prev ? ((price - prev) / prev) * 100 : null, timestamp: meta.regularMarketTime || null } };
   } catch { return null; }
 }

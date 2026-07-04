@@ -94,7 +94,9 @@ function RotationScatter({ rows, tf, onOpenStock }) {
             <circle cx={x(p.ret)} cy={y(p.rs)} r="11" fill="transparent" />
             <circle cx={x(p.ret)} cy={y(p.rs)} r={hover === p.tk ? 6.5 : 4.5} className="mm-dot" data-up={p.ret >= 0} />
             {(labeled.has(p.tk) || hover === p.tk) && (
-              <text x={x(p.ret) + 8} y={y(p.rs) + 3.5} className="mm-dot-label">{p.tk}</text>
+              x(p.ret) > W * 0.86
+                ? <text x={x(p.ret) - 9} y={y(p.rs) + 3.5} className="mm-dot-label" textAnchor="end">{p.tk}</text>
+                : <text x={x(p.ret) + 8} y={y(p.rs) + 3.5} className="mm-dot-label">{p.tk}</text>
             )}
           </g>
         ))}

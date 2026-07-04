@@ -98,7 +98,10 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
             <button key={label} className="seg-btn" data-active={isRange(cnt)} onClick={() => setRange(cnt)}>{label}</button>
           ))}
         </div>
-        <span className="pchart-range mono">{dateFor(lo)} – {dateFor(hi)}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {zoomed && <button className="pchart-reset mono" onClick={reset}>reset zoom ✕</button>}
+          <span className="pchart-range mono">{dateFor(lo)} – {dateFor(hi)}</span>
+        </span>
       </div>
       <div className="pchart" ref={wrapRef} onMouseMove={onMove} onMouseDown={onDown} onMouseUp={onUp} onMouseLeave={onLeave} onDoubleClick={reset}
         style={{ position: "relative", cursor: drag ? "ew-resize" : "crosshair", userSelect: "none" }}>
@@ -129,13 +132,13 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
         </g>
       </svg>
       {hover != null && !drag && (
-        <div className="pchart-tip" style={{ left: `${tipLeft}%` }}>
+        <div className="pchart-tip" style={{ left: `${tipLeft}%`,
+          transform: tipLeft > 72 ? "translateX(-100%)" : tipLeft < 18 ? "none" : "translateX(-50%)" }}>
           <span className="pchart-tip-d mono">{dateFor(hover)}</span>
           <span className="pchart-tip-p mono">${_fmtP(closes[hover])}</span>
           <span className="pchart-tip-c mono" data-up={pctPrev >= 0}>{pctPrev >= 0 ? "+" : ""}{pctPrev.toFixed(2)}%</span>
         </div>
       )}
-      {zoomed && <button className="pchart-reset mono" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); reset(); }}>reset zoom ✕</button>}
       </div>
       <div className="pchart-axis" aria-hidden="true">
         {ticks.map((t, k) => (

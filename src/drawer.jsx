@@ -115,13 +115,27 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
 }
 
 /* ----------------------------- STOCK DRAWER ----------------------------- */
+const fmtCap = (v) => (v == null ? "—" : v >= 1e12 ? (v / 1e12).toFixed(2) + "T" : v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : (v / 1e6).toFixed(0) + "M");
+
 export function StockDrawerBody({ stock, onClose }) {
   const s = stock;
   const statusMap = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
   const [stLabel, stColor] = statusMap[s.status] || [null, null];
-  const hasBase = s.pivot != null;                  // curated buy-point base
+  const hasBase = s.pivot != null;                  // buy-point base (technical when history exists)
   const hasChart = s.closes && s.closes.length > 0; // real EOD history loaded
   const signalsOnly = s.coverage === "signals";
+
+  // real market cap — one lazy FMP quote per open; "—" if unavailable, never a stale value
+  const [cap, setCap] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setCap(null);
+    fetch(`/api/fmp?endpoint=quote&symbol=${s.tk}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { const q = Array.isArray(d) ? d[0] : d; if (alive && q && q.marketCap) setCap(q.marketCap); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [s.tk]);
 
   // order-plan ticket (planning only — not connected to a broker)
   const [planOpen, setPlanOpen] = useState(false);
@@ -153,8 +167,9 @@ export function StockDrawerBody({ stock, onClose }) {
               : signalsOnly && <span className="badge badge-cat" style={{ "--c": "var(--dim)" }}>Signals-only</span>}</div>
           <h2 className="dr-title dr-stockname">{s.name}</h2>
           <div className="dr-pxrow">
-            <span className="dr-px mono">{s.px != null ? "$" + s.px.toLocaleString() : "—"}</span>
-            {s.chg != null && <span className="dr-chg mono" data-up={s.chg >= 0}>{s.chg >= 0 ? "+" : ""}{s.chg}%</span>}
+            <span className="dr-px mono">{s.px != null ? "$" + s.px.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}</span>
+            {s.chg != null && <span className="dr-chg mono" data-up={s.chg >= 0}>{s.chg >= 0 ? "+" : ""}{(+s.chg).toFixed(2)}%</span>}
+            <span className="dr-grp mono">Mkt cap {fmtCap(cap)}</span>
             {s.rs != null && <span className="dr-rs mono">RS {s.rs}</span>}
             {s.groupRank != null && <span className="dr-grp mono">Group #{s.groupRank}</span>}
           </div>
@@ -244,10 +259,10 @@ export function StockDrawerBody({ stock, onClose }) {
 
       {s.f && (
       <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Fundamentals</h3></div>
+        <div className="dr-sec-h"><h3>Fundamentals</h3><span className="dr-sec-sub mono">editorial estimates — verify before trading</span></div>
         <div className="dr-funds">
           {[["EPS, last Q", "+" + s.f.epsQ + "%"], ["EPS, 3-yr", "+" + s.f.epsA + "%"], ["Sales, last Q", "+" + s.f.salesQ + "%"],
-            ["ROE", s.f.roe + "%"], ["Net margin", s.f.margin + "%"], ["Mkt cap", s.mktCap],
+            ["ROE", s.f.roe + "%"], ["Net margin", s.f.margin + "%"],
             ["Fund ownership", s.f.funds + "%"], ["Acc/Dist", s.f.acc]].map(([k, v]) => (
             <div className="dr-fund" key={k}><span className="dr-fk mono">{k}</span><span className="dr-fv mono">{v}</span></div>
           ))}

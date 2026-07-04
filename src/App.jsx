@@ -96,9 +96,26 @@ export default function App() {
       const score = momentumScore(r.sig, rs);
       const grade = score >= 80 ? "a" : score >= 60 ? "b" : "c";
       const spark = sampleSpark(r.sig.closes) || r.spark;
-      // derive buy-status for signals-only names from the trend (no curated pivot)
+      // technical buy point from real history — the recent base high (60 bars,
+      // excluding the last 5) replaces the stale editorial pivot for everyone
       let status = r.status;
-      if (r.coverage === "signals") status = r.sig.stage === 2 && r.sig.off52 <= 6 ? "buy" : null;
+      let pivotFields = {};
+      const c = r.sig.closes, n = c.length;
+      if (n >= 70) {
+        const base = c.slice(n - 65, n - 5);
+        const pivot = +Math.max(...base).toFixed(2);
+        const baseLo = Math.min(...base);
+        const px = r.px != null ? r.px : c[n - 1];
+        const pctExt = +(((px - pivot) / pivot) * 100).toFixed(1);
+        status = pctExt > 5 ? "ext" : pctExt >= -3 ? "buy" : "watch";
+        pivotFields = {
+          pivot, buyLo: pivot, buyHi: +(pivot * 1.05).toFixed(2), pctExt,
+          baseType: "60-day base high", baseWeeks: 12,
+          baseDepth: +(((pivot - baseLo) / pivot) * 100).toFixed(0),
+        };
+      } else if (r.coverage === "signals") {
+        status = r.sig.stage === 2 && r.sig.off52 <= 6 ? "buy" : null;
+      }
       // keep the LEADERS 'L' chip + the market 'S' factor in sync with real data
       let breakdown = r.breakdown;
       if (r.coverage === "full" && breakdown.length) {
@@ -108,7 +125,7 @@ export default function App() {
           return b;
         });
       }
-      return { ...r, rs, score, grade, spark, status, breakdown };
+      return { ...r, rs, score, grade, spark, status, breakdown, ...pivotFields };
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
