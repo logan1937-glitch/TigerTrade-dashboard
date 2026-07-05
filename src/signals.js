@@ -233,6 +233,41 @@ export function lookbackFrom(days = 430) {
   return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 }
 
+// ── relative-rotation coordinates from an RS line (security ÷ benchmark) ───────
+// Our own DOCUMENTED APPROXIMATION of the relative-rotation concept popularized
+// by Julius de Kempenaer (RRG Research). Not the proprietary JdK RS-Ratio /
+// RS-Momentum; RRG® and JdK are their trademarks. Both axes are normalized so
+// 100 = "in line with its own trend":
+//   ratio ≈ RS line vs its 50-bar average  (>100 → outperforming trend)
+//   mom   ≈ whether that ratio is rising    (>100 → momentum improving)
+// Returns an array of { ratio, mom } points, oldest → newest.
+export function relativeRotation(rsLine, opts = {}) {
+  const { ratioLen = 50, momLen = 10, smooth = 5 } = opts;
+  const n = rsLine ? rsLine.length : 0;
+  if (n < ratioLen + smooth + momLen) return null;
+  const winAvg = (arr, len, end) => { let s = 0; for (let i = end - len + 1; i <= end; i++) s += arr[i]; return s / len; };
+
+  const ratio = [];
+  for (let i = ratioLen - 1; i < n; i++) { const m = winAvg(rsLine, ratioLen, i); ratio.push(m ? 100 * (rsLine[i] / m) : 100); }
+  const rs = [];
+  for (let i = smooth - 1; i < ratio.length; i++) rs.push(winAvg(ratio, smooth, i));
+  const mom = [];
+  for (let i = momLen - 1; i < rs.length; i++) { const m = winAvg(rs, momLen, i); mom.push(m ? 100 * (rs[i] / m) : 100); }
+  const rsAligned = rs.slice(momLen - 1);
+  return rsAligned.map((r, i) => ({ ratio: r, mom: mom[i] }));
+}
+
+// equal-weight aggregate RS line from member RS lines (align to shortest tail)
+export function aggregateRsLine(rsLines) {
+  const valid = rsLines.filter((a) => a && a.length);
+  if (!valid.length) return null;
+  const len = Math.min(...valid.map((a) => a.length));
+  if (len < 60) return null;
+  const out = new Array(len).fill(0);
+  for (const a of valid) { const off = a.length - len; for (let i = 0; i < len; i++) out[i] += a[off + i]; }
+  return out.map((v) => v / valid.length);
+}
+
 // pure-technical momentum score (0–100) from real signals + the universe RS
 // rating. No fundamentals — works for every name with a signal bundle, so it
 // ranks curated and extended-universe names on the same honest basis.
