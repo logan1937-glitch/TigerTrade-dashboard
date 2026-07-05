@@ -214,6 +214,12 @@ export function computeMarketHealth(indices, universe) {
   const upDollar = withChg.reduce((t, u) => t + (u.chg > 0 ? (u.sig?.dollarVol || 0) : 0), 0);
   const totDollar = withChg.reduce((t, u) => t + (u.sig?.dollarVol || 0), 0);
 
+  // Weinstein stage distribution across the tracked universe (1=basing, 2=advancing,
+  // 3=topping, 4=declining) — a breadth read on where names sit in their cycle.
+  const withStage = withSig.filter((u) => u.sig.stage >= 1 && u.sig.stage <= 4);
+  const stageCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  for (const u of withStage) stageCounts[u.sig.stage]++;
+
   return {
     trend, trendNote, distDays, distMax: 6, lastFTD,
     indexes: idxStats,
@@ -225,6 +231,7 @@ export function computeMarketHealth(indices, universe) {
       advDec: dec > 0 ? +(adv / dec).toFixed(1) : adv,
       upVolPct: totDollar > 0 ? Math.round((upDollar / totDollar) * 100) : null,
     },
+    stages: { counts: stageCounts, n: withStage.length },
   };
 }
 

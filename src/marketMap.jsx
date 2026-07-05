@@ -177,6 +177,110 @@ function RelativeRotation({ rows, onOpenStock }) {
   );
 }
 
+/* --------------------------- market heatmap (treemap) ---------------------------
+   Names grouped by sector, each tile SIZED by dollar volume (real, computed for
+   every name — a liquidity/attention proxy, not market cap) and COLORED by its
+   return over the selected window. Polarity uses the P&L pair AND a printed
+   signed number; the ticker labels every tile large enough to read. Tap → drawer.
+   Squarified layout (Bruls, Huizing & van Wijk) for readable aspect ratios. */
+const scaleToArea = (items, area) => {
+  const total = items.reduce((s, i) => s + i.value, 0) || 1;
+  const k = area / total;
+  return items.map((i) => ({ ...i, area: i.value * k })).sort((a, b) => b.area - a.area);
+};
+function squarify(children, X, Y, Wd, Ht) {
+  const out = [];
+  const worst = (row, side) => {
+    const sum = row.reduce((a, c) => a + c.area, 0);
+    const max = Math.max(...row.map((c) => c.area)), min = Math.min(...row.map((c) => c.area));
+    return Math.max((side * side * max) / (sum * sum), (sum * sum) / (side * side * min));
+  };
+  const layoutRow = (row, x, y, w, h, vertical) => {
+    const sum = row.reduce((a, c) => a + c.area, 0);
+    if (vertical) { const rw = sum / h; let yy = y; for (const c of row) { const ch = c.area / rw; out.push({ ...c, x, y: yy, w: rw, h: ch }); yy += ch; } }
+    else { const rh = sum / w; let xx = x; for (const c of row) { const cw = c.area / rh; out.push({ ...c, x: xx, y, w: cw, h: rh }); xx += cw; } }
+  };
+  const recurse = (items, x, y, w, h) => {
+    if (!items.length || w <= 0 || h <= 0) return;
+    if (items.length === 1) { out.push({ ...items[0], x, y, w, h }); return; }
+    const side = Math.min(w, h);
+    let row = [items[0]], rest = items.slice(1);
+    while (rest.length && worst(row, side) >= worst([...row, rest[0]], side)) { row.push(rest[0]); rest = rest.slice(1); }
+    const sum = row.reduce((a, c) => a + c.area, 0);
+    if (w >= h) { const sw = sum / h; layoutRow(row, x, y, sw, h, true); recurse(rest, x + sw, y, w - sw, h); }
+    else { const sh = sum / w; layoutRow(row, x, y, w, sh, false); recurse(rest, x, y + sh, w, h - sh); }
+  };
+  recurse(children, X, Y, Wd, Ht);
+  return out;
+}
+
+const MAP_W = 100, MAP_H = 62, MAP_CAP = 80;
+function MarketHeatmap({ rows, tf, onOpenStock }) {
+  const built = useMemo(() => {
+    let names = rows.filter((r) => r.sig && r.sig.dollarVol > 0 && r.sector && r.sector !== "Custom" && r.closes && r.closes.length > 1);
+    const total = names.length;
+    // keep the most-traded names so tiles stay legible; note the rest honestly
+    names = [...names].sort((a, b) => (b.sig.dollarVol || 0) - (a.sig.dollarVol || 0)).slice(0, MAP_CAP);
+    if (names.length < 2) return null;
+    const by = {};
+    for (const r of names) (by[r.sector] = by[r.sector] || []).push(r);
+    const sectors = Object.entries(by).map(([sector, list]) => ({
+      sector, value: list.reduce((s, r) => s + (r.sig.dollarVol || 0), 0), list,
+    }));
+    const sectorRects = squarify(scaleToArea(sectors, MAP_W * MAP_H), 0, 0, MAP_W, MAP_H);
+    const groups = [], tiles = [];
+    for (const sr of sectorRects) {
+      groups.push({ sector: sr.sector, x: sr.x, y: sr.y, w: sr.w, h: sr.h, n: sr.list.length });
+      const pad = 0.35, head = Math.min(3, sr.h * 0.16);
+      const ix = sr.x + pad, iw = sr.w - pad * 2, iy = sr.y + head, ih = sr.h - head - pad;
+      if (iw <= 0 || ih <= 0) continue;
+      const items = scaleToArea(sr.list.map((r) => ({ r, value: r.sig.dollarVol })), iw * ih);
+      for (const nr of squarify(items, ix, iy, iw, ih)) {
+        tiles.push({ r: nr.r, x: nr.x, y: nr.y, w: nr.w, h: nr.h, chg: ret(nr.r, tf) });
+      }
+    }
+    return { groups, tiles, shown: names.length, total };
+  }, [rows, tf]);
+
+  if (!built) return <div className="empty">Waiting for live data…</div>;
+  const maxAbs = Math.max(2, ...built.tiles.map((t) => (t.chg != null ? Math.abs(t.chg) : 0)));
+  const pct = (v) => `${v}%`;
+
+  return (
+    <>
+      <div className="mm-heat" role="img" aria-label="Market heatmap — tile size by dollar volume, color by return">
+        <div className="mm-heat-inner">
+          {built.groups.map((g) => (
+            <div key={g.sector} className="mm-heat-group"
+              style={{ left: pct(g.x), top: pct(g.y), width: pct(g.w), height: pct(g.h) }}>
+              <span className="mm-heat-glabel mono">{g.sector}</span>
+            </div>
+          ))}
+          {built.tiles.map((t) => {
+            const up = t.chg != null && t.chg >= 0;
+            const alpha = t.chg == null ? 0.05 : Math.min(0.44, 0.06 + (Math.abs(t.chg) / maxAbs) * 0.38);
+            const showTk = t.w > 5.5 && t.h > 4;
+            const showPct = t.w > 8.5 && t.h > 7;
+            return (
+              <button key={t.r.tk} className="mm-heat-tile" onClick={() => onOpenStock({ tk: t.r.tk })}
+                title={`${t.r.tk} · ${t.r.sector}${t.chg != null ? ` · ${up ? "+" : ""}${t.chg.toFixed(1)}% (${tf})` : ""}`}
+                style={{ left: pct(t.x), top: pct(t.y), width: pct(t.w), height: pct(t.h),
+                  background: `color-mix(in oklch, ${t.chg == null ? "var(--surface)" : up ? "var(--cat-growth)" : "var(--sev-extreme)"} ${Math.round(alpha * 100)}%, var(--surface))` }}>
+                {showTk && <span className="mm-heat-tk">{t.r.tk}</span>}
+                {showPct && t.chg != null && <span className="mm-heat-pct mono" data-up={up}>{up ? "+" : ""}{t.chg.toFixed(1)}%</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <p className="mono mm-rrg-note">
+        <b>Reading it:</b> tile size = dollar volume traded (a liquidity/attention proxy — not market cap); color = {tf} return.
+        {built.shown < built.total && <span style={{ opacity: .7 }}> Showing the {built.shown} most-traded of {built.total} names.</span>}
+      </p>
+    </>
+  );
+}
+
 /* ------------------------------ shell ------------------------------ */
 export function MarketMap({ rows, live, onOpenStock, onSelectSector }) {
   const [tf, setTf] = useState("1M");
@@ -197,6 +301,9 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector }) {
 
       <div className="mm-sec-h"><h3>Sector momentum</h3><span className="dr-sec-sub mono">median {tf} return · tap a sector to screen it</span></div>
       <SectorMap rows={rows} tf={tf} onSelectSector={onSelectSector} />
+
+      <div className="mm-sec-h" style={{ marginTop: 26 }}><h3>Market heatmap</h3><span className="dr-sec-sub mono">size = dollar volume · color = {tf} return · tap a tile</span></div>
+      <MarketHeatmap rows={rows} tf={tf} onOpenStock={onOpenStock} />
 
       <div className="mm-sec-h" style={{ marginTop: 26 }}><h3>Relative rotation</h3><span className="dr-sec-sub mono">RS-trend vs its momentum · benchmark: S&amp;P 500</span></div>
       <div className="mm-scatter-card">

@@ -200,6 +200,46 @@ function MarketHealth({ market }) {
             <div className="mh-b"><span className="mh-bk mono">Adv/Dec ratio</span><span className="mh-bv mono">{b.advDec}:1</span></div>
           </div>
         </div>
+
+        {liveMh && market.stages && market.stages.n > 0 && (
+          <StageBreadth stages={market.stages} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* Weinstein stage distribution across the tracked universe — a breadth read on
+   where names sit in their cycle. Stage 2 (advancing) is the constructive one. */
+const STAGE_META = [
+  { s: 2, k: "S2", label: "Advancing", note: "uptrend — where leaders live" },
+  { s: 1, k: "S1", label: "Basing", note: "bottoming — building a base" },
+  { s: 3, k: "S3", label: "Topping", note: "distribution — rolling over" },
+  { s: 4, k: "S4", label: "Declining", note: "downtrend — avoid" },
+];
+function StageBreadth({ stages }) {
+  const { counts, n } = stages;
+  const pct = (s) => (n > 0 ? (counts[s] / n) * 100 : 0);
+  const order = [2, 1, 3, 4]; // segment order in the bar, left→right
+  return (
+    <div className="mh-card mh-stages reveal" style={{ "--i": 3 }}>
+      <span className="mh-k mono">Stage distribution · tracked universe ({n})</span>
+      <div className="mh-stagebar" role="img" aria-label="Weinstein stage distribution">
+        {order.map((s) => pct(s) > 0 && (
+          <span key={s} className="mh-stageseg" data-stage={s} style={{ width: `${pct(s)}%` }} title={`Stage ${s}: ${counts[s]} names`} />
+        ))}
+      </div>
+      <div className="mh-stagelegend">
+        {STAGE_META.map(({ s, k, label, note }) => (
+          <div className="mh-stagerow" key={s}>
+            <span className="mh-stagedot" data-stage={s} />
+            <span className="mh-stagek mono">{k}</span>
+            <span className="mh-stagelab">{label}</span>
+            <span className="mh-stagen mono">{counts[s]}</span>
+            <span className="mh-stagepct mono">{Math.round(pct(s))}%</span>
+            <span className="mh-stagenote">{note}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

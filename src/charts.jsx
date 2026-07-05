@@ -22,6 +22,18 @@ export function useGrow(dur = 650) {
    (drag horizontally to zoom a range; double-click or "reset zoom" to restore). */
 const _fmtP = (n) => (n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2));
 
+/* trailing simple moving average; null until `period` bars are available */
+function sma(arr, period) {
+  const out = new Array(arr.length).fill(null);
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++) {
+    sum += arr[i];
+    if (i >= period) sum -= arr[i - period];
+    if (i >= period - 1) out[i] = sum / period;
+  }
+  return out;
+}
+
 export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184 }) {
   const grow = useGrow(750);
   const clipId = useId().replace(/:/g, "");
@@ -32,6 +44,7 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
   const [domain, setDomain] = useState({ lo: 0, hi: N - 1 });
   const [hover, setHover] = useState(null);   // global index
   const [drag, setDrag] = useState(null);     // { a, b } fractions 0..1
+  const [showMA, setShowMA] = useState(false); // 50/200-day overlays
 
   const lo = Math.max(0, Math.min(domain.lo, N - 2));
   const hi = Math.min(N - 1, Math.max(domain.hi, lo + 1));
@@ -52,6 +65,23 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
   const area = `0,${y(minV)} ${line} ${x(visG.length - 1).toFixed(1)},${y(minV)}`;
   const vmax = Math.max(...visVol);
   const last = vis[vis.length - 1], up = last >= vis[0];
+
+  // moving averages (computed over the full series, drawn across the visible window)
+  const ma50Full = showMA ? sma(closes, 50) : null;
+  const ma200Full = showMA ? sma(closes, 200) : null;
+  const maPoints = (full) => {
+    if (!full) return "";
+    const pts = [];
+    for (let j = 0; j < nGrow; j++) {
+      const gi = lo + j, v = full[gi];
+      if (v != null) pts.push(`${x(j).toFixed(1)},${y(v).toFixed(1)}`);
+    }
+    return pts.join(" ");
+  };
+  const ma50Line = maPoints(ma50Full);
+  const ma200Line = maPoints(ma200Full);
+  const hasMA50 = showMA && ma50Full && ma50Full[hi] != null;
+  const hasMA200 = showMA && ma200Full && ma200Full[hi] != null;
 
   const fracOf = (e) => {
     const r = wrapRef.current.getBoundingClientRect();
@@ -99,6 +129,15 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
           ))}
         </div>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <button className="pchart-ma-toggle mono" data-active={showMA} onClick={() => setShowMA((s) => !s)}
+            title="50 & 200-day moving averages">MA</button>
+          {showMA && (
+            <span className="pchart-ma-legend mono" aria-hidden="true">
+              {hasMA50 && <span data-ma="50">50</span>}
+              {hasMA200 && <span data-ma="200">200</span>}
+              {!hasMA50 && !hasMA200 && <span className="pchart-ma-legend-note">need more history</span>}
+            </span>
+          )}
           {zoomed && <button className="pchart-reset mono" onClick={reset}>reset zoom ✕</button>}
           <span className="pchart-range mono">{dateFor(lo)} – {dateFor(hi)}</span>
         </span>
@@ -119,6 +158,8 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
           ))}
           <polygon points={area} className="chart-area" />
           <polyline points={line} className="chart-line" data-up={up} />
+          {ma200Line && <polyline points={ma200Line} className="chart-ma" data-ma="200" />}
+          {ma50Line && <polyline points={ma50Line} className="chart-ma" data-ma="50" />}
           {grow > 0.98 && <circle cx={x(visG.length - 1)} cy={y(last)} r="3.2" className="chart-dot" />}
           {hx != null && !drag && (
             <>
