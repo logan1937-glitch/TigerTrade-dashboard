@@ -242,19 +242,24 @@ export function lookbackFrom(days = 430) {
 //   mom   ≈ whether that ratio is rising    (>100 → momentum improving)
 // Returns an array of { ratio, mom } points, oldest → newest.
 export function relativeRotation(rsLine, opts = {}) {
-  const { ratioLen = 50, momLen = 10, smooth = 5 } = opts;
+  const { ratioLen = 50, momLen = 20, smooth = 10, momSmooth = 10 } = opts;
   const n = rsLine ? rsLine.length : 0;
-  if (n < ratioLen + smooth + momLen) return null;
-  const winAvg = (arr, len, end) => { let s = 0; for (let i = end - len + 1; i <= end; i++) s += arr[i]; return s / len; };
+  if (n < ratioLen + smooth + momLen + momSmooth) return null;
+  const avg = (arr, len, end) => { let s = 0; for (let i = end - len + 1; i <= end; i++) s += arr[i]; return s / len; };
+  const sma = (arr, len) => { const out = []; for (let i = len - 1; i < arr.length; i++) out.push(avg(arr, len, i)); return out; };
 
-  const ratio = [];
-  for (let i = ratioLen - 1; i < n; i++) { const m = winAvg(rsLine, ratioLen, i); ratio.push(m ? 100 * (rsLine[i] / m) : 100); }
-  const rs = [];
-  for (let i = smooth - 1; i < ratio.length; i++) rs.push(winAvg(ratio, smooth, i));
-  const mom = [];
-  for (let i = momLen - 1; i < rs.length; i++) { const m = winAvg(rs, momLen, i); mom.push(m ? 100 * (rs[i] / m) : 100); }
-  const rsAligned = rs.slice(momLen - 1);
-  return rsAligned.map((r, i) => ({ ratio: r, mom: mom[i] }));
+  // 1) raw RS-Ratio: RS line vs its own long average, ×100
+  const rawRatio = [];
+  for (let i = ratioLen - 1; i < n; i++) { const m = avg(rsLine, ratioLen, i); rawRatio.push(m ? 100 * (rsLine[i] / m) : 100); }
+  // 2) smooth it (the RS-Ratio line)
+  const ratio = sma(rawRatio, smooth);
+  // 3) RS-Momentum = smoothed rate-of-change of the RS-Ratio, centered at 100
+  const momRaw = [];
+  for (let i = momLen; i < ratio.length; i++) momRaw.push(100 + (ratio[i] - ratio[i - momLen]));
+  const mom = sma(momRaw, momSmooth);
+  // align to the shortest (mom) and pair up
+  const ratioTail = ratio.slice(ratio.length - mom.length);
+  return ratioTail.map((r, i) => ({ ratio: r, mom: mom[i] }));
 }
 
 // equal-weight aggregate RS line from member RS lines (align to shortest tail)

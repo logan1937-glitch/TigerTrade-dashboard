@@ -67,6 +67,7 @@ const QUAD = (p) => (p.ratio >= 100 ? (p.mom >= 100 ? "leading" : "weakening") :
 function RelativeRotation({ rows, onOpenStock }) {
   const [mode, setMode] = useState("sectors");
   const [hover, setHover] = useState(null);
+  const [pinned, setPinned] = useState(null);   // tapped sector whose tail stays shown
   const TAIL = 6, STEP = 5;
 
   const entities = useMemo(() => {
@@ -100,23 +101,29 @@ function RelativeRotation({ rows, onOpenStock }) {
   const y = (m) => padT + (1 - (m - 100 + domY) / (2 * domY)) * (H - padT - padB);
   const cx = x(100), cy = y(100);
 
-  // stable left→right index used to alternate label placement
-  const ordered = [...entities].sort((a, b) => a.head.ratio - b.head.ratio);
-  ordered.forEach((e, i) => { e.idx = i; });
   const labeled = mode === "sectors"
     ? new Set(entities.map((e) => e.id))
     : new Set([...entities].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 8).map((e) => e.id));
-  const hv = hover != null ? entities.find((e) => e.id === hover) : null;
+
+  // greedy vertical de-collision of labels, kept inside the plot
+  const placed = entities.filter((e) => labeled.has(e.id))
+    .map((e) => { const dx = x(e.head.ratio), oy = y(e.head.mom); return { e, dx, oy, dy: oy, right: dx <= W * 0.8 }; })
+    .sort((a, b) => a.oy - b.oy);
+  const GAP = 12;
+  for (let i = 1; i < placed.length; i++) if (placed[i].dy - placed[i - 1].dy < GAP) placed[i].dy = placed[i - 1].dy + GAP;
+  if (placed.length) { const over = placed[placed.length - 1].dy - (H - padB - 3); if (over > 0) placed.forEach((p) => (p.dy = Math.max(padT + 9, p.dy - over))); }
+
+  const hv = entities.find((e) => e.id === (hover ?? pinned)) || null;
 
   return (
     <div className="mm-scatter" style={{ position: "relative" }}>
       <div className="rrg-toolbar">
         <div className="seg">
           {[["sectors", "Sectors"], ["names", "Names"]].map(([id, l]) => (
-            <button key={id} className="seg-btn" data-active={mode === id} onClick={() => { setMode(id); setHover(null); }}>{l}</button>
+            <button key={id} className="seg-btn" data-active={mode === id} onClick={() => { setMode(id); setHover(null); setPinned(null); }}>{l}</button>
           ))}
         </div>
-        <span className="dr-sec-sub mono">tails = last {TAIL} weeks · rotate clockwise{mode === "names" ? " · hover for a tail" : ""}</span>
+        <span className="dr-sec-sub mono">{mode === "sectors" ? "tap a sector to trace its 6-week path" : "tap a name for analysis · hover to trace"}</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="chart" preserveAspectRatio="none" role="img" aria-label="Relative rotation vs S&P 500">
         <rect x={cx} y={padT} width={W - padR - cx} height={cy - padT} className="rrg-q" data-q="leading" />
@@ -129,29 +136,31 @@ function RelativeRotation({ rows, onOpenStock }) {
         <text x={padL + 5} y={padT + 12} className="mm-quad">IMPROVING</text>
         <text x={padL + 5} y={H - padB - 6} className="mm-quad">LAGGING</text>
         <text x={W - padR - 5} y={H - padB - 6} className="mm-quad" textAnchor="end">WEAKENING</text>
+        {/* dots + on-demand tail (only the hovered / tapped entity) */}
         {entities.map((e) => {
-          const active = hover === e.id;
-          const showTail = active || mode === "sectors";
-          const pts = e.tail.map((p) => `${x(p.ratio).toFixed(1)},${y(p.mom).toFixed(1)}`).join(" ");
+          const active = hover === e.id || pinned === e.id;
           const hx = x(e.head.ratio), hy = y(e.head.mom);
+          const pts = active ? e.tail.map((p) => `${x(p.ratio).toFixed(1)},${y(p.mom).toFixed(1)}`).join(" ") : null;
           return (
-            <g key={e.id} style={{ cursor: e.kind === "name" ? "pointer" : "default" }}
+            <g key={e.id} style={{ cursor: "pointer" }}
                onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
-               onClick={() => e.kind === "name" && onOpenStock({ tk: e.id })}>
-              {showTail && <polyline points={pts} className="rrg-tail" data-active={active || undefined} />}
-              {showTail && e.tail.slice(0, -1).map((p, i) => (
-                <circle key={i} cx={x(p.ratio)} cy={y(p.mom)} r="1.5" className="rrg-tail-dot" />
+               onClick={() => (e.kind === "name" ? onOpenStock({ tk: e.id }) : setPinned((v) => (v === e.id ? null : e.id)))}>
+              {active && <polyline points={pts} className="rrg-tail" data-active />}
+              {active && e.tail.slice(0, -1).map((p, i) => (
+                <circle key={i} cx={x(p.ratio)} cy={y(p.mom)} r="1.6" className="rrg-tail-dot" />
               ))}
-              <circle cx={hx} cy={hy} r="12" fill="transparent" />
-              <circle cx={hx} cy={hy} r={active ? 6 : 4.5} className="rrg-head" data-active={active || undefined} />
-              {(labeled.has(e.id) || active) && (() => {
-                // alternate label above/below to de-collide horizontal clusters
-                const below = e.idx % 2 === 1;
-                const ly = hy + (below ? 13 : -8);
-                return hx > W * 0.82
-                  ? <text x={hx - 8} y={ly} className="mm-dot-label" data-active={active || undefined} textAnchor="end">{e.label}</text>
-                  : <text x={hx + 8} y={ly} className="mm-dot-label" data-active={active || undefined}>{e.label}</text>;
-              })()}
+              <circle cx={hx} cy={hy} r="13" fill="transparent" />
+              <circle cx={hx} cy={hy} r={active ? 6 : 4.2} className="rrg-head" data-active={active || undefined} />
+            </g>
+          );
+        })}
+        {/* de-collided labels, drawn on top */}
+        {placed.map(({ e, dx, oy, dy, right }) => {
+          const active = hover === e.id || pinned === e.id;
+          return (
+            <g key={"l" + e.id} style={{ pointerEvents: "none" }}>
+              {Math.abs(dy - oy) > 7 && <line x1={dx} y1={oy} x2={right ? dx + 6 : dx - 6} y2={dy - 3} className="rrg-lbl-conn" />}
+              <text x={right ? dx + 8 : dx - 8} y={dy} className="mm-dot-label" data-active={active || undefined} textAnchor={right ? "start" : "end"}>{e.label}</text>
             </g>
           );
         })}

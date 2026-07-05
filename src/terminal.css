@@ -973,6 +973,9 @@ body { background: #0a0b0d; }
 .rrg-tail-dot { fill: var(--accent); opacity: 0.45; }
 .rrg-head { fill: var(--accent); stroke: var(--surface); stroke-width: 2; transition: r .12s ease; }
 .rrg-head[data-active] { fill: var(--brand); }
+.rrg-lbl-conn { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.55; }
+.mm-scatter svg { display: block; width: 100%; }
+@media (max-width: 640px) { .mm-scatter svg { min-height: 340px; } .mm-dot-label { font-size: 9px; } }
 .mm-rrg-note { font-size: 10.5px; line-height: 1.6; color: var(--muted); margin: 10px 2px 2px; max-width: 78ch; }
 .mm-rrg-note b { color: var(--text); font-weight: 600; }
 
