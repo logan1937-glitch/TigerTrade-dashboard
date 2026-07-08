@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { relativeRotation, aggregateRsLine } from "./signals.js";
+import { SearchIcon } from "./components.jsx";
 
 // ── Market Map: sector momentum heatmap + relative-rotation graph ─────────────
 // Every mark is computed from the live feed (real returns, real RS). Rules:
@@ -51,6 +52,73 @@ function SectorMap({ rows, tf, onSelectSector }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/* -------------------- industry-group leaders (RS within group) --------------------
+   One level finer than the sector map: names bucketed by IBD-style industry
+   group, ranked by momentum score inside each group, groups ordered by their
+   median strength. The score badge's green heat encodes relative strength, so
+   the leadership inside each group is legible at a glance. */
+const scoreHeat = (score) => {
+  const t = Math.max(0, Math.min(1, ((score || 0) - 30) / 55));  // 30→cool, 85→hot
+  const alpha = Math.round((0.14 + t * 0.62) * 100);
+  return {
+    background: `color-mix(in oklch, var(--cat-growth) ${alpha}%, var(--surface-2))`,
+    color: t > 0.5 ? "var(--accent-ink)" : "var(--muted)",
+    borderColor: `color-mix(in oklch, var(--cat-growth) ${Math.min(70, alpha + 10)}%, transparent)`,
+  };
+};
+
+function IndustryGroups({ rows, onOpenStock }) {
+  const [q, setQ] = useState("");
+  const groups = useMemo(() => {
+    const by = {};
+    for (const r of rows) {
+      if (!r.sig || r.sector === "Custom" || !r.group) continue;
+      (by[r.group] = by[r.group] || []).push(r);
+    }
+    return Object.entries(by).map(([group, list]) => {
+      const sorted = [...list].sort((a, b) => (b.score || 0) - (a.score || 0));
+      const med = median(sorted.map((r) => r.score || 0)) || 0;
+      const strong = sorted.filter((r) => (r.score || 0) >= 80).length;
+      return { group, list: sorted, n: sorted.length, med, strong };
+    }).sort((a, b) => b.med - a.med || b.strong - a.strong || b.n - a.n);
+  }, [rows]);
+
+  const ql = q.trim().toLowerCase();
+  const shown = ql
+    ? groups.map((g) => ({ ...g, list: g.list.filter((r) => (r.tk + " " + r.name).toLowerCase().includes(ql)) })).filter((g) => g.list.length)
+    : groups;
+  const maxMed = Math.max(1, ...groups.map((g) => g.med));
+
+  if (!groups.length) return <div className="empty">Waiting for live data…</div>;
+
+  return (
+    <div className="ig">
+      <div className="ig-filter">
+        <span className="ig-search-ic"><SearchIcon /></span>
+        <input className="search" placeholder="filter ticker…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter industry-group names" />
+      </div>
+      {shown.length ? shown.map((g) => (
+        <div className="ig-group" key={g.group}>
+          <div className="ig-group-head">
+            <span className="ig-strength" style={{ background: `color-mix(in oklch, var(--cat-growth) ${Math.round((g.med / maxMed) * 55 + 12)}%, transparent)` }} />
+            <span className="ig-group-name">{g.group}</span>
+            <span className="ig-group-meta mono">{g.n} name{g.n === 1 ? "" : "s"}{g.strong ? ` · ${g.strong} A-grade` : ""}</span>
+            <span className="ig-group-med mono" title="Median momentum score">MOM {Math.round(g.med)}</span>
+          </div>
+          <div className="ig-names">
+            {g.list.map((r) => (
+              <button key={r.tk} className="ig-chip" onClick={() => onOpenStock(r)} title={`${r.name} · score ${r.score ?? "—"} · RS ${r.rs ?? "—"}`}>
+                <span className="ig-chip-tk">{r.tk}</span>
+                <span className="ig-chip-badge mono" style={scoreHeat(r.score)}>{r.score ?? "—"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )) : <div className="empty">No names match “{q}”.</div>}
     </div>
   );
 }
@@ -301,6 +369,9 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector }) {
 
       <div className="mm-sec-h"><h3>Sector momentum</h3><span className="dr-sec-sub mono">median {tf} return · tap a sector to screen it</span></div>
       <SectorMap rows={rows} tf={tf} onSelectSector={onSelectSector} />
+
+      <div className="mm-sec-h" style={{ marginTop: 26 }}><h3>Industry group leaders</h3><span className="dr-sec-sub mono">ranked by momentum inside each group · tap a name for full analysis</span></div>
+      <IndustryGroups rows={rows} onOpenStock={onOpenStock} />
 
       <div className="mm-sec-h" style={{ marginTop: 26 }}><h3>Market heatmap</h3><span className="dr-sec-sub mono">size = dollar volume · color = {tf} return · tap a tile</span></div>
       <MarketHeatmap rows={rows} tf={tf} onOpenStock={onOpenStock} />

@@ -1035,6 +1035,26 @@ body { background: #0a0b0d; }
 .mm-rrg-note { font-size: 10.5px; line-height: 1.6; color: var(--muted); margin: 10px 2px 2px; max-width: 78ch; }
 .mm-rrg-note b { color: var(--text); font-weight: 600; }
 
+/* industry-group leaders — RS ranking inside each group */
+.ig { padding-bottom: 4px; }
+.ig-filter { position: relative; display: flex; align-items: center; max-width: 320px; margin-bottom: 12px; }
+.ig-search-ic { position: absolute; left: 11px; display: flex; color: var(--dim); pointer-events: none; }
+.ig-filter .search { padding-left: 34px; width: 100%; }
+.ig-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px 14px; margin-bottom: 10px; }
+.ig-group-head { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+.ig-strength { width: 3px; align-self: stretch; min-height: 16px; border-radius: 2px; background: var(--cat-growth); flex: none; }
+.ig-group-name { font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.05em; color: var(--cat-growth); }
+.ig-group-meta { font-size: 9.5px; color: var(--dim); letter-spacing: 0.03em; }
+.ig-group-med { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+.ig-names { display: flex; flex-wrap: wrap; gap: 7px; }
+.ig-chip { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: inherit; color: inherit;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 5px 6px 5px 10px;
+  transition: transform .12s ease, border-color .12s ease; }
+.ig-chip:hover { transform: translateY(-1px); border-color: var(--border-2); }
+.ig-chip-tk { font-size: 12px; font-weight: 700; color: var(--text); letter-spacing: 0.02em; }
+.ig-chip-badge { font-size: 11px; font-weight: 700; min-width: 26px; text-align: center; padding: 2px 6px; border-radius: 6px;
+  border: 1px solid transparent; }
+
 /* ============================ CATALYST TIMELINE ============================ */
 .ctl { padding-bottom: 64px; }
 .ctl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px 8px; }
