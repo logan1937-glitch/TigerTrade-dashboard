@@ -61,13 +61,15 @@ function SectorMap({ rows, tf, onSelectSector }) {
    group, ranked by momentum score inside each group, groups ordered by their
    median strength. The score badge's green heat encodes relative strength, so
    the leadership inside each group is legible at a glance. */
+// Fixed sequential green ramp keyed to score (a magnitude scale, so it doesn't
+// follow the theme-flipping --cat-growth token). Stays light→medium green with
+// dark-green ink in BOTH themes, so the number is always high-contrast.
 const scoreHeat = (score) => {
-  const t = Math.max(0, Math.min(1, ((score || 0) - 30) / 55));  // 30→cool, 85→hot
-  const alpha = Math.round((0.14 + t * 0.62) * 100);
+  const t = Math.max(0, Math.min(1, ((score || 0) - 20) / 65));  // 20→pale, 85→vivid
   return {
-    background: `color-mix(in oklch, var(--cat-growth) ${alpha}%, var(--surface-2))`,
-    color: t > 0.5 ? "var(--accent-ink)" : "var(--muted)",
-    borderColor: `color-mix(in oklch, var(--cat-growth) ${Math.min(70, alpha + 10)}%, transparent)`,
+    background: `hsl(150 ${Math.round(42 + t * 46)}% ${Math.round(80 - t * 26)}%)`,  // L 80→54
+    color: "hsl(154 72% 14%)",
+    borderColor: `hsl(150 40% ${Math.round(62 - t * 20)}%)`,
   };
 };
 
@@ -312,7 +314,10 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
 
   if (!built) return <div className="empty">Waiting for live data…</div>;
   const maxAbs = Math.max(2, ...built.tiles.map((t) => (t.chg != null ? Math.abs(t.chg) : 0)));
-  const pct = (v) => `${v}%`;
+  // normalize each axis to its own extent so the treemap fills the container on
+  // BOTH axes (the layout space is MAP_W×MAP_H; y was previously left at ~62%)
+  const px = (v) => `${(v / MAP_W) * 100}%`;
+  const py = (v) => `${(v / MAP_H) * 100}%`;
 
   return (
     <>
@@ -320,7 +325,7 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
         <div className="mm-heat-inner">
           {built.groups.map((g) => (
             <div key={g.sector} className="mm-heat-group"
-              style={{ left: pct(g.x), top: pct(g.y), width: pct(g.w), height: pct(g.h) }}>
+              style={{ left: px(g.x), top: py(g.y), width: px(g.w), height: py(g.h) }}>
               <span className="mm-heat-glabel mono">{g.sector}</span>
             </div>
           ))}
@@ -332,7 +337,7 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
             return (
               <button key={t.r.tk} className="mm-heat-tile" onClick={() => onOpenStock({ tk: t.r.tk })}
                 title={`${t.r.tk} · ${t.r.sector}${t.chg != null ? ` · ${up ? "+" : ""}${t.chg.toFixed(1)}% (${tf})` : ""}`}
-                style={{ left: pct(t.x), top: pct(t.y), width: pct(t.w), height: pct(t.h),
+                style={{ left: px(t.x), top: py(t.y), width: px(t.w), height: py(t.h),
                   background: `color-mix(in oklch, ${t.chg == null ? "var(--surface)" : up ? "var(--cat-growth)" : "var(--sev-extreme)"} ${Math.round(alpha * 100)}%, var(--surface))` }}>
                 {showTk && <span className="mm-heat-tk">{t.r.tk}</span>}
                 {showPct && t.chg != null && <span className="mm-heat-pct mono" data-up={up}>{up ? "+" : ""}{t.chg.toFixed(1)}%</span>}
@@ -370,13 +375,10 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector }) {
       <div className="mm-sec-h"><h3>Sector momentum</h3><span className="dr-sec-sub mono">median {tf} return · tap a sector to screen it</span></div>
       <SectorMap rows={rows} tf={tf} onSelectSector={onSelectSector} />
 
-      <div className="mm-sec-h" style={{ marginTop: 26 }}><h3>Industry group leaders</h3><span className="dr-sec-sub mono">ranked by momentum inside each group · tap a name for full analysis</span></div>
-      <IndustryGroups rows={rows} onOpenStock={onOpenStock} />
-
-      <div className="mm-sec-h" style={{ marginTop: 26 }}><h3>Market heatmap</h3><span className="dr-sec-sub mono">size = dollar volume · color = {tf} return · tap a tile</span></div>
+      <div className="mm-sec-h"><h3>Market heatmap</h3><span className="dr-sec-sub mono">size = dollar volume · color = {tf} return · tap a tile</span></div>
       <MarketHeatmap rows={rows} tf={tf} onOpenStock={onOpenStock} />
 
-      <div className="mm-sec-h" style={{ marginTop: 26 }}><h3>Relative rotation</h3><span className="dr-sec-sub mono">RS-trend vs its momentum · benchmark: S&amp;P 500</span></div>
+      <div className="mm-sec-h"><h3>Relative rotation</h3><span className="dr-sec-sub mono">RS-trend vs its momentum · benchmark: S&amp;P 500</span></div>
       <div className="mm-scatter-card">
         <RelativeRotation rows={rows} onOpenStock={onOpenStock} />
         <p className="mono mm-rrg-note">
@@ -385,6 +387,9 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector }) {
           <span style={{ opacity: .7 }}> Our approximation of the relative-rotation concept popularized by Julius de Kempenaer (RRG Research); not the proprietary JdK RS-Ratio / RS-Momentum. Educational use only.</span>
         </p>
       </div>
+
+      <div className="mm-sec-h"><h3>Industry group leaders</h3><span className="dr-sec-sub mono">ranked by momentum inside each group · tap a name for full analysis</span></div>
+      <IndustryGroups rows={rows} onOpenStock={onOpenStock} />
     </div>
   );
 }
