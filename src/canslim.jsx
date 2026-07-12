@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { TT } from "./tt.js";
+import { RET_KEY } from "./signals.js";
 import { SearchIcon, StarBtn } from "./components.jsx";
 import { RSLine, BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
@@ -37,9 +38,12 @@ function fmtPx(n) { if (n == null || Number.isNaN(+n)) return "—"; return n >=
 
 /* ----------------------------- SCREENER ----------------------------- */
 const TF_BARS = { "1W": 5, "1M": 21, "3M": 63, "1Y": 252 };
-// % return over the selected timeframe, from real adjusted closes (1D uses the
-// live quote change; falls back to daily change when history isn't available)
+// % return over the selected timeframe. Prefers the snapshot's precomputed
+// returns (compact records carry no price arrays); falls back to closes for
+// custom / live-fallback names, then to the daily quote change.
 function periodReturn(s, tf) {
+  const pr = s.sig && s.sig.ret;
+  if (pr && pr[RET_KEY[tf]] != null) return pr[RET_KEY[tf]];
   const c = s.closes, n = c ? c.length : 0;
   if (tf === "1D") return s.chg != null ? s.chg : (n >= 2 ? (c[n - 1] / c[n - 2] - 1) * 100 : 0);
   if (!c || n < 2) return s.chg || 0;

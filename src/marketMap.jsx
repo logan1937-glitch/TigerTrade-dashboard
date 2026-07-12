@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { relativeRotation, aggregateRsLine } from "./signals.js";
+import { rrgTail, RET_KEY } from "./signals.js";
 import { SearchIcon } from "./components.jsx";
 
 // ── Market Map: sector momentum heatmap + relative-rotation graph ─────────────
@@ -9,13 +9,32 @@ import { SearchIcon } from "./components.jsx";
 // validator rejected a 4-hue quadrant scheme for CVD, so we don't use one.
 
 const TF_BARS = { "1W": 5, "1M": 21, "3M": 63 };
+// % return over a window. Prefers the snapshot's precomputed returns (compact
+// records carry no price arrays); falls back to closes for custom/live names.
 const ret = (r, tf) => {
+  const pr = r.sig && r.sig.ret;
+  if (pr && pr[RET_KEY[tf]] != null) return pr[RET_KEY[tf]];
   const c = r.closes, n = c ? c.length : 0;
   if (!c || n < 2) return null;
   const back = TF_BARS[tf] || 21;
   return (c[n - 1] / c[Math.max(0, n - 1 - back)] - 1) * 100;
 };
+// 6-point relative-rotation tail: precomputed on the snapshot, else derived from
+// a full RS line (custom/live names)
+const rrgOf = (r) => (r.sig && (r.sig.rrg || (r.sig.rsLine ? rrgTail(r.sig.rsLine) : null))) || null;
 const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+const avgTails = (tails) => {
+  const valid = tails.filter((t) => t && t.length);
+  if (!valid.length) return null;
+  const len = Math.min(...valid.map((t) => t.length));
+  const out = [];
+  for (let i = 0; i < len; i++) {
+    let rr = 0, mm = 0;
+    for (const t of valid) { const p = t[t.length - len + i]; rr += p.ratio; mm += p.mom; }
+    out.push({ ratio: rr / valid.length, mom: mm / valid.length });
+  }
+  return out;
+};
 
 /* -------------------------- sector heatmap -------------------------- */
 function SectorMap({ rows, tf, onSelectSector }) {
@@ -138,25 +157,20 @@ function RelativeRotation({ rows, onOpenStock }) {
   const [mode, setMode] = useState("sectors");
   const [hover, setHover] = useState(null);
   const [pinned, setPinned] = useState(null);   // tapped sector whose tail stays shown
-  const TAIL = 6, STEP = 5;
 
   const entities = useMemo(() => {
-    const build = (id, label, rsLine, meta) => {
-      const rr = relativeRotation(rsLine);
-      if (!rr || rr.length < (TAIL - 1) * STEP + 1) return null;
-      const tail = [];
-      for (let k = TAIL - 1; k >= 0; k--) tail.push(rr[rr.length - 1 - k * STEP]);
-      return { id, label, tail, head: tail[tail.length - 1], ...meta };
-    };
+    // each name's 6-point rotation tail is precomputed on the snapshot (rrgOf).
+    // Sectors are the equal-weight average of their members' tails.
+    const withTail = rows.map((r) => (r.sig && r.sector !== "Custom" ? { r, tail: rrgOf(r) } : null)).filter((x) => x && x.tail);
     if (mode === "sectors") {
       const by = {};
-      for (const r of rows) { if (!r.sig || !r.sig.rsLine || r.sector === "Custom") continue; (by[r.sector] = by[r.sector] || []).push(r); }
-      return Object.entries(by).map(([sector, list]) => {
-        const agg = aggregateRsLine(list.map((r) => r.sig.rsLine));
-        return agg ? build(sector, sector, agg, { n: list.length, kind: "sector" }) : null;
+      for (const { r, tail } of withTail) (by[r.sector] = by[r.sector] || []).push(tail);
+      return Object.entries(by).map(([sector, tails]) => {
+        const tail = avgTails(tails);
+        return tail ? { id: sector, label: sector, tail, head: tail[tail.length - 1], n: tails.length, kind: "sector" } : null;
       }).filter(Boolean);
     }
-    return rows.filter((r) => r.sig && r.sig.rsLine).map((r) => build(r.tk, r.tk, r.sig.rsLine, { kind: "name", score: r.score || 0 })).filter(Boolean);
+    return withTail.map(({ r, tail }) => ({ id: r.tk, label: r.tk, tail, head: tail[tail.length - 1], kind: "name", score: r.score || 0 }));
   }, [rows, mode]);
 
   if (entities.length < 2) return <div className="empty">Waiting for live data…</div>;
@@ -287,7 +301,7 @@ function squarify(children, X, Y, Wd, Ht) {
 const MAP_W = 100, MAP_H = 62, MAP_CAP = 80;
 function MarketHeatmap({ rows, tf, onOpenStock }) {
   const built = useMemo(() => {
-    let names = rows.filter((r) => r.sig && r.sig.dollarVol > 0 && r.sector && r.sector !== "Custom" && r.closes && r.closes.length > 1);
+    let names = rows.filter((r) => r.sig && r.sig.dollarVol > 0 && r.sector && r.sector !== "Custom");
     const total = names.length;
     // keep the most-traded names so tiles stay legible; note the rest honestly
     names = [...names].sort((a, b) => (b.sig.dollarVol || 0) - (a.sig.dollarVol || 0)).slice(0, MAP_CAP);

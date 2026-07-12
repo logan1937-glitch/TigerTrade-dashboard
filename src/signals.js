@@ -280,6 +280,81 @@ export function aggregateRsLine(rsLines) {
   return out.map((v) => v / valid.length);
 }
 
+// ── compact precompute helpers ───────────────────────────────────────────────
+// Shared by the server snapshot AND the client's custom-ticker path, so every
+// name — curated, S&P 500, or ad-hoc lookup — carries identical compact fields.
+// This is what lets the snapshot ship ~500 names cheaply: the heavy daily arrays
+// stay on the server; the client gets precomputed returns, an RRG tail, and a
+// tiny sparkline, and fetches full history on demand only when a chart opens.
+
+const RRG_TAIL = 6, RRG_STEP = 5;
+// 6-point relative-rotation tail (RS-ratio / RS-momentum), sampled every RRG_STEP
+export function rrgTail(rsLine) {
+  const rr = relativeRotation(rsLine);
+  if (!rr || rr.length < (RRG_TAIL - 1) * RRG_STEP + 1) return null;
+  const tail = [];
+  for (let k = RRG_TAIL - 1; k >= 0; k--) { const p = rr[rr.length - 1 - k * RRG_STEP]; tail.push({ ratio: +p.ratio.toFixed(2), mom: +p.mom.toFixed(2) }); }
+  return tail;
+}
+
+// % returns over standard windows from daily closes + the live quote change
+const RET_BARS = { w1: 5, m1: 21, m3: 63, y1: 252 };
+export function periodReturns(closes, chgPct) {
+  const c = closes, n = c ? c.length : 0;
+  const r2 = (v) => (v == null || Number.isNaN(+v) ? null : +(+v).toFixed(2));
+  const out = { d1: chgPct != null ? r2(chgPct) : (n >= 2 ? r2((c[n - 1] / c[n - 2] - 1) * 100) : null) };
+  for (const [k, back] of Object.entries(RET_BARS)) out[k] = n >= 2 ? r2((c[n - 1] / c[Math.max(0, n - 1 - back)] - 1) * 100) : null;
+  return out;
+}
+// tf id ("1D".."1Y") → key on the precomputed returns object
+export const RET_KEY = { "1D": "d1", "1W": "w1", "1M": "m1", "3M": "m3", "1Y": "y1" };
+
+// ~8-point sparkline sampled from daily closes
+export function sampleSpark(closes, pts = 8) {
+  if (!closes || !closes.length) return null;
+  const step = Math.max(1, Math.floor(closes.length / pts));
+  const out = closes.filter((_, i) => i % step === 0).map((v) => +(+v).toFixed(2));
+  const last = +(+closes[closes.length - 1]).toFixed(2);
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
+}
+
+// technical buy point from real history — the recent base high (60 bars,
+// excluding the last 5) is the pivot; status is relative to it. Shared so the
+// server (compact) and client (custom/live names) derive it identically.
+export function deriveBuyPoint(closes, px, coverage, stage, off52) {
+  const c = closes, n = c ? c.length : 0;
+  if (n >= 70) {
+    const base = c.slice(n - 65, n - 5);
+    const pivot = +Math.max(...base).toFixed(2);
+    const baseLo = Math.min(...base);
+    const price = px != null ? px : c[n - 1];
+    const pctExt = +(((price - pivot) / pivot) * 100).toFixed(1);
+    return {
+      status: pctExt > 5 ? "ext" : pctExt >= -3 ? "buy" : "watch",
+      pivot, buyLo: pivot, buyHi: +(pivot * 1.05).toFixed(2), pctExt,
+      baseType: "60-day base high", baseWeeks: 12, baseDepth: +(((pivot - baseLo) / pivot) * 100).toFixed(0),
+    };
+  }
+  return { status: coverage === "signals" ? (stage === 2 && off52 <= 6 ? "buy" : null) : null };
+}
+
+// build the compact signal record the client consumes (drops the heavy arrays)
+export function compactSig(sig, chgPct, px) {
+  if (!sig) return null;
+  return {
+    stage: sig.stage, stageLabel: sig.stageLabel,
+    off52: sig.off52, atHigh: sig.atHigh, ret12m: sig.ret12m,
+    rsNewHigh: sig.rsNewHigh, rsLeads: sig.rsLeads,
+    adrPct: sig.adrPct, dollarVol: sig.dollarVol, distDays: sig.distDays,
+    pocketPivot: sig.pocketPivot, above50: sig.above50, atLow: sig.atLow, asOf: sig.asOf,
+    ret: periodReturns(sig.closes, chgPct),
+    rrg: rrgTail(sig.rsLine),
+    spark: sampleSpark(sig.closes),
+    ...deriveBuyPoint(sig.closes, px, "signals", sig.stage, sig.off52),
+  };
+}
+
 // pure-technical momentum score (0–100) from real signals + the universe RS
 // rating. No fundamentals — works for every name with a signal bundle, so it
 // ranks curated and extended-universe names on the same honest basis.

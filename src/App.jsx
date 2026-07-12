@@ -40,6 +40,7 @@ export default function App() {
 
   const [live, setLive] = useState({ status: "loading" });
   const [hist, setHist] = useState({ rows: {}, sig: {} });
+  const [meta, setMeta] = useState({});          // { TK: { name, sector, industry } } — the S&P 500 universe classification from the snapshot
   const [market, setMarket] = useState(null);   // live market health (index + universe breadth)
   const [econ, setEcon] = useState(null);       // live economic calendar (null = unavailable)
 
@@ -65,24 +66,36 @@ export default function App() {
   // and extended (signals-only) names are ranked on the same honest, technical basis
   // universe = curated + extended + any custom-looked-up tickers
   const universe = useMemo(() => {
-    const baseSet = new Set(TT.CANSLIM.map((s) => s.tk));
-    const extra = customSyms.filter((sym) => !baseSet.has(sym)).map((sym) => ({
-      tk: sym, name: sym, sector: "Custom", group: "Custom lookup", coverage: "signals", custom: true,
+    const seen = new Set(TT.CANSLIM.map((s) => s.tk));
+    const signalsOnly = (tk, m) => ({
+      tk, name: (m && m.name) || tk, sector: (m && m.sector) || "Custom", group: (m && m.industry) || "Custom lookup",
+      coverage: "signals", custom: !m,
       groupRank: null, rs: null, status: null, px: null, chg: null,
       f: null, breakdown: [], pass: 0, score: 0, pivot: null, buyLo: null, buyHi: null, pctExt: null,
       closes: [], volume: [], rsLine: [], spark: [],
       baseType: null, baseWeeks: 0, baseDepth: 0, why: null, bio: null, hq: null, mktCap: null, avgVol: null,
-    }));
+    });
+    // extended universe: every classified name from the snapshot (S&P 500), then
+    // any custom-looked-up ticker not already present
+    const extra = [];
+    for (const tk of Object.keys(meta)) { if (!seen.has(tk)) { extra.push(signalsOnly(tk, meta[tk])); seen.add(tk); } }
+    for (const sym of customSyms) { if (!seen.has(sym)) { extra.push(signalsOnly(sym, null)); seen.add(sym); } }
     return [...TT.CANSLIM, ...extra];
-  }, [customSyms]);
+  }, [meta, customSyms]);
 
   const csData = useMemo(() => {
     let list = universe.map((s) => {
       const quote = (live.status === "live" && live.quotes?.[s.tk]) || customData[s.tk]?.quote;
       let r = quote ? mergeCanslim(s, quote) : s;
+      // one taxonomy across the whole universe: the snapshot's classification wins
+      const m = meta[s.tk];
+      if (m) r = { ...r, sector: m.sector || r.sector, group: m.industry || r.group };
       const sg = hist.sig?.[s.tk] || customData[s.tk]?.sig;
       if (sg) {
-        r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine, off52: sg.off52, sig: sg, _eod: true };
+        r = { ...r, off52: sg.off52 != null ? sg.off52 : r.off52, sig: sg, _eod: true };
+        // full-array signals (custom / live-fallback names) power the drawer chart;
+        // compact snapshot records carry none — the drawer fetches those on demand
+        if (sg.closes && sg.closes.length) r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine };
       }
       return r;
     });
@@ -95,24 +108,25 @@ export default function App() {
       const rs = rsMap[r.tk] != null ? rsMap[r.tk] : (r.rs || 50);
       const score = momentumScore(r.sig, rs);
       const grade = score >= 80 ? "a" : score >= 60 ? "b" : "c";
-      const spark = sampleSpark(r.sig.closes) || r.spark;
-      // technical buy point from real history — the recent base high (60 bars,
-      // excluding the last 5) replaces the stale editorial pivot for everyone
+      const spark = r.sig.spark || sampleSpark(r.sig.closes) || r.spark;
+      // technical buy point: precomputed on compact snapshot records; derived
+      // from full history for custom / live-fallback names
       let status = r.status;
       let pivotFields = {};
-      const c = r.sig.closes, n = c.length;
-      if (n >= 70) {
+      if (r.sig.pivot != null) {
+        status = r.sig.status;
+        pivotFields = { pivot: r.sig.pivot, buyLo: r.sig.buyLo, buyHi: r.sig.buyHi, pctExt: r.sig.pctExt,
+          baseType: r.sig.baseType, baseWeeks: r.sig.baseWeeks, baseDepth: r.sig.baseDepth };
+      } else if (r.sig.closes && r.sig.closes.length >= 70) {
+        const c = r.sig.closes, n = c.length;
         const base = c.slice(n - 65, n - 5);
         const pivot = +Math.max(...base).toFixed(2);
         const baseLo = Math.min(...base);
         const px = r.px != null ? r.px : c[n - 1];
         const pctExt = +(((px - pivot) / pivot) * 100).toFixed(1);
         status = pctExt > 5 ? "ext" : pctExt >= -3 ? "buy" : "watch";
-        pivotFields = {
-          pivot, buyLo: pivot, buyHi: +(pivot * 1.05).toFixed(2), pctExt,
-          baseType: "60-day base high", baseWeeks: 12,
-          baseDepth: +(((pivot - baseLo) / pivot) * 100).toFixed(0),
-        };
+        pivotFields = { pivot, buyLo: pivot, buyHi: +(pivot * 1.05).toFixed(2), pctExt,
+          baseType: "60-day base high", baseWeeks: 12, baseDepth: +(((pivot - baseLo) / pivot) * 100).toFixed(0) };
       } else if (r.coverage === "signals") {
         status = r.sig.stage === 2 && r.sig.off52 <= 6 ? "buy" : null;
       }
@@ -129,11 +143,30 @@ export default function App() {
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
-  }, [universe, live, hist, customData, market]);
+  }, [universe, meta, live, hist, customData, market]);
 
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
-  // always open the live-merged record for a ticker (falls back to the passed object)
-  const openStock = (s) => { setEvDrawer(null); setWatchOpen(false); setProduct("canslim"); setStockDrawer(csData.byTicker[s.tk] || s); };
+  // open the live-merged record for a ticker. Compact snapshot names carry no
+  // price history, so fetch it on demand to draw the chart + RS line.
+  const openStock = (s) => {
+    setEvDrawer(null); setWatchOpen(false); setProduct("canslim");
+    const row = csData.byTicker[s.tk] || s;
+    setStockDrawer(row);
+    if (!(row.closes && row.closes.length) && !TT.CS_BYTICKER[s.tk]?.closes?.length) {
+      (async () => {
+        try {
+          const r = await fetchMarket([s.tk, "SPY"]);
+          const rows = r.rows?.[s.tk];
+          if (!rows) return;
+          const full = computeSignals(rows, r.rows.SPY);
+          if (!full) return;
+          setStockDrawer((cur) => (cur && cur.tk === s.tk
+            ? { ...cur, closes: full.closes, volume: full.volume, dates: full.dates, rsLine: full.rsLine || cur.rsLine, sig: { ...cur.sig, ...full } }
+            : cur));
+        } catch { /* chart stays hidden; scalar signals still render */ }
+      })();
+    }
+  };
 
   // look up ANY ticker on demand — fetch it live, compute its signals, add it
   const lookupTicker = async (raw) => {
@@ -186,10 +219,11 @@ export default function App() {
           const snap = await r.json();
           if (snap && snap.quotes && snap.sig && Object.keys(snap.quotes).length) {
             if (!alive) return;
-            const covered = tickers.filter((t) => snap.quotes[t]);
+            const covered = Object.keys(snap.quotes);   // full universe (S&P 500 + curated)
             let asOf = 0;
             for (const t of covered) { const ts = snap.quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts * 1000); }
-            setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: tickers.length, source: snap.source || "snapshot" });
+            setMeta(snap.meta || {});
+            setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
             return; // snapshot covered it — skip live per-ticker fetching
