@@ -42,6 +42,7 @@ export default function App() {
   const [hist, setHist] = useState({ rows: {}, sig: {} });
   const [meta, setMeta] = useState({});          // { TK: { name, sector, industry } } — the S&P 500 universe classification from the snapshot
   const [market, setMarket] = useState(null);   // live market health (index + universe breadth)
+  const [changes, setChanges] = useState(null); // day-over-day transitions from the snapshot
   const [econ, setEcon] = useState(null);       // live economic calendar (null = unavailable)
 
   // custom tickers — look up ANY symbol on demand (unlimited search)
@@ -223,6 +224,7 @@ export default function App() {
             let asOf = 0;
             for (const t of covered) { const ts = snap.quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts * 1000); }
             setMeta(snap.meta || {});
+            setChanges(snap.changes || null);
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
@@ -357,7 +359,7 @@ export default function App() {
             {tab === "playbook" && <CatalystTimeline events={allEvents} onOpen={openEvent} />}
           </>
         ) : (
-          <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market}
+          <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr} />
         )}
 

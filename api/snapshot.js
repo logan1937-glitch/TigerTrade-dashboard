@@ -129,7 +129,37 @@ async function fmpConstituents() {
 const SECTOR_ALIAS = { Financials: "Financial Services", Materials: "Basic Materials" };
 const normSector = (s) => SECTOR_ALIAS[s] || s || "—";
 
+// day-over-day change detection: diff the previous stored snapshot's compact
+// signals against today's to surface the actionable transitions. Returns null on
+// the first run or when nothing changed. Each category is capped + sorted by
+// liquidity so the client renders the most significant names first.
+function detectChanges(prev, curSig, meta) {
+  if (!prev || !prev.sig || !Object.keys(prev.sig).length) return null;
+  // same trading day → same data, nothing to diff
+  const dayOf = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : null);
+  const prevDay = dayOf(prev.asOf) || (prev.generatedAt || "").slice(0, 10);
+  const ps = prev.sig;
+  const cats = { newBreakouts: [], enteredBuyZone: [], newHighs: [], rolledOver: [] };
+  for (const tk of Object.keys(curSig)) {
+    const c = curSig[tk], p = ps[tk];
+    if (!p) continue;                       // new to the universe — not a "change"
+    const m = meta[tk] || {};
+    const e = { tk, name: m.name || tk, sector: m.sector || "—", dv: c.dollarVol || 0 };
+    if (p.stage !== 2 && c.stage === 2) cats.newBreakouts.push(e);
+    if (p.status !== undefined && p.status !== "buy" && c.status === "buy") cats.enteredBuyZone.push(e);
+    if (p.atHigh !== true && c.atHigh === true) cats.newHighs.push(e);
+    if (p.stage === 2 && (c.stage === 3 || c.stage === 4)) cats.rolledOver.push(e);
+  }
+  const cap = (arr) => ({ count: arr.length, names: arr.sort((a, b) => b.dv - a.dv).slice(0, 60).map(({ dv, ...r }) => r) });
+  const out = { since: prev.asOf || prev.generatedAt || null, prevDay };
+  let any = 0;
+  for (const k of Object.keys(cats)) { out[k] = cap(cats[k]); any += out[k].count; }
+  return any ? out : null;
+}
+
 async function compute() {
+  const prev = await readBlob();   // yesterday's snapshot — for day-over-day change detection
+
   // universe = S&P 500 constituents (live from FMP) ∪ curated names, deduped.
   // `meta` carries name + sector + industry for every ticker in one taxonomy.
   const constituents = await fmpConstituents();
@@ -178,7 +208,9 @@ async function compute() {
   const metaOut = {};
   for (const t of Object.keys(quotes)) metaOut[t] = meta[t];
 
-  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market };
+  const changes = detectChanges(prev, sig, metaOut);
+
+  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes };
 }
 
 export default async function handler(req, res) {

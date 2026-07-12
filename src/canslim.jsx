@@ -52,7 +52,50 @@ function periodReturn(s, tf) {
   return (c[n - 1] / c[i] - 1) * 100;
 }
 
-function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector }) {
+/* ---------- what changed today (day-over-day snapshot diff) ---------- */
+const CHANGE_META = [
+  { key: "newBreakouts", label: "New breakouts", note: "into Stage 2 (advancing)", color: "var(--cat-growth)" },
+  { key: "enteredBuyZone", label: "Entered buy zone", note: "back at a pivot", color: "var(--accent)" },
+  { key: "newHighs", label: "New 52-wk highs", note: "", color: "var(--cat-growth)" },
+  { key: "rolledOver", label: "Rolled over", note: "Stage 2 → topping / declining", color: "var(--sev-extreme)" },
+];
+function ChangesPanel({ changes, onOpenStock }) {
+  const [open, setOpen] = useState(true);
+  if (!changes) return null;
+  const cats = CHANGE_META.filter((c) => changes[c.key] && changes[c.key].count > 0);
+  if (!cats.length) return null;
+  let since = "";
+  try { if (changes.since) since = ` since ${new Date(changes.since).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`; } catch {}
+  return (
+    <div className="chg">
+      <button className="chg-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span className="chg-caret mono">{open ? "▾" : "▸"}</span>
+        <span className="chg-title">What changed{since}</span>
+        <span className="chg-sum mono">{cats.map((c) => `${changes[c.key].count} ${c.label.toLowerCase()}`).join(" · ")}</span>
+      </button>
+      {open && (
+        <div className="chg-body">
+          {cats.map((c) => {
+            const d = changes[c.key];
+            return (
+              <div className="chg-cat" key={c.key}>
+                <span className="chg-cat-h"><i className="chg-dot" style={{ background: c.color }} /><b className="mono">{d.count}</b> {c.label}{c.note && <span className="chg-cat-note mono">· {c.note}</span>}</span>
+                <div className="chg-chips">
+                  {d.names.slice(0, 20).map((n) => (
+                    <button key={n.tk} className="chg-chip" onClick={() => onOpenStock({ tk: n.tk })} title={`${n.name} · ${n.sector}`}>{n.tk}</button>
+                  ))}
+                  {d.count > 20 && <span className="chg-more mono">+{d.count - 20} more</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector, changes }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
   const [statusF, setStatusF] = useState("all");
@@ -71,6 +114,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
 
   return (
     <div className="wrap">
+      <ChangesPanel changes={changes} onOpenStock={onOpenStock} />
       <div className="filters" style={{ justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <div className="search-wrap"><SearchIcon /><input className="search" placeholder="search ticker / group…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
@@ -250,7 +294,7 @@ function StageBreadth({ stages }) {
 }
 
 /* ------------------------------ SHELL ------------------------------ */
-export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, onLookup, lookupBusy, lookupErr }) {
+export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr }) {
   const [tab, setTab] = useState("screener");
   const [sectorF, setSectorF] = useState(null);   // sector filter set from the Market Map
 
@@ -319,7 +363,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
       <div key={tab}>
         {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr}
-          sectorF={sectorF} onClearSector={() => setSectorF(null)} />}
+          sectorF={sectorF} onClearSector={() => setSectorF(null)} changes={changes} />}
         {tab === "map" && <MarketMap rows={rows} live={live} onOpenStock={onOpenStock}
           onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} />}
         {tab === "health" && <MarketHealth market={market} />}
