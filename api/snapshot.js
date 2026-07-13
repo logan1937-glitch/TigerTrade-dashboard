@@ -107,22 +107,30 @@ async function fmpBars(symbol) {
   } catch { return null; }
 }
 
-// S&P 500 constituents — live from FMP, committed SP500 list as fallback.
-// Returns [{ tk, name, sector, industry }].
+// S&P 500 constituents. The committed SP500 list (full ~503 names) is the
+// guaranteed source — the universe is complete even with no FMP key at runtime.
+// When a key IS present we try to refresh from FMP for currency, but only accept
+// a response that actually looks like the full index (>400 names). Returns
+// [{ tk, name, sector, industry }].
 async function fmpConstituents() {
   const key = process.env.FMP_API_KEY;
   if (key) {
-    try {
-      const r = await fetch(`https://financialmodelingprep.com/stable/sp-500?apikey=${key}`);
-      if (r.ok) {
+    const endpoints = [
+      `https://financialmodelingprep.com/stable/sp500-constituent?apikey=${key}`,
+      `https://financialmodelingprep.com/api/v3/sp500_constituent?apikey=${key}`,
+    ];
+    for (const url of endpoints) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) continue;
         const j = await r.json();
-        if (Array.isArray(j) && j.length > 100) {
+        if (Array.isArray(j) && j.length > 400) {
           return j.filter((x) => x && x.symbol).map((x) => ({ tk: x.symbol, name: x.name || x.symbol, sector: x.sector || "—", industry: x.subSector || x.industry || "—" }));
         }
-      }
-    } catch (e) { console.error("fmp constituents:", e); }
+      } catch (e) { console.error("fmp constituents:", url, e); }
+    }
   }
-  return SP500.map((x) => ({ ...x }));  // committed fallback
+  return SP500.map((x) => ({ ...x }));  // committed full-index fallback
 }
 
 // unify curated sector labels with the FMP taxonomy so buckets don't split
