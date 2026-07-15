@@ -239,6 +239,15 @@ export function StockDrawerBody({ stock, onClose }) {
       </div>
       )}
 
+      {s.ern && s.ern.days <= 7 && (
+        <div className="dr-ern">
+          <span className="dr-ern-tag mono">{s.ern.days === 0 ? "E·TODAY" : `E-${s.ern.days}`}</span>
+          Earnings {new Date(s.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          {s.ern.time === "bmo" ? " before the open" : s.ern.time === "amc" ? " after the close" : ""}
+          {" — "}reports gap through stops. New breakout entries this close to the print carry event risk.
+        </div>
+      )}
+
       {s.breakdown && s.breakdown.length > 0 && (
       <div className="dr-sec">
         <div className="dr-sec-h"><h3>Leadership model</h3><span className="dr-sec-sub mono">{s.pass}/7 factors</span></div>

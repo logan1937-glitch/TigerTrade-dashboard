@@ -43,6 +43,7 @@ export default function App() {
   const [meta, setMeta] = useState({});          // { TK: { name, sector, industry } } — the S&P 500 universe classification from the snapshot
   const [market, setMarket] = useState(null);   // live market health (index + universe breadth)
   const [changes, setChanges] = useState(null); // day-over-day transitions from the snapshot
+  const [earnings, setEarnings] = useState(null); // { TK: { d: ISO date, t: "bmo"|"amc"|null } } — next report per name
   const [econ, setEcon] = useState(null);       // live economic calendar (null = unavailable)
 
   // custom tickers — look up ANY symbol on demand (unlimited search)
@@ -98,6 +99,12 @@ export default function App() {
         // compact snapshot records carry none — the drawer fetches those on demand
         if (sg.closes && sg.closes.length) r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine };
       }
+      // earnings-risk overlay: days until the next confirmed report
+      const ern = earnings?.[s.tk];
+      if (ern?.d) {
+        const days = Math.round((new Date(ern.d + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
+        if (days >= 0) r = { ...r, ern: { date: ern.d, time: ern.t, days } };
+      }
       return r;
     });
 
@@ -144,7 +151,7 @@ export default function App() {
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
-  }, [universe, meta, live, hist, customData, market]);
+  }, [universe, meta, live, hist, customData, market, earnings]);
 
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
   // open the live-merged record for a ticker. Compact snapshot names carry no
@@ -225,6 +232,7 @@ export default function App() {
             for (const t of covered) { const ts = snap.quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts * 1000); }
             setMeta(snap.meta || {});
             setChanges(snap.changes || null);
+            setEarnings(snap.earnings || null);
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });

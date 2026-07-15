@@ -169,6 +169,8 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
                   <span className="cs-stage" data-stage={r.sig.stage || 0} title={`Stage ${r.sig.stage || "?"} — ${r.sig.stageLabel || ""}`}>{r.sig.stage ? "S" + r.sig.stage : "—"}</span>
                   {r.sig.rsNewHigh && <span className="cs-flag" data-lead={r.sig.rsLeads || undefined} title={r.sig.rsLeads ? "RS line at a new high before price" : "RS line at a new high"}>RS↑</span>}
                   {r.sig.pocketPivot && <span className="cs-flag" title="Pocket pivot">◆</span>}
+                  {r.ern && r.ern.days <= 7 && <span className="cs-ern mono" title={`Earnings ${r.ern.date}${r.ern.time === "bmo" ? " (before open)" : r.ern.time === "amc" ? " (after close)" : ""} — gap risk on new entries`}>
+                    {r.ern.days === 0 ? "E·today" : `E-${r.ern.days}`}</span>}
                 </>
               ) : <span className="cs-sig-na mono">—</span>}
             </div>

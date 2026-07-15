@@ -133,6 +133,40 @@ async function fmpConstituents() {
   return SP500.map((x) => ({ ...x }));  // committed full-index fallback
 }
 
+// next confirmed earnings date per universe ticker — one FMP calendar request
+// covering the next ~5 weeks. Best-effort: returns null (feature hidden on the
+// client) when there's no key or the tier lacks the endpoint. { TK: { d, t } }
+// where d = ISO date and t = "bmo" / "amc" when the calendar provides it.
+async function fmpEarnings(tickers) {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return null;
+  const from = new Date().toISOString().slice(0, 10);
+  const to = new Date(Date.now() + 35 * 86400000).toISOString().slice(0, 10);
+  const want = new Set(tickers);
+  const endpoints = [
+    `https://financialmodelingprep.com/stable/earnings-calendar?from=${from}&to=${to}&apikey=${key}`,
+    `https://financialmodelingprep.com/api/v3/earning_calendar?from=${from}&to=${to}&apikey=${key}`,
+  ];
+  for (const url of endpoints) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (!Array.isArray(j) || !j.length) continue;
+      const out = {};
+      for (const e of j) {
+        const tk = e.symbol;
+        if (!tk || !want.has(tk) || !e.date) continue;
+        const d = String(e.date).slice(0, 10);
+        if (d < from) continue;
+        if (!out[tk] || d < out[tk].d) out[tk] = { d, t: e.time && /bmo|amc/i.test(e.time) ? String(e.time).toLowerCase() : null };
+      }
+      if (Object.keys(out).length) return out;
+    } catch (e) { console.error("fmp earnings:", url, e); }
+  }
+  return null;
+}
+
 // unify curated sector labels with the FMP taxonomy so buckets don't split
 const SECTOR_ALIAS = { Financials: "Financial Services", Materials: "Basic Materials" };
 const normSector = (s) => SECTOR_ALIAS[s] || s || "—";
@@ -217,8 +251,9 @@ async function compute() {
   for (const t of Object.keys(quotes)) metaOut[t] = meta[t];
 
   const changes = detectChanges(prev, sig, metaOut);
+  const earnings = await fmpEarnings(Object.keys(quotes));
 
-  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes };
+  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings };
 }
 
 export default async function handler(req, res) {
