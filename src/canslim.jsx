@@ -20,10 +20,12 @@ function Spark({ data }) {
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
   const area = `0,${h} ${pts} ${w},${h}`;
+  // polarity follows the window's net direction — a downtrend must not read green
+  const c = data[data.length - 1] >= data[0] ? "var(--cat-growth)" : "var(--sev-extreme)";
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} style={{ display: "block" }}>
-      <polygon points={area} fill="color-mix(in oklch, var(--cat-growth) 18%, transparent)" />
-      <polyline points={pts} fill="none" stroke="var(--cat-growth)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <polygon points={area} fill={`color-mix(in oklch, ${c} 14%, transparent)`} />
+      <polyline points={pts} fill="none" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

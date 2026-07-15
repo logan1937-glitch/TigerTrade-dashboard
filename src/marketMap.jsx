@@ -59,14 +59,18 @@ function SectorMap({ rows, tf, onSelectSector }) {
     <div className="mm-tiles">
       {sectors.map((s) => {
         const up = s.med >= 0;
-        const alpha = Math.min(0.30, 0.05 + (Math.abs(s.med) / maxAbs) * 0.25);
+        const pol = up ? "var(--cat-growth)" : "var(--sev-extreme)";
+        const frac = Math.abs(s.med) / maxAbs;
+        // magnitude lives in the METER (length), not a flooded tint — the card
+        // keeps a whisper of polarity so the wall of sectors stays calm
         return (
           <button key={s.sector} className="mm-tile" onClick={() => onSelectSector(s.sector)}
             title={`Filter the screener to ${s.sector}`}
-            style={{ background: `color-mix(in oklch, ${up ? "var(--cat-growth)" : "var(--sev-extreme)"} ${Math.round(alpha * 100)}%, var(--surface))`,
-                     borderLeft: `3px solid ${up ? "var(--cat-growth)" : "var(--sev-extreme)"}` }}>
+            style={{ background: `color-mix(in oklch, ${pol} ${Math.round(4 + frac * 6)}%, var(--surface))`,
+                     borderLeft: `3px solid ${pol}` }}>
             <span className="mm-tile-name">{s.sector}</span>
             <span className="mm-tile-ret mono" data-up={up}>{up ? "+" : ""}{s.med.toFixed(1)}%</span>
+            <span className="mm-tile-bar"><i style={{ width: `${Math.max(5, frac * 100)}%`, background: pol }} /></span>
             <span className="mm-tile-meta mono">{s.n} name{s.n === 1 ? "" : "s"} · led by {s.leader}</span>
           </button>
         );
@@ -209,46 +213,56 @@ function RelativeRotation({ rows, onOpenStock }) {
         </div>
         <span className="dr-sec-sub mono">{mode === "sectors" ? "tap a sector to trace its 6-week path" : "tap a name for analysis · hover to trace"}</span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="chart" preserveAspectRatio="none" role="img" aria-label="Relative rotation vs S&P 500">
-        <rect x={cx} y={padT} width={W - padR - cx} height={cy - padT} className="rrg-q" data-q="leading" />
-        <rect x={cx} y={cy} width={W - padR - cx} height={H - padB - cy} className="rrg-q" data-q="weakening" />
-        <rect x={padL} y={cy} width={cx - padL} height={H - padB - cy} className="rrg-q" data-q="lagging" />
-        <rect x={padL} y={padT} width={cx - padL} height={cy - padT} className="rrg-q" data-q="improving" />
-        <line x1={cx} y1={padT} x2={cx} y2={H - padB} className="chart-zero" />
-        <line x1={padL} y1={cy} x2={W - padR} y2={cy} className="chart-zero" />
-        <text x={W - padR - 5} y={padT + 12} className="mm-quad" textAnchor="end">LEADING</text>
-        <text x={padL + 5} y={padT + 12} className="mm-quad">IMPROVING</text>
-        <text x={padL + 5} y={H - padB - 6} className="mm-quad">LAGGING</text>
-        <text x={W - padR - 5} y={H - padB - 6} className="mm-quad" textAnchor="end">WEAKENING</text>
-        {/* dots + on-demand tail (only the hovered / tapped entity) */}
-        {entities.map((e) => {
-          const active = hover === e.id || pinned === e.id;
-          const hx = x(e.head.ratio), hy = y(e.head.mom);
-          const pts = active ? e.tail.map((p) => `${x(p.ratio).toFixed(1)},${y(p.mom).toFixed(1)}`).join(" ") : null;
-          return (
-            <g key={e.id} style={{ cursor: "pointer" }}
-               onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
-               onClick={() => (e.kind === "name" ? onOpenStock({ tk: e.id }) : setPinned((v) => (v === e.id ? null : e.id)))}>
-              {active && <polyline points={pts} className="rrg-tail" data-active />}
-              {active && e.tail.slice(0, -1).map((p, i) => (
-                <circle key={i} cx={x(p.ratio)} cy={y(p.mom)} r="1.6" className="rrg-tail-dot" />
-              ))}
-              <circle cx={hx} cy={hy} r="13" fill="transparent" />
-              <circle cx={hx} cy={hy} r={active ? 6 : 4.2} className="rrg-head" data-active={active || undefined} />
-            </g>
-          );
-        })}
-        {/* de-collided labels, drawn on top */}
-        {placed.map(({ e, dx, oy, dy, right }) => {
-          const active = hover === e.id || pinned === e.id;
-          return (
-            <g key={"l" + e.id} style={{ pointerEvents: "none" }}>
-              {Math.abs(dy - oy) > 7 && <line x1={dx} y1={oy} x2={right ? dx + 6 : dx - 6} y2={dy - 3} className="rrg-lbl-conn" />}
-              <text x={right ? dx + 8 : dx - 8} y={dy} className="mm-dot-label" data-active={active || undefined} textAnchor={right ? "start" : "end"}>{e.label}</text>
-            </g>
-          );
-        })}
-      </svg>
+      {/* geometry in SVG; ALL text lives in the HTML overlay below so it renders
+          at true pixel size instead of scaling up with the viewBox */}
+      <div className="rrg-plot">
+        <svg viewBox={`0 0 ${W} ${H}`} className="chart" preserveAspectRatio="none" role="img" aria-label="Relative rotation vs S&P 500">
+          <rect x={cx} y={padT} width={W - padR - cx} height={cy - padT} className="rrg-q" data-q="leading" />
+          <rect x={cx} y={cy} width={W - padR - cx} height={H - padB - cy} className="rrg-q" data-q="weakening" />
+          <rect x={padL} y={cy} width={cx - padL} height={H - padB - cy} className="rrg-q" data-q="lagging" />
+          <rect x={padL} y={padT} width={cx - padL} height={cy - padT} className="rrg-q" data-q="improving" />
+          <line x1={cx} y1={padT} x2={cx} y2={H - padB} className="chart-zero" />
+          <line x1={padL} y1={cy} x2={W - padR} y2={cy} className="chart-zero" />
+          {/* dots + on-demand tail (only the hovered / tapped entity) */}
+          {entities.map((e) => {
+            const active = hover === e.id || pinned === e.id;
+            const hx = x(e.head.ratio), hy = y(e.head.mom);
+            const pts = active ? e.tail.map((p) => `${x(p.ratio).toFixed(1)},${y(p.mom).toFixed(1)}`).join(" ") : null;
+            return (
+              <g key={e.id} style={{ cursor: "pointer" }}
+                 onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
+                 onClick={() => (e.kind === "name" ? onOpenStock({ tk: e.id }) : setPinned((v) => (v === e.id ? null : e.id)))}>
+                {active && <polyline points={pts} className="rrg-tail" data-active />}
+                {active && e.tail.slice(0, -1).map((p, i) => (
+                  <circle key={i} cx={x(p.ratio)} cy={y(p.mom)} r="1.6" className="rrg-tail-dot" />
+                ))}
+                <circle cx={hx} cy={hy} r="13" fill="transparent" />
+                <circle cx={hx} cy={hy} r={active ? 5.2 : 3.6} className="rrg-head" data-active={active || undefined} />
+              </g>
+            );
+          })}
+          {/* connectors for nudged labels (geometry only — text is HTML) */}
+          {placed.map(({ e, dx, oy, dy, right }) => (
+            Math.abs(dy - oy) > 7
+              ? <line key={"c" + e.id} x1={dx} y1={oy} x2={right ? dx + 6 : dx - 6} y2={dy - 3} className="rrg-lbl-conn" style={{ pointerEvents: "none" }} />
+              : null
+          ))}
+        </svg>
+        <div className="rrg-overlay" aria-hidden="true">
+          <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>Leading</span>
+          <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>Improving</span>
+          <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Lagging</span>
+          <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Weakening</span>
+          {placed.map(({ e, dx, dy, right }) => {
+            const active = hover === e.id || pinned === e.id;
+            return (
+              <span key={"l" + e.id} className="rrg-lab mono" data-active={active || undefined}
+                style={{ left: `${((right ? dx + 8 : dx - 8) / W) * 100}%`, top: `${(dy / H) * 100}%`,
+                  transform: `translateY(-50%)${right ? "" : " translateX(-100%)"}` }}>{e.label}</span>
+            );
+          })}
+        </div>
+      </div>
       {hv && (
         <div className="pchart-tip" style={{ left: `${(x(hv.head.ratio) / W) * 100}%`, top: `${Math.max(0, (y(hv.head.mom) / H) * 100 - 15)}%`,
           transform: x(hv.head.ratio) > W * 0.7 ? "translateX(-100%)" : x(hv.head.ratio) < W * 0.2 ? "none" : "translateX(-50%)" }}>
@@ -345,14 +359,19 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
           ))}
           {built.tiles.map((t) => {
             const up = t.chg != null && t.chg >= 0;
-            const alpha = t.chg == null ? 0.05 : Math.min(0.44, 0.06 + (Math.abs(t.chg) / maxAbs) * 0.38);
+            // diverging scale with a true NEUTRAL midpoint: a ±0.2% move is noise,
+            // not polarity — it gets a quiet neutral tint instead of a green/red one
+            const flat = t.chg == null || Math.abs(t.chg) < 0.2;
+            const alpha = flat ? 0 : Math.min(0.44, 0.08 + (Math.abs(t.chg) / maxAbs) * 0.36);
+            const fill = flat
+              ? "color-mix(in oklch, var(--text) 5%, var(--surface))"
+              : `color-mix(in oklch, ${up ? "var(--cat-growth)" : "var(--sev-extreme)"} ${Math.round(alpha * 100)}%, var(--surface))`;
             const showTk = t.w > 5.5 && t.h > 4;
             const showPct = t.w > 8.5 && t.h > 7;
             return (
               <button key={t.r.tk} className="mm-heat-tile" onClick={() => onOpenStock({ tk: t.r.tk })}
                 title={`${t.r.tk} · ${t.r.sector}${t.chg != null ? ` · ${up ? "+" : ""}${t.chg.toFixed(1)}% (${tf})` : ""}`}
-                style={{ left: px(t.x), top: py(t.y), width: px(t.w), height: py(t.h),
-                  background: `color-mix(in oklch, ${t.chg == null ? "var(--surface)" : up ? "var(--cat-growth)" : "var(--sev-extreme)"} ${Math.round(alpha * 100)}%, var(--surface))` }}>
+                style={{ left: px(t.x), top: py(t.y), width: px(t.w), height: py(t.h), background: fill }}>
                 {showTk && <span className="mm-heat-tk">{t.r.tk}</span>}
                 {showPct && t.chg != null && <span className="mm-heat-pct mono" data-up={up}>{up ? "+" : ""}{t.chg.toFixed(1)}%</span>}
               </button>
