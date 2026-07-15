@@ -23,8 +23,14 @@ export function CommandPalette({ open, setOpen, commands }) {
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const list = !s ? commands : commands.filter((c) =>
+    // searchOnly commands (the 500-name stock universe) only surface once the user types
+    let list = !s ? commands.filter((c) => !c.searchOnly) : commands.filter((c) =>
       (c.label + " " + (c.hint || "") + " " + (c.keywords || "")).toLowerCase().includes(s));
+    if (s) {
+      const exact = list.filter((c) => c.ticker && c.ticker.toLowerCase() === s);
+      if (exact.length) list = [...exact, ...list.filter((c) => !exact.includes(c))];
+    }
+    list = list.slice(0, 80);   // keep the rendered list bounded with a 500-name universe
     const groups = [];
     const idx = {};
     list.forEach((c) => { if (!(c.group in idx)) { idx[c.group] = groups.length; groups.push({ group: c.group, items: [] }); } groups[idx[c.group]].items.push(c); });
@@ -51,7 +57,7 @@ export function CommandPalette({ open, setOpen, commands }) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="cmdk-search">
             <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
           </svg>
-          <input ref={inputRef} className="cmdk-input" placeholder="Search events, jump to a view…"
+          <input ref={inputRef} className="cmdk-input" placeholder="Search stocks, events, views…"
             value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKeyDown} />
           <kbd className="cmdk-esc">ESC</kbd>
         </div>

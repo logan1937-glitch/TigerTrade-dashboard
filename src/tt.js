@@ -86,13 +86,8 @@ TT.EVENTS = [
     desc: "Cooler headline with a soft revision; risk assets bid on the disinflationary read." },
 ];
 
-TT.MONTH = { name: "JUNE 2026", year: 2026, monthIndex: 5, firstDow: 1, days: 30, today: 13 };
-TT.calEventsByDay = {
-  16: [{ t: "BoJ Decision", cat: "cb" }],
-  17: [{ t: "FOMC", cat: "cb" }],
-  19: [{ t: "Quad Witching", cat: "flows" }, { t: "S&P Rebal", cat: "flows" }],
-  26: [{ t: "Russell Recon", cat: "flows" }],
-};
+/* TT.MONTH + TT.calEventsByDay are built in _recomputeTiming below —
+   always the real current month, cells derived from the re-dated events */
 
 /* ---- live date math: recompute T-minus / past from the real current date ----
    The event display strings carry the date; the year is fixed to the template
@@ -131,6 +126,35 @@ function _nextRussellRecon(today) {
   return thisYr >= today ? thisYr : _lastFriday(today.getFullYear() + 1, 5);
 }
 
+// recurring macro events: when a template date has passed, roll to the next
+// projected occurrence so a "NEXT …" card never points backwards. Rule-derived
+// dates (FOMC published schedule, NFP first-Friday) stay exact; the rest are
+// projections marked approx ("~"), which the live economic calendar overrides
+// with true dates when available. One-off events (midterms) never roll.
+const FOMC_DECISIONS = ["2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17", "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09"];
+function _firstFridayOf(y, m) { const d = new Date(y, m, 1); return new Date(y, m, 1 + ((5 - d.getDay() + 7) % 7)); }
+function _nthBizDay(y, m, n) { const d = new Date(y, m, 1); let c = 0; for (;;) { if (d.getDay() !== 0 && d.getDay() !== 6 && ++c === n) return new Date(d); d.setDate(d.getDate() + 1); } }
+function _rollMonthly(today, day) { const d = new Date(today.getFullYear(), today.getMonth(), day); return d >= today ? d : new Date(today.getFullYear(), today.getMonth() + 1, day); }
+function _rollEvery(from, days, today) { const d = new Date(from); while (d < today) d.setDate(d.getDate() + days); return d; }
+function _monthlyRule(fn) { return (t) => { const cur = fn(t.getFullYear(), t.getMonth()); return { d: cur >= t ? cur : fn(t.getFullYear(), t.getMonth() + 1), approx: true }; }; }
+const _RECUR = {
+  2:  (t, ev) => { const hit = FOMC_DECISIONS.map((s) => new Date(s + "T00:00:00")).find((d) => d >= t); return hit ? { d: hit, approx: false } : { d: _rollEvery(_eventDate(ev), 42, t), approx: true }; },
+  7:  (t) => { const cur = _firstFridayOf(t.getFullYear(), t.getMonth()); return { d: cur >= t ? cur : _firstFridayOf(t.getFullYear(), t.getMonth() + 1), approx: false }; },
+  6:  _monthlyRule((y, m) => _nthBizDay(y, m, 1)),
+  8:  _monthlyRule((y, m) => _nthBizDay(y, m, 3)),
+  10: (t) => ({ d: _rollMonthly(t, 13), approx: true }),
+  11: (t) => ({ d: _rollMonthly(t, 14), approx: true }),
+  9:  (t) => ({ d: _rollMonthly(t, 6), approx: true }),
+  1:  (t, ev) => ({ d: _rollEvery(_eventDate(ev), 49, t), approx: true }),   // BoJ ~8 meetings/yr
+  13: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 42, t), approx: true }),   // ECB ~6-week cycle
+  12: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 91, t), approx: true }),   // earnings kickoff, quarterly
+  14: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 91, t), approx: true }),   // refunding, quarterly
+  15: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 364, t), approx: true }),  // Jackson Hole, annual
+};
+
+// short calendar-cell labels per curated event id
+const _SHORT = { 1: "BoJ Decision", 2: "FOMC", 3: "Quad Witching", 4: "S&P Rebal", 5: "Russell Recon", 6: "ISM Mfg", 7: "NFP", 8: "ISM Svcs", 9: "OPEC+", 10: "CPI", 11: "PPI", 12: "Earnings Kickoff", 13: "ECB", 14: "Refunding", 15: "Jackson Hole", 16: "Midterms" };
+
 (function _recomputeTiming() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -142,6 +166,16 @@ function _nextRussellRecon(today) {
   if (byId[3]) { byId[3].date = lbl(witch); byId[3]._exact = witch; }
   if (byId[4]) { byId[4].date = lbl(witch); byId[4]._exact = witch; }
   if (byId[5]) { byId[5].date = lbl(recon); byId[5]._exact = recon; }
+  // roll recurring events that have already passed (template "past" cards, ids 100+, keep their history)
+  for (const ev of TT.EVENTS) {
+    const rule = _RECUR[ev.id];
+    if (!rule) continue;
+    const cur = ev._exact || _eventDate(ev);
+    if (cur >= today) continue;
+    const { d, approx } = rule(today, ev);
+    ev._exact = d; ev.date = lbl(d); ev.approx = approx;
+    if (ev.id === 12) ev.title = "Earnings Season Kickoff";   // quarter tag goes stale once rolled
+  }
   TT.EVENTS.forEach((ev) => {
     const frac = ev.sort - Math.trunc(ev.sort);            // keep same-day ordering
     const diff = Math.round(((ev._exact || _eventDate(ev)) - today) / 86400000);
@@ -151,8 +185,18 @@ function _nextRussellRecon(today) {
   });
   TT.todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   TT.todayLabel = `${now.getDate()} ${_MON_ABBR[now.getMonth()]} ${now.getFullYear()}`;
-  // highlight "today" in the calendar only when the real date is in the shown month
-  TT.MONTH.today = (now.getFullYear() === TT.MONTH.year && now.getMonth() === TT.MONTH.monthIndex) ? now.getDate() : 0;
+  // the calendar always shows the REAL current month, with event cells derived
+  // from the (re-dated) event list rather than a hardcoded table
+  const yr = now.getFullYear(), mi = now.getMonth();
+  const MONTH_NAMES = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+  TT.MONTH = { name: `${MONTH_NAMES[mi]} ${yr}`, year: yr, monthIndex: mi,
+    firstDow: new Date(yr, mi, 1).getDay(), days: new Date(yr, mi + 1, 0).getDate(), today: now.getDate() };
+  TT.calEventsByDay = {};
+  for (const ev of TT.EVENTS) {
+    const d = ev._exact || _eventDate(ev);
+    if (d.getFullYear() !== yr || d.getMonth() !== mi) continue;
+    (TT.calEventsByDay[d.getDate()] = TT.calEventsByDay[d.getDate()] || []).push({ t: _SHORT[ev.id] || ev.title, cat: ev.cat });
+  }
 })();
 
 /* stat strip — derived live from the underlying events */

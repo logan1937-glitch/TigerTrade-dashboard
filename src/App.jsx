@@ -335,8 +335,15 @@ export default function App() {
     TT.EVENTS.filter((e) => !e.past).sort((a, b) => a.sort - b.sort).forEach((e) =>
       cmds.push({ id: "ev-" + e.id, group: "Events", label: e.title, dot: TT.CAT_MAP[e.cat].color,
         hint: `${e.approx ? "~" : ""}${e.date} · T${e.t}d`, keywords: e.cat + " " + e.sev, run: () => selectEvent(e) }));
+    // the whole tracked universe, searchable by ticker or company name → opens full analysis.
+    // searchOnly: hidden until the user types, so the default list stays navigational.
+    Object.keys(meta).sort().forEach((tk) => {
+      const m = meta[tk];
+      cmds.push({ id: "tk-" + tk, group: "Stocks", label: `${tk} — ${m.name}`, hint: m.sector,
+        ticker: tk, searchOnly: true, run: () => openStock({ tk }) });
+    });
     return cmds;
-  }, []);
+  }, [meta]);
 
   const radarProps = { events, cats, toggleCat, query, setQuery, minWt, setMinWt, showPast, setShowPast, replayKey, focus, onOpenFull: openEvent };
 

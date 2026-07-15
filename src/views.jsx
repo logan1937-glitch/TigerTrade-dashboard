@@ -8,13 +8,14 @@ export function CalendarView() {
   for (let i = 0; i < m.firstDow; i++) cells.push({ out: true, num: 0 });
   for (let d = 1; d <= m.days; d++) cells.push({ out: false, num: d });
   while (cells.length % 7 !== 0) cells.push({ out: true, num: 0 });
+  const nEvents = Object.values(TT.calEventsByDay).reduce((n, a) => n + a.length, 0);
 
   return (
     <div className="wrap">
       <div className="cal-head">
         <div className="cal-title">{m.name}</div>
         <div className="count mono" style={{ color: "var(--dim)", letterSpacing: ".08em", textTransform: "uppercase", fontSize: 11 }}>
-          4 scheduled catalysts this month
+          {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
         </div>
       </div>
       <div className="cal-dow">
@@ -43,16 +44,19 @@ export function TimelineView({ events, onOpenFull }) {
   const idx = {};
   events.forEach((ev) => {
     const mon = ev.date.split(" ")[0];
-    if (!(mon in idx)) { idx[mon] = groups.length; groups.push({ mon, items: [] }); }
-    groups[idx[mon]].items.push(ev);
+    // real year from the countdown (t is negative for upcoming) — events can roll into next year
+    const yr = new Date(Date.now() + -ev.t * 86400000).getFullYear();
+    const key = `${mon} ${yr}`;
+    if (!(key in idx)) { idx[key] = groups.length; groups.push({ mon, yr, items: [] }); }
+    groups[idx[key]].items.push(ev);
   });
   const MONTHS = { JAN: "January", FEB: "February", MAR: "March", APR: "April", MAY: "May", JUN: "June",
     JUL: "July", AUG: "August", SEP: "September", OCT: "October", NOV: "November", DEC: "December" };
   return (
     <div className="wrap tl">
       {groups.map((g) => (
-        <div key={g.mon}>
-          <div className="tl-month">{MONTHS[g.mon] || g.mon} 2026</div>
+        <div key={g.mon + g.yr}>
+          <div className="tl-month">{MONTHS[g.mon] || g.mon} {g.yr}</div>
           {g.items.map((ev) => {
             const cat = TT.CAT_MAP[ev.cat];
             return (

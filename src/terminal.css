@@ -481,7 +481,10 @@ body { background: #0a0b0d; }
   grid-template-columns: 1.9fr 1.05fr 0.7fr 60px 1.5fr 1fr 1fr 0.65fr;
   align-items: center; gap: 14px;
 }
-.cs-head { padding: 0 18px 12px; border-bottom: 1px solid var(--border); }
+/* sticky below the 58px topbar — with a 500-row list the column labels
+   otherwise scroll away immediately; solid bg so rows don't ghost through */
+.cs-head { padding: 12px 18px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 58px; z-index: 30; background: var(--bg); }
 .cs-head span { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
 .cs-row { padding: 13px 18px; border-bottom: 1px solid var(--border); transition: background .14s ease; cursor: pointer;
   content-visibility: auto; contain-intrinsic-size: 0 48px; }
@@ -714,7 +717,8 @@ body { background: #0a0b0d; }
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
 @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-.app[data-motion="full"] .reveal { opacity: 0; animation: riseIn .5s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: calc(var(--i, 0) * 28ms); }
+/* stagger is capped: with a 500+ row list an uncapped index left late rows invisible for ~14s */
+.app[data-motion="full"] .reveal { opacity: 0; animation: riseIn .5s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: calc(min(var(--i, 0), 20) * 28ms); }
 @media (prefers-reduced-motion: reduce) {
   /* disable the flashy entrance/pulse motion for reduce-motion users… */
   .app .reveal { opacity: 1 !important; animation: none !important; }
@@ -801,9 +805,11 @@ body { background: #0a0b0d; }
 .drawer-root[data-open] .drawer-scrim { opacity: 1; }
 .drawer { position: absolute; top: 0; right: 0; height: 100%; width: min(620px, 94vw);
   background: var(--panel); border-left: 1px solid var(--border-2);
-  box-shadow: -30px 0 80px -30px #000; transform: translateX(100%); transition: transform .34s cubic-bezier(.3,.8,.3,1);
-  overflow-y: auto; overscroll-behavior: contain; }
-.drawer-root[data-open] .drawer { transform: none; }
+  transform: translateX(100%); transition: transform .34s cubic-bezier(.3,.8,.3,1), visibility 0s linear .34s;
+  overflow-y: auto; overscroll-behavior: contain; visibility: hidden; }
+/* shadow only while open — the closed panel sits just off-screen and its 80px-blur
+   shadow otherwise bleeds back into the right edge (visible as a smudge on light) */
+.drawer-root[data-open] .drawer { transform: none; box-shadow: -30px 0 80px -30px #000; visibility: visible; transition: transform .34s cubic-bezier(.3,.8,.3,1); }
 
 .dr { padding: 0 0 40px; }
 .dr-top { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between;
