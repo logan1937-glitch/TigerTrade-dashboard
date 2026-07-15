@@ -143,8 +143,10 @@ async function fmpEarnings(tickers) {
   const from = new Date().toISOString().slice(0, 10);
   const to = new Date(Date.now() + 35 * 86400000).toISOString().slice(0, 10);
   const want = new Set(tickers);
+  // includeReportTimes adds time ("bmo"/"amc") + confirmed to each record —
+  // verified available on this account's tier via the FMP calendar API
   const endpoints = [
-    `https://financialmodelingprep.com/stable/earnings-calendar?from=${from}&to=${to}&apikey=${key}`,
+    `https://financialmodelingprep.com/stable/earnings-calendar?from=${from}&to=${to}&includeReportTimes=true&apikey=${key}`,
     `https://financialmodelingprep.com/api/v3/earning_calendar?from=${from}&to=${to}&apikey=${key}`,
   ];
   for (const url of endpoints) {
