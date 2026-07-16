@@ -38,6 +38,11 @@ export function useWatch() { return useContext(WatchCtx); }
 export const CanslimCtx = createContext({ list: TT.CANSLIM, byTicker: TT.CS_BYTICKER });
 export function useCanslim() { return useContext(CanslimCtx); }
 
+/* price alerts — armed from the stock drawer, persisted, and evaluated against
+   live quotes on every data refresh. `hits` = alerts that have crossed. */
+export const AlertCtx = createContext({ list: [], for: () => null, set: () => {}, clear: () => {}, hits: 0 });
+export function useAlerts() { return useContext(AlertCtx); }
+
 export function StarIcon({ filled }) {
   return (
     <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
@@ -129,7 +134,7 @@ function MoonIcon() {
 }
 
 /* ----------------------------- TOP BAR ----------------------------- */
-export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount, mode, onToggleMode }) {
+export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount, alertHits = 0, mode, onToggleMode }) {
   const clock = useClock();
   return (
     <div className="topbar">
@@ -144,6 +149,7 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
       <button className="watch-btn" onClick={onOpenWatch} aria-label="Open watchlist">
         <StarIcon filled={watchCount > 0} />
         {watchCount > 0 && <span className="watch-ct mono">{watchCount}</span>}
+        {alertHits > 0 && <span className="watch-hit mono" title={`${alertHits} price alert${alertHits === 1 ? "" : "s"} triggered`}>{alertHits}</span>}
       </button>
       <button className="icon-btn" onClick={onToggleMode} aria-label="Toggle light / dark" title={mode === "light" ? "Switch to dark" : "Switch to light"}>
         {mode === "light" ? <MoonIcon /> : <SunIcon />}

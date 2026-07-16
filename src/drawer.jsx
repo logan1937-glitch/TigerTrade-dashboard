@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
-import { StarBtn, StarIcon, Logo, useWatch, useCanslim, SEV_LABEL } from "./components.jsx";
+import { StarBtn, StarIcon, Logo, useWatch, useCanslim, useAlerts, SEV_LABEL } from "./components.jsx";
+
+const fmtPx2 = (n) => (n == null || Number.isNaN(+n) ? "—" : n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : (+n).toFixed(2));
 
 function CloseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>;
@@ -139,8 +141,20 @@ export function StockDrawerBody({ stock, onClose }) {
 
   // order-plan ticket (planning only — not connected to a broker)
   const [planOpen, setPlanOpen] = useState(false);
-  const [alertNote, setAlertNote] = useState(false);
   const [qty, setQty] = useState(100);
+
+  // price alert: armed here, persisted, evaluated on every data refresh
+  const alerts = useAlerts();
+  const myAlert = alerts.for(s.tk);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertVal, setAlertVal] = useState("");
+  useEffect(() => { setAlertOpen(false); }, [s.tk]);
+  const armAlert = () => {
+    const v = parseFloat(alertVal);
+    if (!Number.isFinite(v) || v <= 0) return;
+    alerts.set(s.tk, +v.toFixed(2), s.px ?? null);
+    setAlertOpen(false);
+  };
   const stop = hasBase ? +(s.pivot * 0.92).toFixed(2) : null;
   const t1 = hasBase ? +(s.pivot * 1.20).toFixed(2) : null;
   const t2 = hasBase ? +(s.pivot * 1.25).toFixed(2) : null;
@@ -315,13 +329,36 @@ export function StockDrawerBody({ stock, onClose }) {
 
       <div className="dr-actions">
         <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
-        <button className="ed-btn" onClick={() => setAlertNote((v) => !v)}>Set price alert</button>
+        <button className="ed-btn" onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setAlertOpen((v) => !v); }}>
+          {myAlert ? "Edit alert" : "Set price alert"}
+        </button>
         {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => setPlanOpen((v) => !v)}>{planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
       </div>
-      {alertNote && (
-        <p className="mono" style={{ padding: "10px 26px 0", fontSize: 11, lineHeight: 1.5, color: "var(--dim)" }}>
-          Price alerts aren't connected yet — tap the ☆ to track {s.tk} on your watchlist for now.
-        </p>
+
+      {alertOpen && (
+        <div className="dr-alert-form">
+          <span className="mono dr-alert-lab">Alert when {s.tk} crosses</span>
+          <div className="dr-alert-row">
+            <span className="mono dr-alert-cur">$</span>
+            <input className="dr-alert-in mono" type="number" step="0.01" min="0" value={alertVal}
+              onChange={(e) => setAlertVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && armAlert()}
+              aria-label="Alert price level" autoFocus />
+            <button className="ed-btn ed-btn-primary" onClick={armAlert}>Arm alert</button>
+            {myAlert && <button className="ed-btn" onClick={() => { alerts.clear(s.tk); setAlertOpen(false); }}>Remove</button>}
+          </div>
+          <span className="mono dr-alert-note">checked against live quotes on every data refresh · stored on this device{s.pivot != null ? ` · pivot $${s.pivot}` : ""}</span>
+        </div>
+      )}
+      {!alertOpen && myAlert && (
+        <div className="dr-alert" data-hit={!!myAlert.hitAt || undefined}>
+          {myAlert.hitAt ? (
+            <>Alert hit — {s.tk} crossed <b className="mono">${myAlert.level}</b> ({myAlert.dir}) at <b className="mono">${myAlert.hitPx}</b> on {new Date(myAlert.hitAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
+              <button className="linkbtn dr-alert-clear" onClick={() => alerts.clear(s.tk)}>clear</button></>
+          ) : (
+            <>Alert armed at <b className="mono">${myAlert.level}</b> ({myAlert.dir}{s.px != null ? ` · now $${fmtPx2(s.px)}` : ""}).
+              <button className="linkbtn dr-alert-clear" onClick={() => alerts.clear(s.tk)}>remove</button></>
+          )}
+        </div>
       )}
     </div>
   );
@@ -331,9 +368,11 @@ export function StockDrawerBody({ stock, onClose }) {
 export function WatchlistBody({ onClose, onPickEvent, onPickStock }) {
   const w = useWatch();
   const { byTicker } = useCanslim();
+  const alerts = useAlerts();
   const statusMap = { buy: ["Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
+  const statusOf = (st) => statusMap[st] || ["—", "var(--dim)"];   // signals-only names can have no status
   const events = w.list.filter((x) => x.kind === "event").map((x) => TT.EVENTS.find((e) => e.id === x.ref)).filter(Boolean).sort((a, b) => a.sort - b.sort);
-  const stocks = w.list.filter((x) => x.kind === "stock").map((x) => byTicker[x.ref]).filter(Boolean).sort((a, b) => b.score - a.score);
+  const stocks = w.list.filter((x) => x.kind === "stock").map((x) => byTicker[x.ref]).filter(Boolean).sort((a, b) => (b.score || 0) - (a.score || 0));
   const empty = events.length === 0 && stocks.length === 0;
   return (
     <div className="dr">
@@ -373,11 +412,25 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock }) {
               <div className="dr-sec-h"><h3>Tickers</h3><span className="dr-sec-sub mono">{stocks.length}</span></div>
               <div className="wl-list">
                 {stocks.map((s) => {
-                  const [stLabel, stColor] = statusMap[s.status];
+                  const [stLabel, stColor] = statusOf(s.status);
+                  const a = alerts.for(s.tk);
+                  const up = (s.chg || 0) >= 0;
                   return (
-                    <div className="wl-row wl-stock" key={s.tk} style={{ "--c": "var(--cat-growth)" }} onClick={() => onPickStock(s)} role="button" tabIndex={0}>
+                    <div className="wl-row wl-stock" key={s.tk} style={{ "--c": a?.hitAt ? "var(--brand)" : "var(--cat-growth)" }}
+                      onClick={() => onPickStock(s)} role="button" tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPickStock(s); } }}>
                       <span className="wl-sym">{s.tk}</span>
-                      <span className="wl-name">{s.name}<small className="mono">RS {s.rs} · score {s.score}</small></span>
+                      <span className="wl-name">{s.name}
+                        <small className="mono">RS {s.rs ?? "—"} · score {s.score ?? "—"}
+                          {a && (a.hitAt
+                            ? <span className="wl-alert mono" data-hit>alert hit ${a.level}</span>
+                            : <span className="wl-alert mono">alert ${a.level}</span>)}
+                          {s.ern && s.ern.days <= 7 && <span className="wl-alert mono" data-ern>{s.ern.days === 0 ? "E·today" : `E-${s.ern.days}`}</span>}
+                        </small>
+                      </span>
+                      <span className="wl-px mono">{s.px != null ? "$" + fmtPx2(s.px) : "—"}
+                        <small data-up={up}>{s.chg != null ? `${up ? "+" : ""}${(+s.chg).toFixed(2)}%` : ""}</small>
+                      </span>
                       <span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span>
                       <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} />
                     </div>

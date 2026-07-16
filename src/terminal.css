@@ -493,6 +493,7 @@ body { background: #0a0b0d; }
 .cs-row { padding: 13px 18px; border-bottom: 1px solid var(--border); transition: background .14s ease, box-shadow .14s ease; cursor: pointer;
   content-visibility: auto; contain-intrinsic-size: 0 48px; }
 .cs-row:hover { background: var(--surface); box-shadow: inset 2px 0 0 var(--accent); }
+.cs-row:focus-visible { outline: none; background: var(--surface); box-shadow: inset 2px 0 0 var(--accent), inset 0 0 0 1px color-mix(in oklch, var(--accent) 45%, transparent); }
 .cs-tk { display: flex; align-items: center; gap: 5px; }
 .cs-tk-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cs-sym { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); letter-spacing: 0.02em; }
@@ -589,6 +590,14 @@ body { background: #0a0b0d; }
 .watch-btn .watch-ct { position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px;
   display: grid; place-items: center; font-size: 10px; font-weight: 700; border-radius: 9px;
   background: var(--accent); color: var(--accent-ink); border: 2px solid var(--bg); }
+/* triggered price alerts — amber counter on the other shoulder of the star */
+.watch-btn .watch-hit { position: absolute; top: -7px; left: -7px; min-width: 17px; height: 17px; padding: 0 4px;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700; border-radius: 9px;
+  background: var(--brand); color: var(--brand-ink); border: 2px solid var(--bg);
+  animation: alertPulse 2.2s ease-in-out infinite; }
+@keyframes alertPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--brand) 45%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+@media (prefers-reduced-motion: reduce) { .watch-btn .watch-hit { animation: none; } }
+.mobile-tabbar .tb-badge[data-hit] { background: var(--brand); color: var(--brand-ink); }
 
 /* mini reaction sparkline (hero next-catalyst) */
 .mini-react { width: 128px; height: 26px; display: block; flex: none; }
@@ -619,6 +628,19 @@ body { background: #0a0b0d; }
 .wl-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13.5px; color: var(--text); }
 .wl-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wl-name small { font-size: 10.5px; color: var(--dim); letter-spacing: 0.04em; }
+/* stock rows gain a live price column */
+.wl-row.wl-stock { grid-template-columns: auto 1fr auto auto 26px; }
+.wl-px { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.wl-px small { font-size: 10px; font-weight: 400; }
+.wl-px small[data-up="true"] { color: var(--cat-growth); }
+.wl-px small[data-up="false"] { color: var(--sev-extreme); }
+.wl-alert { margin-left: 7px; padding: 1px 6px; border-radius: 4px; font-size: 9px; letter-spacing: 0.04em;
+  background: color-mix(in oklch, var(--accent) 12%, transparent); color: color-mix(in oklch, var(--accent) 80%, var(--text));
+  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); }
+.wl-alert[data-hit] { background: color-mix(in oklch, var(--brand) 16%, transparent); color: color-mix(in oklch, var(--brand) 85%, var(--text));
+  border-color: color-mix(in oklch, var(--brand) 40%, transparent); }
+.wl-alert[data-ern] { background: color-mix(in oklch, var(--sev-high) 14%, transparent); color: color-mix(in oklch, var(--sev-high) 85%, var(--text));
+  border-color: color-mix(in oklch, var(--sev-high) 40%, transparent); }
 
 /* ============================ TOP BAR EXTRAS ============================ */
 .live { display: flex; align-items: center; gap: 7px; padding: 0 4px; }
@@ -921,6 +943,27 @@ body { background: #0a0b0d; }
   background: color-mix(in oklch, var(--sev-high) 22%, transparent);
   border: 1px solid color-mix(in oklch, var(--sev-high) 45%, transparent); }
 
+/* price-alert form + armed/hit status strip */
+.dr-alert-form { margin: 12px 26px 0; padding: 12px 14px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.dr-alert-lab { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.dr-alert-row { display: flex; align-items: center; gap: 8px; }
+.dr-alert-cur { color: var(--dim); font-size: 13px; }
+.dr-alert-in { width: 110px; padding: 7px 9px; font-size: 13px; color: var(--text);
+  background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-sm); }
+.dr-alert-in:focus { outline: none; border-color: var(--accent); }
+.dr-alert-note { font-size: 9.5px; color: var(--dim); letter-spacing: 0.02em; }
+.dr-alert { margin: 12px 26px 0; padding: 11px 14px; border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.55;
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent) 32%, transparent);
+  color: color-mix(in oklch, var(--accent) 80%, var(--text)); }
+.dr-alert[data-hit] { background: color-mix(in oklch, var(--brand) 12%, transparent);
+  border-color: color-mix(in oklch, var(--brand) 38%, transparent);
+  color: color-mix(in oklch, var(--brand) 85%, var(--text)); }
+.dr-alert b { font-weight: 700; }
+.dr-alert-clear { margin-left: 8px; font-size: 10px; padding: 2px 8px; }
+
 .dr-canslim { display: flex; flex-direction: column; gap: 7px; }
 .dr-cs { display: grid; grid-template-columns: 30px 1fr 22px; gap: 12px; align-items: start; padding: 11px 13px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .dr-cs[data-pass="true"] { border-color: color-mix(in oklch, var(--cat-growth) 30%, var(--border)); }
@@ -1203,7 +1246,7 @@ body { background: #0a0b0d; }
   .cs-head { padding: 0 12px 10px; }
   .dr-head, .dr-bioblock { padding-left: 18px; padding-right: 18px; }
   .dr-sec { padding-left: 18px; padding-right: 18px; }
-  .dr-tiles, .dr-actions, .dr-ern { margin-left: 18px; margin-right: 18px; }
+  .dr-tiles, .dr-actions, .dr-ern, .dr-alert, .dr-alert-form { margin-left: 18px; margin-right: 18px; }
   .dr-tiles { grid-template-columns: repeat(2, 1fr); }
   .dr-buygrid { grid-template-columns: repeat(2, 1fr); }
   .pchart-toolbar { gap: 6px; }

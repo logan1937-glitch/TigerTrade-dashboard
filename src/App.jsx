@@ -4,7 +4,7 @@ import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
-import { WatchCtx, CanslimCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon } from "./components.jsx";
+import { WatchCtx, CanslimCtx, AlertCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
 import { CatalystTimeline } from "./catalystTimeline.jsx";
@@ -62,6 +62,35 @@ export default function App() {
       ? prev.filter((w) => w.key !== key)
       : [...prev, { key, kind: meta.kind, ref: meta.ref, at: Date.now() }]),
   }), [watchArr, watchSet]);
+
+  // price alerts: armed from the drawer, persisted, evaluated against live
+  // quotes on every refresh. Once a level crosses, hitAt/hitPx persist until
+  // the alert is cleared — a cross that later retraces still shows as hit.
+  const [alerts, setAlerts] = useStored("tt_alerts", []);
+  useEffect(() => {
+    if (live.status !== "live" || !live.quotes) return;
+    setAlerts((prev) => {
+      let changed = false;
+      const next = prev.map((a) => {
+        if (a.hitAt) return a;
+        const q = live.quotes[a.tk];
+        if (!q || q.price == null) return a;
+        const hit = a.dir === "above" ? q.price >= a.level : q.price <= a.level;
+        if (!hit) return a;
+        changed = true;
+        return { ...a, hitAt: Date.now(), hitPx: q.price };
+      });
+      return changed ? next : prev;
+    });
+  }, [live]);
+  const alertApi = useMemo(() => ({
+    list: alerts,
+    hits: alerts.filter((a) => a.hitAt).length,
+    for: (tk) => alerts.find((a) => a.tk === tk) || null,
+    set: (tk, level, px) => setAlerts((prev) => [...prev.filter((a) => a.tk !== tk),
+      { tk, level: +level, dir: px != null && +level < px ? "below" : "above", setAt: Date.now(), setPx: px ?? null }]),
+    clear: (tk) => setAlerts((prev) => prev.filter((a) => a.tk !== tk)),
+  }), [alerts]);
 
   // single source of screener data: live quotes + real EOD signals merged over the
   // editorial base, then a real universe-wide RS rating + momentum score so curated
@@ -358,10 +387,11 @@ export default function App() {
   return (
     <WatchCtx.Provider value={watchApi}>
     <CanslimCtx.Provider value={csData}>
+    <AlertCtx.Provider value={alertApi}>
       <div className="app" data-dir={DIR} data-mode={mode} data-density={DENSITY} data-glow={GLOW} data-motion={MOTION} data-typeface={TYPEFACE}>
         <div className="grain" />
         <TopBar product={product} setProduct={setProduct} onOpenCmd={() => setCmdOpen(true)}
-          onOpenWatch={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }} watchCount={watchApi.count}
+          onOpenWatch={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }} watchCount={watchApi.count} alertHits={alertApi.hits}
           mode={mode} onToggleMode={() => setMode((m) => (m === "light" ? "dark" : "light"))} />
         {product === "radar" ? (
           <>
@@ -404,11 +434,12 @@ export default function App() {
           <button onClick={() => setCmdOpen(true)}><SearchIcon /><span>Search</span></button>
           <button onClick={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }}>
             <StarIcon filled={watchApi.count > 0} />
-            {watchApi.count > 0 && <span className="tb-badge mono">{watchApi.count}</span>}
+            {watchApi.count > 0 && <span className="tb-badge mono" data-hit={alertApi.hits > 0 || undefined}>{alertApi.hits > 0 ? alertApi.hits : watchApi.count}</span>}
             <span>Watch</span>
           </button>
         </nav>
       </div>
+    </AlertCtx.Provider>
     </CanslimCtx.Provider>
     </WatchCtx.Provider>
   );
