@@ -32,8 +32,8 @@ body { background: #0a0b0d; }
   --border:    rgba(255,255,255,0.08);
   --border-2:  rgba(255,255,255,0.16);
   --text:      #F1E9E2;
-  --muted:     #A99B8D;
-  --dim:       #7C6B5C;
+  --muted:     #C0B2A3;   /* 9.5:1 on bg — secondary text stays readable at small sizes */
+  --dim:       #9C8A78;   /* 5.9:1 — the old value failed WCAG at 3.85:1 */
   --accent:    #19B5A3;        /* jade — interactive / signal only */
   --accent-2:  #19B5A3;
   --accent-ink:#06201D;        /* dark text on jade */
@@ -43,7 +43,8 @@ body { background: #0a0b0d; }
   --sev-extreme:#FF5C5C;       /* P&L down / extreme */
   --font-ui:   'Space Grotesk', system-ui, sans-serif;
   --font-display:'Space Grotesk', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* one family everywhere — .mono keeps tabular figures so data columns align */
+  --font-mono: 'Space Grotesk', system-ui, sans-serif;
   --radius:    11px;
   --radius-sm: 7px;
   --display-weight: 700;
@@ -63,15 +64,15 @@ body { background: #0a0b0d; }
   --border:    rgba(46,26,12,0.18);
   --border-2:  rgba(46,26,12,0.34);
   --text:      #1C1108;        /* near-black warm */
-  --muted:     #564433;
-  --dim:       #836E58;
-  --accent:    #0C7468;        /* deep saturated jade */
-  --accent-2:  #0C7468;
+  --muted:     #4A3A2B;        /* 6.7:1 on sand */
+  --dim:       #635038;        /* 4.7:1 — old value failed WCAG at 2.99:1 on the sand bg */
+  --accent:    #0A5F55;        /* deep jade — 4.7:1 as small text on sand */
+  --accent-2:  #0A5F55;
   --accent-ink:#FFFFFF;
-  --brand:     #BD5316;        /* deep saturated amber */
+  --brand:     #8F3E0E;        /* deep amber — 4.5:1 on sand */
   --brand-ink: #FFFFFF;
-  --cat-growth: #147A43;       /* P&L up */
-  --sev-extreme:#C32C2C;       /* P&L down */
+  --cat-growth: #0D5A33;       /* P&L up — 5.1:1 on sand */
+  --sev-extreme:#A21F1F;       /* P&L down — 4.7:1 on sand */
   --sev-high:   oklch(0.50 0.11 62);   /* deep amber — readable on bone */
   --sev-medium: oklch(0.52 0.09 92);
   --edge-hi:    rgba(255,255,255,0.55);
