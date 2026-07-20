@@ -81,6 +81,12 @@ body { background: #0a0b0d; }
   --brand-ink: #FFFFFF;
   --cat-growth: #0D5A33;       /* P&L up — 5.1:1 on sand */
   --sev-extreme:#A21F1F;       /* P&L down — 4.7:1 on sand */
+  /* category colors — deep light-mode variants (the dark pastels vanish on bone;
+     the "Watch" badge was unreadable). All ≥4.5:1 on the sand bg, measured. */
+  --cat-cb:     #28506B;
+  --cat-flows:  #534085;
+  --cat-data:   #6C510D;
+  --cat-geo:    #843520;
   --sev-high:   oklch(0.50 0.11 62);   /* deep amber — readable on bone */
   --sev-medium: oklch(0.52 0.09 92);
   --edge-hi:    rgba(255,255,255,0.55);
