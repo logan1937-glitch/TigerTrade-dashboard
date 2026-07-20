@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useEffect } from "react";
+import { createContext, useContext, useState, useRef, useEffect, useMemo } from "react";
 import { TT } from "./tt.js";
 import { RadarScope, ScopeLegend } from "./radarScope.jsx";
 
@@ -214,22 +214,57 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
           </div>
         )}
       </div>
-      {/* catalyst tape — the full upcoming slate scrolling across the hero's base.
-          List is doubled for a seamless loop; the copy is aria-hidden/untabbable. */}
-      {events.length > 1 && (
-        <div className="hero-ticker" aria-label="Upcoming catalysts">
-          <div className="hero-ticker-track">
-            {[0, 1].map((copy) => events.slice(0, 12).map((ev) => (
-              <button key={copy + "-" + ev.id} className="tick-item mono" style={{ "--c": TT.CAT_MAP[ev.cat].color }}
-                onClick={() => onSelectEvent(ev)} tabIndex={copy ? -1 : 0} aria-hidden={copy ? true : undefined}>
-                <i className="tick-dot" /><b>T{ev.t}d</b><span className="tick-name">{ev.title}</span>
-                <span className="tick-date">{ev.approx ? "~" : ""}{ev.date}</span>
-              </button>
-            )))}
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+/* ------------------------------ TAPES ------------------------------ */
+/* shared scrolling-tape shell: list doubled for a seamless loop, the copy
+   aria-hidden/untabbable; hover or focus pauses; reduced-motion = static scroll */
+function Tape({ label, children }) {
+  return (
+    <div className="tape" aria-label={label}>
+      <div className="tape-track">{children}</div>
+    </div>
+  );
+}
+
+export function CatalystTape({ events, onSelect }) {
+  if (!events || events.length < 2) return null;
+  return (
+    <Tape label="Upcoming catalysts">
+      {[0, 1].map((copy) => events.slice(0, 12).map((ev) => (
+        <button key={copy + "-" + ev.id} className="tick-item mono" style={{ "--c": TT.CAT_MAP[ev.cat].color }}
+          onClick={() => onSelect(ev)} tabIndex={copy ? -1 : 0} aria-hidden={copy ? true : undefined}>
+          <i className="tick-dot" /><b>T{ev.t}d</b><span className="tick-name">{ev.title}</span>
+          <span className="tick-date">{ev.approx ? "~" : ""}{ev.date}</span>
+        </button>
+      )))}
+    </Tape>
+  );
+}
+
+export function StockTape({ rows, onPick }) {
+  // top of the leaderboard, live prices — the screener's answer to the catalyst tape
+  const items = useMemo(() =>
+    (rows || []).filter((r) => r.px != null && r.score).sort((a, b) => b.score - a.score).slice(0, 14),
+    [rows]);
+  if (items.length < 2) return null;
+  const fmt = (n) => (n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2));
+  return (
+    <Tape label="Top leaders — live prices">
+      {[0, 1].map((copy) => items.map((r) => {
+        const up = (r.chg || 0) >= 0;
+        return (
+          <button key={copy + "-" + r.tk} className="tick-item mono" style={{ "--c": up ? "var(--cat-growth)" : "var(--sev-extreme)" }}
+            onClick={() => onPick(r)} tabIndex={copy ? -1 : 0} aria-hidden={copy ? true : undefined}
+            title={`${r.name} · score ${r.score}`}>
+            <i className="tick-dot" /><b>{r.tk}</b><span className="tick-name">${fmt(r.px)}</span>
+            <span className="tick-chg" data-up={up}>{up ? "+" : ""}{(+r.chg || 0).toFixed(2)}%</span>
+          </button>
+        );
+      }))}
+    </Tape>
   );
 }
 

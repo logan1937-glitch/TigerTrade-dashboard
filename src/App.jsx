@@ -4,7 +4,7 @@ import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
-import { WatchCtx, CanslimCtx, AlertCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon } from "./components.jsx";
+import { WatchCtx, CanslimCtx, AlertCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
 import { CatalystTimeline } from "./catalystTimeline.jsx";
@@ -418,6 +418,9 @@ export default function App() {
         <TopBar product={product} setProduct={setProduct} onOpenCmd={() => setCmdOpen(true)}
           onOpenWatch={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }} watchCount={watchApi.count} alertHits={alertApi.hits}
           mode={mode} onToggleMode={() => setMode((m) => (m === "light" ? "dark" : "light"))} />
+        {product === "radar"
+          ? <CatalystTape events={upcoming} onSelect={openEvent} />
+          : <StockTape rows={csData.list} onPick={openStock} />}
         {product === "radar" ? (
           <>
             <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} live={!!econ} />
