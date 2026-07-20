@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
 import { StarBtn, StarIcon, Logo, useWatch, useCanslim, useAlerts, SEV_LABEL } from "./components.jsx";
@@ -146,6 +146,41 @@ async function fetchProfile(tk) {
     return d;
   } catch { return null; }
 }
+// real EPS growth for the two fundamental LEADERS slots — one income-statement
+// call per name (17 quarters, diluted EPS), cached a day. epsQ = latest quarter
+// vs same quarter a year ago; epsA = 3-yr CAGR of trailing-4-quarter EPS.
+const epsCache = new Map();
+async function fetchEps(tk) {
+  if (epsCache.has(tk)) return epsCache.get(tk);
+  try {
+    const raw = localStorage.getItem("tt_eps_" + tk);
+    if (raw) { const { t, d } = JSON.parse(raw); if (Date.now() - t < 864e5) { epsCache.set(tk, d); return d; } }
+  } catch {}
+  try {
+    const r = await fetch(`/api/fmp?endpoint=income-statement&symbol=${encodeURIComponent(tk)}&period=quarter&limit=17`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!Array.isArray(j) || j.length < 5) return null;
+    const eps = j.map((q) => (q.epsDiluted ?? q.eps ?? null));   // newest first
+    let epsQ = null, epsQNew = false;
+    if (eps[0] != null && eps[4] != null) {
+      if (eps[4] > 0) epsQ = +(((eps[0] - eps[4]) / eps[4]) * 100).toFixed(0);
+      else if (eps[0] > 0) epsQNew = true;                       // turned profitable YoY
+    }
+    const sum = (a, b) => (eps.slice(a, b).every((v) => v != null) ? eps.slice(a, b).reduce((x, y) => x + y, 0) : null);
+    const a0 = sum(0, 4), a3 = eps.length >= 16 ? sum(12, 16) : null;
+    let epsA = null, epsANew = false;
+    if (a0 != null && a3 != null) {
+      if (a3 > 0 && a0 > 0) epsA = +((Math.pow(a0 / a3, 1 / 3) - 1) * 100).toFixed(0);
+      else if (a3 <= 0 && a0 > 0) epsANew = true;
+    }
+    const d = { epsQ, epsQNew, epsA, epsANew };
+    epsCache.set(tk, d);
+    try { localStorage.setItem("tt_eps_" + tk, JSON.stringify({ t: Date.now(), d })); } catch {}
+    return d;
+  } catch { return null; }
+}
+
 // first ~2 sentences, capped — drawer bios stay tight like the curated ones
 const briefDesc = (t) => {
   if (!t) return null;
@@ -173,6 +208,35 @@ export function StockDrawerBody({ stock, onClose }) {
     return () => { alive = false; };
   }, [s.tk]);
   const cap = prof && prof !== "loading" ? prof.cap : null;
+
+  // fill the fundamental LEADERS slots (E, D) from real filings when the
+  // scorecard has "needs data" placeholders
+  const [eps, setEps] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setEps(null);
+    if (s.breakdown?.some((b) => b.pass === null && (b.key === "f2" || b.key === "f4"))) {
+      fetchEps(s.tk).then((d) => { if (alive) setEps(d); });
+    }
+    return () => { alive = false; };
+  }, [s.tk, s.breakdown]);
+  const shownBreakdown = useMemo(() => {
+    if (!s.breakdown || !s.breakdown.length) return [];
+    return s.breakdown.map((b) => {
+      if (eps && b.pass === null && b.key === "f2") {
+        if (eps.epsQNew) return { ...b, value: "Turned profitable YoY", pass: true };
+        if (eps.epsQ != null) return { ...b, value: `${eps.epsQ >= 0 ? "+" : ""}${eps.epsQ}% EPS vs yr-ago qtr`, pass: eps.epsQ >= 25 };
+        return { ...b, value: "no filings data" };
+      }
+      if (eps && b.pass === null && b.key === "f4") {
+        if (eps.epsANew) return { ...b, value: "Turned profitable (3-yr)", pass: true };
+        if (eps.epsA != null) return { ...b, value: `${eps.epsA >= 0 ? "+" : ""}${eps.epsA}%/yr · 3-yr EPS`, pass: eps.epsA >= 25 };
+        return { ...b, value: "no filings data" };
+      }
+      return b;
+    });
+  }, [s.breakdown, eps]);
+  const shownPass = shownBreakdown.filter((b) => b.pass === true).length;
 
   // order-plan ticket (planning only — not connected to a broker)
   const [planOpen, setPlanOpen] = useState(false);
@@ -308,18 +372,18 @@ export function StockDrawerBody({ stock, onClose }) {
         </div>
       )}
 
-      {s.breakdown && s.breakdown.length > 0 && (
+      {shownBreakdown.length > 0 && (
       <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Leadership model</h3><span className="dr-sec-sub mono">{s.pass}/7 factors</span></div>
+        <div className="dr-sec-h"><h3>Leadership model</h3><span className="dr-sec-sub mono">{shownPass}/7 factors{shownBreakdown.some((b) => b.pass == null) ? " · unfilled slots need data" : ""}</span></div>
         <div className="dr-canslim">
-          {s.breakdown.map((b) => (
-            <div className="dr-cs" key={b.key} data-pass={b.pass}>
+          {shownBreakdown.map((b) => (
+            <div className="dr-cs" key={b.key} data-pass={b.pass === true} data-na={b.pass == null || undefined}>
               <span className="dr-cs-let">{b.letter}</span>
               <div className="dr-cs-body">
                 <div className="dr-cs-top"><span className="dr-cs-name">{b.name}</span><span className="dr-cs-val mono">{b.value}</span></div>
                 <p className="dr-cs-note">{b.note}</p>
               </div>
-              <span className="dr-cs-mark">{b.pass ? "✓" : "—"}</span>
+              <span className="dr-cs-mark">{b.pass === true ? "✓" : b.pass == null ? "·" : "—"}</span>
             </div>
           ))}
         </div>

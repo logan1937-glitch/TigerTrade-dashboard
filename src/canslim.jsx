@@ -166,7 +166,9 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{(r._ret || 0).toFixed(2)}%</span></div>
             <div className="cs-rs mono">{r.rs != null ? r.rs : "—"}{r.rs != null && <i style={{ width: r.rs + "%" }} />}</div>
             <div>{r.spark && r.spark.length ? <Spark data={r.spark} /> : <span className="cs-sig-na mono">—</span>}</div>
-            <div className="cs-letters">{r.coverage === "full" && r.breakdown.length ? LETTERS.map((L, j) => <span key={j} className="cs-let" data-on={r.breakdown[j].pass}>{L}</span>) : <span className="cs-sig-na mono">—</span>}</div>
+            <div className="cs-letters">{r.breakdown && r.breakdown.length ? r.breakdown.map((b, j) => (
+              <span key={j} className="cs-let" data-on={b.pass === true} data-na={b.pass == null || undefined} title={`${b.name}${b.pass == null ? " — needs data" : b.pass ? " ✓" : ""}`}>{b.letter}</span>
+            )) : <span className="cs-sig-na mono">—</span>}</div>
             <div className="cs-sig">
               {r.sig ? (
                 <>

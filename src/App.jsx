@@ -169,14 +169,39 @@ export default function App() {
       }
       // keep the LEADERS 'L' chip + the market 'S' factor in sync with real data
       let breakdown = r.breakdown;
+      let passCount = r.pass;
       if (r.coverage === "full" && breakdown.length) {
         breakdown = breakdown.map((b) => {
           if (b.letter === "L") return { ...b, pass: rs >= 85, value: `RS ${rs} · grp #${r.groupRank}` };
           if (b.key === "f7" && market) return { ...b, pass: market.trend === "Confirmed Uptrend", value: market.trend };
           return b;
         });
+        passCount = breakdown.filter((b) => b.pass).length;
+      } else if (r.sig) {
+        // every name gets the LEADERS scorecard. Technical factors (L, A, the
+        // breakout E, S) compute live from real signals; fundamental slots
+        // (earnings E, D, R) start as pass:null "needs data" — the drawer fills
+        // E and D from real filings on open, and NOTHING here fabricates a pass.
+        const g = r.sig;
+        breakdown = [
+          { key: "f1", letter: "L", name: "Leadership (RS)", value: `RS ${rs}`, pass: rs >= 85,
+            note: "Relative-strength rank vs the tracked universe — leaders score ≥ 85." },
+          { key: "f2", letter: "E", name: "Earnings momentum", value: "needs data", pass: null,
+            note: "Latest-quarter EPS vs a year ago (≥ 25%). Loads from real filings in the full analysis." },
+          { key: "f3", letter: "A", name: "Accumulation", value: g.pocketPivot ? "Pocket pivot" : `DD ${g.distDays ?? "—"}/25`, pass: !!(g.pocketPivot || (g.distDays != null && g.distDays <= 2)),
+            note: "Demand: constructive volume (pocket pivot) or few distribution days (≤ 2 of 25)." },
+          { key: "f4", letter: "D", name: "Durable growth", value: "needs data", pass: null,
+            note: "3-yr EPS growth (≥ 25%/yr). Loads from real filings in the full analysis." },
+          { key: "f5", letter: "E", name: "Emerging breakout", value: g.atHigh ? "At 52-wk high" : g.off52 != null ? `−${g.off52}% off high` : "—", pass: !!(g.atHigh || (g.off52 != null && g.off52 <= 3)),
+            note: "Price at — or within 3% of — a 52-week high." },
+          { key: "f6", letter: "R", name: "Rising sponsorship", value: "needs data", pass: null,
+            note: "Institutional accumulation — holdings data not yet wired for extended names." },
+          { key: "f7", letter: "S", name: "Setup — market", value: market ? market.trend : "—", pass: market ? market.trend === "Confirmed Uptrend" : null,
+            note: "Buy only when the general market is in a confirmed uptrend." },
+        ];
+        passCount = breakdown.filter((b) => b.pass === true).length;
       }
-      return { ...r, rs, score, grade, spark, status, breakdown, ...pivotFields };
+      return { ...r, rs, score, grade, spark, status, breakdown, pass: passCount, ...pivotFields };
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
