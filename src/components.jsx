@@ -214,6 +214,21 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
           </div>
         )}
       </div>
+      {/* catalyst tape — the full upcoming slate scrolling across the hero's base.
+          List is doubled for a seamless loop; the copy is aria-hidden/untabbable. */}
+      {events.length > 1 && (
+        <div className="hero-ticker" aria-label="Upcoming catalysts">
+          <div className="hero-ticker-track">
+            {[0, 1].map((copy) => events.slice(0, 12).map((ev) => (
+              <button key={copy + "-" + ev.id} className="tick-item mono" style={{ "--c": TT.CAT_MAP[ev.cat].color }}
+                onClick={() => onSelectEvent(ev)} tabIndex={copy ? -1 : 0} aria-hidden={copy ? true : undefined}>
+                <i className="tick-dot" /><b>T{ev.t}d</b><span className="tick-name">{ev.title}</span>
+                <span className="tick-date">{ev.approx ? "~" : ""}{ev.date}</span>
+              </button>
+            )))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { TT } from "./tt.js";
 
+const SWEEP_S = 4.6;   // must match the .scope-sweep spin duration
 export function RadarScope({ events, onSelect, activeId }) {
   const [hover, setHover] = useState(null);
   const blips = events.map((ev, i) => {
     const p = TT.radarPos(ev, i);
-    return { ev, left: 50 + p.x * p.r * 50, top: 50 + p.y * p.r * 50 };
+    // conic angle from 12 o'clock, clockwise — the sweep's bright edge starts at
+    // the top, so a blip glints the moment the beam passes over it
+    const theta = (Math.atan2(p.x, -p.y) * 180 / Math.PI + 360) % 360;
+    return { ev, left: 50 + p.x * p.r * 50, top: 50 + p.y * p.r * 50, glint: (theta / 360) * SWEEP_S };
   });
   const hv = hover != null ? blips.find((b) => b.ev.id === hover) : null;
 
@@ -32,7 +36,7 @@ export function RadarScope({ events, onSelect, activeId }) {
         return (
           <button key={b.ev.id} className="blip"
             data-sev={b.ev.sev} data-imminent={imminent || undefined} data-active={b.ev.id === activeId || undefined}
-            style={{ left: b.left + "%", top: b.top + "%", "--c": cat.color }}
+            style={{ left: b.left + "%", top: b.top + "%", "--c": cat.color, "--glint": b.glint.toFixed(2) + "s" }}
             onMouseEnter={() => setHover(b.ev.id)} onMouseLeave={() => setHover(null)}
             onFocusCapture={() => setHover(b.ev.id)}
             onClick={() => onSelect && onSelect(b.ev)}
