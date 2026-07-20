@@ -119,6 +119,42 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
 /* ----------------------------- STOCK DRAWER ----------------------------- */
 const fmtCap = (v) => (v == null ? "—" : v >= 1e12 ? (v / 1e12).toFixed(2) + "T" : v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : (v / 1e6).toFixed(0) + "M");
 
+// company profile (description, mkt cap, HQ, industry) — one lazy FMP call per
+// name, memory + localStorage cached (7 days; profiles barely change). Serves
+// the ~450 extended-universe names that carry no curated bio.
+const profCache = new Map();
+async function fetchProfile(tk) {
+  if (profCache.has(tk)) return profCache.get(tk);
+  try {
+    const raw = localStorage.getItem("tt_prof_" + tk);
+    if (raw) { const { t, d } = JSON.parse(raw); if (Date.now() - t < 7 * 864e5) { profCache.set(tk, d); return d; } }
+  } catch {}
+  try {
+    const r = await fetch(`/api/fmp?endpoint=profile&symbol=${encodeURIComponent(tk)}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const p = Array.isArray(j) ? j[0] : j;
+    if (!p || !(p.symbol || p.companyName)) return null;
+    const d = {
+      cap: p.marketCap ?? p.mktCap ?? null,
+      desc: p.description || null,
+      city: p.city || null, state: p.state || null, country: p.country || null,
+      industry: p.industry || null,
+    };
+    profCache.set(tk, d);
+    try { localStorage.setItem("tt_prof_" + tk, JSON.stringify({ t: Date.now(), d })); } catch {}
+    return d;
+  } catch { return null; }
+}
+// first ~2 sentences, capped — drawer bios stay tight like the curated ones
+const briefDesc = (t) => {
+  if (!t) return null;
+  const parts = t.split(/(?<=\.)\s+/);
+  let out = "";
+  for (const p of parts) { if (out && (out + p).length > 300) break; out += (out ? " " : "") + p; if (out.length > 180) break; }
+  return out || t.slice(0, 280);
+};
+
 export function StockDrawerBody({ stock, onClose }) {
   const s = stock;
   const statusMap = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
@@ -127,17 +163,16 @@ export function StockDrawerBody({ stock, onClose }) {
   const hasChart = s.closes && s.closes.length > 0; // real EOD history loaded
   const signalsOnly = s.coverage === "signals";
 
-  // real market cap — one lazy FMP quote per open; "—" if unavailable, never a stale value
-  const [cap, setCap] = useState(null);
+  // company profile: real description + market cap + HQ for every name — "—"
+  // while loading / unavailable, never a stale or fabricated value
+  const [prof, setProf] = useState("loading");
   useEffect(() => {
     let alive = true;
-    setCap(null);
-    fetch(`/api/fmp?endpoint=quote&symbol=${s.tk}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { const q = Array.isArray(d) ? d[0] : d; if (alive && q && q.marketCap) setCap(q.marketCap); })
-      .catch(() => {});
+    setProf("loading");
+    fetchProfile(s.tk).then((d) => { if (alive) setProf(d); });   // d = null when unavailable
     return () => { alive = false; };
   }, [s.tk]);
+  const cap = prof && prof !== "loading" ? prof.cap : null;
 
   // order-plan ticket (planning only — not connected to a broker)
   const [planOpen, setPlanOpen] = useState(false);
@@ -204,7 +239,18 @@ export function StockDrawerBody({ stock, onClose }) {
 
       {signalsOnly && (
         <div className="dr-bioblock">
-          <p className="dr-bio">Signals-only coverage — ranked purely on real technical momentum from live EOD history (RS, stage, breakout). No fundamental overlay or curated buy-point base for this name.</p>
+          {prof !== "loading" && prof?.desc ? (
+            <>
+              <p className="dr-bio">{briefDesc(prof.desc)}</p>
+              <div className="dr-bio-meta mono">
+                {(prof.city || prof.state) && <><span className="dr-bio-hq"><PinIcon />{[prof.city, prof.state || prof.country].filter(Boolean).join(", ")}</span><span className="dr-bio-sep">·</span></>}
+                <span>{prof.industry || s.group}</span>
+              </div>
+            </>
+          ) : (
+            <p className="dr-bio" style={{ opacity: .65 }}>{prof === "loading" ? "Loading company profile…" : "Company profile unavailable for this name."}</p>
+          )}
+          <p className="dr-bio-note mono">Ranked on technical momentum (RS, stage, breakout) — no curated buy-point base for this name.</p>
         </div>
       )}
 
