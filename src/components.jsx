@@ -170,6 +170,14 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
   const next = events[0];
   const nc = next ? TT.CAT_MAP[next.cat] : null;
   const nEcon = next && next.econ && (next.econ.previous != null || next.econ.estimate != null) ? next.econ : null;
+  // live event-landscape KPIs — aggregate read on the slate (distinct from the
+  // named-event countdowns in the stat strip below). daysUntil = -t for upcoming.
+  const up = events.filter((e) => !e.past);
+  const dU = (e) => -e.t;
+  const thisWeek = up.filter((e) => dU(e) >= 0 && dU(e) <= 7).length;
+  const hot30 = up.filter((e) => dU(e) >= 0 && dU(e) <= 30 && (e.sev === "extreme" || e.sev === "high")).length;
+  const extDays = up.filter((e) => e.sev === "extreme").map(dU).filter((d) => d >= 0).sort((a, b) => a - b);
+  const nextExt = extDays.length ? extDays[0] : null;
   return (
     <div className="hero" ref={ref} onMouseMove={onMove}>
       <div className="hero-glow" />
@@ -177,7 +185,21 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
         <div className="hero-left">
           <div className="hero-eyebrow mono"><span className="hero-pulse" />Live macro-event surveillance</div>
           <h1 className="hero-title">Volatility <span className="accentword">·</span> Momentum Radar</h1>
-          <span className="hero-meta">{live ? "Live economic calendar · " : "Event template 2026–2027 · "}updated {TT.todayISO}</span>
+          <p className="hero-lede">The scheduled catalysts that move volatility — rates, liquidity, data, and geopolitics — mapped by proximity and sized by expected impact.</p>
+          <div className="hero-kpis">
+            <div className="hero-kpi">
+              <span className="hero-kpi-v mono">{thisWeek}</span>
+              <span className="hero-kpi-k mono">This week <small>T≤7d</small></span>
+            </div>
+            <div className="hero-kpi">
+              <span className="hero-kpi-v mono">{hot30}</span>
+              <span className="hero-kpi-k mono">High-impact <small>next 30d</small></span>
+            </div>
+            <div className="hero-kpi" data-accent="ext">
+              <span className="hero-kpi-v mono">{nextExt != null ? nextExt + "d" : "—"}</span>
+              <span className="hero-kpi-k mono">To next extreme</span>
+            </div>
+          </div>
           {next && (
             <button className="hero-next" style={{ "--c": nc.color }} onClick={() => onSelectEvent(next)} aria-label={`Next catalyst: ${next.title}`}>
               <span className="hero-next-top">
@@ -203,6 +225,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
               )}
             </button>
           )}
+          <span className="hero-meta">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} catalysts tracked · updated {TT.todayISO}</span>
         </div>
         {showScope && (
           <div className="hero-scope">
@@ -211,6 +234,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
               <RadarScope events={events} onSelect={onSelectEvent} activeId={activeId} />
             </div>
             <ScopeLegend />
+            <span className="scope-caption mono">{up.length} contacts in range · 150-day horizon · clockwise = time to event</span>
           </div>
         )}
       </div>
