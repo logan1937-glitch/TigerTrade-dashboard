@@ -256,8 +256,7 @@ body { background: #0a0b0d; }
 .mb-c { font-size: 10px; text-align: right; min-width: 44px; color: var(--dim); }
 .mb-c[data-up="true"] { color: var(--cat-growth); }
 .mb-c[data-up="false"] { color: var(--sev-extreme); }
-.mb-cpi { grid-template-columns: auto 1fr auto auto; align-items: center; }
-.mb-spark { align-self: center; }
+.mb-spark { width: 100%; height: 20px; margin-top: 6px; display: block; opacity: 0.9; }
 @media (max-width: 680px) { .macroboard { width: 100%; } .hero-right { width: 100%; } }
 .hero-title {
   font-family: var(--font-display); font-weight: var(--display-weight);

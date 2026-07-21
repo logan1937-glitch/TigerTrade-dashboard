@@ -296,54 +296,62 @@ export function StockTape({ rows, onPick }) {
 }
 
 /* ---------------------------- MACRO BOARD --------------------------- */
-// tiny inline sparkline for the CPI trend
+// full-width sparkline for the CPI trend line
 function MiniSpark({ data }) {
   if (!data || data.length < 2) return null;
-  const w = 60, h = 16, max = Math.max(...data), min = Math.min(...data);
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / (max - min || 1)) * (h - 2) - 1}`).join(" ");
+  const w = 172, h = 20, max = Math.max(...data), min = Math.min(...data);
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / (max - min || 1)) * (h - 3) - 1.5}`).join(" ");
   const up = data[data.length - 1] >= data[0];
   const c = up ? "var(--sev-extreme)" : "var(--cat-growth)";   // rising inflation reads hot
-  return <svg className="mb-spark" viewBox={`0 0 ${w} ${h}`} width={w} height={h}><polyline points={pts} fill="none" stroke={c} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg className="mb-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"><polyline points={pts} fill="none" stroke={c} strokeWidth="1.4" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
-// live macro instrument panel beside the radar — rates, FX, inflation
+const fmtRate = (v) => v.toFixed(2) + "%";
+const fmtFx = (f) => (f.idx ? f.v.toFixed(2) : f.v.toFixed(f.v >= 100 ? 2 : 4));
+const fmtComm = (v) => "$" + (v >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : v.toFixed(2));
+const bpTxt = (bp) => (bp == null ? "—" : bp === 0 ? "0bp" : `${bp > 0 ? "+" : ""}${bp}bp`);
+const pctTxt = (c) => (c == null ? "—" : c === 0 ? "0.00%" : `${c > 0 ? "+" : ""}${c}%`);
+const dir = (x) => (x == null || x === 0 ? undefined : x > 0);   // neutral when flat
+
+// live macro instrument panel beside the radar — rates, FX, commodities, inflation
 export function MacroBoard({ macro }) {
-  const { rates, fx, cpi } = macro || {};
+  const { rates, fx, comm, cpi } = macro || {};
+  const Row = ({ k, v, c, up }) => (
+    <div className="mb-row">
+      <span className="mb-k mono">{k}</span>
+      <span className="mb-v mono">{v}</span>
+      <span className="mb-c mono" data-up={up}>{c}</span>
+    </div>
+  );
   return (
     <div className="macroboard">
       {rates && rates.length > 0 && (
         <div className="mb-sec">
-          <div className="mb-h mono">US Treasury</div>
-          {rates.map((r) => (
-            <div className="mb-row" key={r.k}>
-              <span className="mb-k mono">{r.k}</span>
-              <span className="mb-v mono">{r.v.toFixed(2)}%</span>
-              <span className="mb-c mono" data-up={r.bp == null ? undefined : r.bp >= 0}>{r.bp == null ? "—" : `${r.bp >= 0 ? "+" : ""}${r.bp}bp`}</span>
-            </div>
-          ))}
+          <div className="mb-h mono">Rates</div>
+          {rates.map((r) => <Row key={r.k} k={r.k} v={fmtRate(r.v)} c={bpTxt(r.bp)} up={dir(r.bp)} />)}
         </div>
       )}
       {fx && fx.length > 0 && (
         <div className="mb-sec">
           <div className="mb-h mono">FX</div>
-          {fx.map((f) => (
-            <div className="mb-row" key={f.k}>
-              <span className="mb-k mono">{f.k}</span>
-              <span className="mb-v mono">{f.v.toFixed(f.v >= 100 ? 2 : 4)}</span>
-              <span className="mb-c mono" data-up={f.chg == null ? undefined : f.chg >= 0}>{f.chg == null ? "—" : `${f.chg >= 0 ? "+" : ""}${f.chg}%`}</span>
-            </div>
-          ))}
+          {fx.map((f) => <Row key={f.k} k={f.k} v={fmtFx(f)} c={pctTxt(f.chg)} up={dir(f.chg)} />)}
+        </div>
+      )}
+      {comm && comm.length > 0 && (
+        <div className="mb-sec">
+          <div className="mb-h mono">Commodities</div>
+          {comm.map((m) => <Row key={m.k} k={m.k} v={fmtComm(m.v)} c={pctTxt(m.chg)} up={dir(m.chg)} />)}
         </div>
       )}
       {cpi && (
         <div className="mb-sec">
           <div className="mb-h mono">Inflation</div>
-          <div className="mb-row mb-cpi">
+          <div className="mb-row">
             <span className="mb-k mono">CPI YoY</span>
-            <MiniSpark data={cpi.spark} />
             <span className="mb-v mono">{cpi.v.toFixed(1)}%</span>
             <span className="mb-c mono" data-up={cpi.chg <= 0} title="change vs ~1 month ago — falling inflation reads green">{cpi.chg > 0 ? "+" : ""}{cpi.chg.toFixed(2)}</span>
           </div>
+          <MiniSpark data={cpi.spark} />
         </div>
       )}
     </div>

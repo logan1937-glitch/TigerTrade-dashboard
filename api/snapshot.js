@@ -184,29 +184,54 @@ async function fmpMacro() {
     return null;
   };
   const out = { asOf: Date.now() };
-
-  // Treasury rates — newest-first daily rows; change = today vs prior day in bps
-  const tFrom = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
   const tTo = new Date().toISOString().slice(0, 10);
+
+  // Rates — Fed funds (policy) + Treasury yields. FF is a monthly print (change
+  // vs prior month, bps); Treasury yields change day-over-day in bps.
+  const rates = [];
+  const ffFrom = new Date(Date.now() - 100 * 86400000).toISOString().slice(0, 10);
+  const ff = await jget([
+    `https://financialmodelingprep.com/stable/economic-indicators?name=federalFunds&from=${ffFrom}&to=${tTo}&apikey=${key}`,
+    `https://financialmodelingprep.com/stable/economics-indicators?name=federalFunds&from=${ffFrom}&to=${tTo}&apikey=${key}`,
+  ]);
+  if (Array.isArray(ff) && ff.length) {
+    const v = +ff[0].value, prev = ff[1] != null ? +ff[1].value : null;
+    if (Number.isFinite(v)) rates.push({ k: "Fed funds", v, bp: prev != null ? Math.round((v - prev) * 100) : null });
+  }
+  const tFrom = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
   const tr = await jget([`https://financialmodelingprep.com/stable/treasury-rates?from=${tFrom}&to=${tTo}&apikey=${key}`]);
   if (Array.isArray(tr) && tr.length) {
     const cur = tr[0], prev = tr[1] || tr[0];
-    out.rates = [["2Y", "year2"], ["10Y", "year10"], ["30Y", "year30"]]
-      .filter(([, f]) => cur[f] != null)
-      .map(([k, f]) => ({ k, v: +cur[f], bp: prev[f] != null ? Math.round((cur[f] - prev[f]) * 100) : null }));
+    for (const [k, f] of [["2Y", "year2"], ["10Y", "year10"], ["30Y", "year30"]]) {
+      if (cur[f] != null) rates.push({ k, v: +cur[f], bp: prev[f] != null ? Math.round((cur[f] - prev[f]) * 100) : null });
+    }
   }
+  if (rates.length) out.rates = rates;
 
-  // FX majors — unified quote endpoint accepts forex symbols; forex-quote fallback
+  // FX majors + DXY (index; DXY needs a higher tier — hidden gracefully if gated)
   const fx = [];
-  for (const [k, sym] of [["EUR/USD", "EURUSD"], ["USD/JPY", "USDJPY"], ["GBP/USD", "GBPUSD"]]) {
+  for (const [k, sym, isIdx] of [["DXY", "DXY", true], ["EUR/USD", "EURUSD"], ["USD/JPY", "USDJPY"], ["GBP/USD", "GBPUSD"]]) {
     const q = await jget([
-      `https://financialmodelingprep.com/stable/quote?symbol=${sym}&apikey=${key}`,
+      `https://financialmodelingprep.com/stable/quote?symbol=${encodeURIComponent(sym)}&apikey=${key}`,
       `https://financialmodelingprep.com/stable/forex-quote?symbol=${sym}&apikey=${key}`,
+      ...(isIdx ? [`https://financialmodelingprep.com/stable/quote?symbol=${encodeURIComponent("^DXY")}&apikey=${key}`] : []),
     ]);
     const o = Array.isArray(q) ? q[0] : q;
-    if (o && o.price != null) fx.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null });
+    if (o && o.price != null) fx.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null, idx: isIdx || undefined });
   }
   if (fx.length) out.fx = fx;
+
+  // Commodities — Gold (available) + WTI (needs a higher tier; hidden if gated)
+  const comm = [];
+  for (const [k, syms] of [["Gold", ["GCUSD"]], ["WTI", ["CLUSD", "WTIUSD"]]]) {
+    const q = await jget(syms.flatMap((s) => [
+      `https://financialmodelingprep.com/stable/commodities-quote?symbol=${s}&apikey=${key}`,
+      `https://financialmodelingprep.com/stable/quote?symbol=${s}&apikey=${key}`,
+    ]));
+    const o = Array.isArray(q) ? q[0] : q;
+    if (o && o.price != null) comm.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null });
+  }
+  if (comm.length) out.comm = comm;
 
   // CPI YoY nowcast — daily series; value + ~1-month change + downsampled spark
   const iFrom = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
@@ -225,7 +250,7 @@ async function fmpMacro() {
     }
   }
 
-  return (out.rates || out.fx || out.cpi) ? out : null;
+  return (out.rates || out.fx || out.comm || out.cpi) ? out : null;
 }
 
 // unify curated sector labels with the FMP taxonomy so buckets don't split
