@@ -169,6 +169,65 @@ async function fmpEarnings(tickers) {
   return null;
 }
 
+// macro board: US Treasury yields, key FX, and the CPI-YoY nowcast + trend.
+// Baked into the nightly snapshot (EOD-consistent with the rest of the app);
+// every piece degrades independently — a failed fetch drops that block, never
+// fabricates. Endpoints verified available on this account's tier.
+async function fmpMacro() {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return null;
+  const jget = async (urls) => {
+    for (const u of urls) {
+      try { const r = await fetch(u); if (!r.ok) continue; const j = await r.json(); if (j && (Array.isArray(j) ? j.length : true)) return j; }
+      catch (e) { console.error("fmp macro:", u, e); }
+    }
+    return null;
+  };
+  const out = { asOf: Date.now() };
+
+  // Treasury rates — newest-first daily rows; change = today vs prior day in bps
+  const tFrom = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
+  const tTo = new Date().toISOString().slice(0, 10);
+  const tr = await jget([`https://financialmodelingprep.com/stable/treasury-rates?from=${tFrom}&to=${tTo}&apikey=${key}`]);
+  if (Array.isArray(tr) && tr.length) {
+    const cur = tr[0], prev = tr[1] || tr[0];
+    out.rates = [["2Y", "year2"], ["10Y", "year10"], ["30Y", "year30"]]
+      .filter(([, f]) => cur[f] != null)
+      .map(([k, f]) => ({ k, v: +cur[f], bp: prev[f] != null ? Math.round((cur[f] - prev[f]) * 100) : null }));
+  }
+
+  // FX majors — unified quote endpoint accepts forex symbols; forex-quote fallback
+  const fx = [];
+  for (const [k, sym] of [["EUR/USD", "EURUSD"], ["USD/JPY", "USDJPY"], ["GBP/USD", "GBPUSD"]]) {
+    const q = await jget([
+      `https://financialmodelingprep.com/stable/quote?symbol=${sym}&apikey=${key}`,
+      `https://financialmodelingprep.com/stable/forex-quote?symbol=${sym}&apikey=${key}`,
+    ]);
+    const o = Array.isArray(q) ? q[0] : q;
+    if (o && o.price != null) fx.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null });
+  }
+  if (fx.length) out.fx = fx;
+
+  // CPI YoY nowcast — daily series; value + ~1-month change + downsampled spark
+  const iFrom = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+  const infl = await jget([
+    `https://financialmodelingprep.com/stable/economic-indicators?name=inflationRate&from=${iFrom}&to=${tTo}&apikey=${key}`,
+    `https://financialmodelingprep.com/stable/economics-indicators?name=inflationRate&from=${iFrom}&to=${tTo}&apikey=${key}`,
+  ]);
+  if (Array.isArray(infl) && infl.length) {
+    const series = infl.map((d) => +d.value).filter((v) => Number.isFinite(v));   // newest-first
+    if (series.length) {
+      const monthAgo = series[Math.min(series.length - 1, 21)];
+      const chron = [...series].reverse();
+      const step = Math.max(1, Math.floor(chron.length / 16));
+      out.cpi = { v: +series[0].toFixed(2), chg: +(series[0] - monthAgo).toFixed(2),
+        asOf: infl[0].date || null, spark: chron.filter((_, i) => i % step === 0).map((v) => +v.toFixed(2)) };
+    }
+  }
+
+  return (out.rates || out.fx || out.cpi) ? out : null;
+}
+
 // unify curated sector labels with the FMP taxonomy so buckets don't split
 const SECTOR_ALIAS = { Financials: "Financial Services", Materials: "Basic Materials" };
 const normSector = (s) => SECTOR_ALIAS[s] || s || "—";
@@ -254,8 +313,9 @@ async function compute() {
 
   const changes = detectChanges(prev, sig, metaOut);
   const earnings = await fmpEarnings(Object.keys(quotes));
+  const macro = await fmpMacro();
 
-  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings };
+  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro };
 }
 
 export default async function handler(req, res) {

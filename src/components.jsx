@@ -159,7 +159,7 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
 }
 
 /* ------------------------------- HERO ------------------------------ */
-export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
+export function Hero({ events, onSelectEvent, activeId, showScope, live, macro }) {
   const ref = useRef(null);
   const onMove = (e) => {
     const el = ref.current; if (!el) return;
@@ -228,13 +228,16 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live }) {
           <span className="hero-meta">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} catalysts tracked · updated {TT.todayISO}</span>
         </div>
         {showScope && (
-          <div className="hero-scope">
-            <div className="scope-frame">
-              <i className="cnr tl" /><i className="cnr tr" /><i className="cnr bl" /><i className="cnr br" />
-              <RadarScope events={events} onSelect={onSelectEvent} activeId={activeId} />
+          <div className="hero-right">
+            {macro && <MacroBoard macro={macro} />}
+            <div className="hero-scope">
+              <div className="scope-frame">
+                <i className="cnr tl" /><i className="cnr tr" /><i className="cnr bl" /><i className="cnr br" />
+                <RadarScope events={events} onSelect={onSelectEvent} activeId={activeId} />
+              </div>
+              <ScopeLegend />
+              <span className="scope-caption mono">{up.length} contacts in range · 150-day horizon · clockwise = time to event</span>
             </div>
-            <ScopeLegend />
-            <span className="scope-caption mono">{up.length} contacts in range · 150-day horizon · clockwise = time to event</span>
           </div>
         )}
       </div>
@@ -289,6 +292,61 @@ export function StockTape({ rows, onPick }) {
         );
       }))}
     </Tape>
+  );
+}
+
+/* ---------------------------- MACRO BOARD --------------------------- */
+// tiny inline sparkline for the CPI trend
+function MiniSpark({ data }) {
+  if (!data || data.length < 2) return null;
+  const w = 60, h = 16, max = Math.max(...data), min = Math.min(...data);
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / (max - min || 1)) * (h - 2) - 1}`).join(" ");
+  const up = data[data.length - 1] >= data[0];
+  const c = up ? "var(--sev-extreme)" : "var(--cat-growth)";   // rising inflation reads hot
+  return <svg className="mb-spark" viewBox={`0 0 ${w} ${h}`} width={w} height={h}><polyline points={pts} fill="none" stroke={c} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+// live macro instrument panel beside the radar — rates, FX, inflation
+export function MacroBoard({ macro }) {
+  const { rates, fx, cpi } = macro || {};
+  return (
+    <div className="macroboard">
+      {rates && rates.length > 0 && (
+        <div className="mb-sec">
+          <div className="mb-h mono">US Treasury</div>
+          {rates.map((r) => (
+            <div className="mb-row" key={r.k}>
+              <span className="mb-k mono">{r.k}</span>
+              <span className="mb-v mono">{r.v.toFixed(2)}%</span>
+              <span className="mb-c mono" data-up={r.bp == null ? undefined : r.bp >= 0}>{r.bp == null ? "—" : `${r.bp >= 0 ? "+" : ""}${r.bp}bp`}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {fx && fx.length > 0 && (
+        <div className="mb-sec">
+          <div className="mb-h mono">FX</div>
+          {fx.map((f) => (
+            <div className="mb-row" key={f.k}>
+              <span className="mb-k mono">{f.k}</span>
+              <span className="mb-v mono">{f.v.toFixed(f.v >= 100 ? 2 : 4)}</span>
+              <span className="mb-c mono" data-up={f.chg == null ? undefined : f.chg >= 0}>{f.chg == null ? "—" : `${f.chg >= 0 ? "+" : ""}${f.chg}%`}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {cpi && (
+        <div className="mb-sec">
+          <div className="mb-h mono">Inflation</div>
+          <div className="mb-row mb-cpi">
+            <span className="mb-k mono">CPI YoY</span>
+            <MiniSpark data={cpi.spark} />
+            <span className="mb-v mono">{cpi.v.toFixed(1)}%</span>
+            <span className="mb-c mono" data-up={cpi.chg <= 0} title="change vs ~1 month ago — falling inflation reads green">{cpi.chg > 0 ? "+" : ""}{cpi.chg.toFixed(2)}</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -241,11 +241,30 @@ body { background: #0a0b0d; }
 .hero-kpi[data-accent="ext"] .hero-kpi-v { color: var(--sev-extreme); }
 .hero-kpi-k { display: flex; align-items: baseline; gap: 5px; font-size: 10px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); white-space: nowrap; }
 .hero-kpi-k small { font-size: 9px; letter-spacing: var(--track-meta); text-transform: none; opacity: 0.8; }
+
+/* right cluster: macro board + radar */
+.hero-right { display: flex; align-items: center; justify-content: flex-end; gap: 24px; flex: 0 1 auto; flex-wrap: wrap; }
+.macroboard { display: flex; flex-direction: column; gap: 13px; width: 204px; padding: 15px 16px;
+  background: color-mix(in oklch, var(--surface) 70%, transparent); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: inset 0 1px 0 var(--edge-hi); }
+.mb-sec { display: flex; flex-direction: column; gap: 5px; }
+.mb-sec + .mb-sec { padding-top: 11px; border-top: 1px solid var(--border); }
+.mb-h { font-size: 9px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
+.mb-row { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 9px; }
+.mb-k { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.mb-v { font-size: 12.5px; font-weight: 700; color: var(--text); text-align: right; }
+.mb-c { font-size: 10px; text-align: right; min-width: 44px; color: var(--dim); }
+.mb-c[data-up="true"] { color: var(--cat-growth); }
+.mb-c[data-up="false"] { color: var(--sev-extreme); }
+.mb-cpi { grid-template-columns: auto 1fr auto auto; align-items: center; }
+.mb-spark { align-self: center; }
+@media (max-width: 680px) { .macroboard { width: 100%; } .hero-right { width: 100%; } }
 .hero-title {
   font-family: var(--font-display); font-weight: var(--display-weight);
   letter-spacing: var(--display-tracking); text-transform: var(--display-transform);
-  font-size: clamp(26px, 3.4vw, 42px); line-height: 0.98; margin: 0; color: var(--text);
-  white-space: nowrap;
+  font-size: clamp(26px, 3.4vw, 42px); line-height: 1.02; margin: 0; color: var(--text);
+  /* wraps only when the 3-column hero gets tight; stays one line when it fits */
+  text-wrap: balance;
 }
 .app[data-dir="signal"] .hero-title {
   color: oklch(0.93 0.05 218);
@@ -696,8 +715,8 @@ body { background: #0a0b0d; }
 .hero-scope { display: flex; flex-direction: column; align-items: center; gap: 14px; flex: 0 0 auto; }
 
 /* ============================ RADAR SCOPE ============================ */
-.scope { position: relative; width: 400px; height: 400px; flex: none; }
-@media (max-width: 1100px) { .scope { width: 300px; height: 300px; } }
+.scope { position: relative; width: 360px; height: 360px; flex: none; }
+@media (max-width: 1200px) { .scope { width: 300px; height: 300px; } }
 .scope-grid { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .scope-ring { fill: none; stroke: var(--border-2); stroke-width: 0.3; opacity: 0.55; }
 .scope-cross { stroke: var(--border); stroke-width: 0.3; }
