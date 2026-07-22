@@ -179,7 +179,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
   const extDays = up.filter((e) => e.sev === "extreme").map(dU).filter((d) => d >= 0).sort((a, b) => a - b);
   const nextExt = extDays.length ? extDays[0] : null;
   return (
-    <div className="hero" ref={ref} onMouseMove={onMove}>
+    <div className="hero hero-cover" ref={ref} onMouseMove={onMove}>
       <div className="hero-glow" />
       <div className="wrap hero-row">
         <div className="hero-left">

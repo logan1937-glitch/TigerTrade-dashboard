@@ -325,9 +325,10 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
           <div className="hero-left">
             <div className="hero-eyebrow mono"><span className="hero-pulse" style={{ background: dotColor }} />{isLive ? "Live relative-strength leadership" : "Relative-strength leadership"}</div>
             <h1 className="hero-title">Leadership Screener</h1>
+            <p className="hero-lede">The full S&amp;P 500 ranked on real relative strength, stage, and breakout quality — the market's leaders surface first, with a buy-point read on every name.</p>
             <span className="hero-meta" style={!isLive && live.status !== "loading" ? { color: "var(--sev-extreme)" } : undefined}>{meta}</span>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="hero-signals">
             <span className="hero-badge" style={{ "--accent": "var(--cat-growth)", color: "var(--cat-growth)" }}>
               <span className="pulse" style={{ background: "var(--cat-growth)" }} />{buyCount} in buy zone</span>
             <span className="hero-badge">{leaders} A-grade leaders</span>

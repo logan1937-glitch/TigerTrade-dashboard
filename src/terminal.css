@@ -228,10 +228,14 @@ body { background: #0a0b0d; }
 
 /* ============================ HERO ============================ */
 .hero { padding: 34px 0 24px; }
-/* center the whole hero group so a wide screen gets symmetric side margins
-   instead of one big dead gap in the middle */
-.hero-row { display: flex; align-items: center; justify-content: center; gap: clamp(28px, 4vw, 60px); flex-wrap: wrap; }
-.hero-left { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; flex: 0 1 540px; min-width: 0; }
+.hero-row { display: flex; align-items: center; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
+.hero-left { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; flex: 1 1 480px; min-width: 0; }
+/* the radar/VIX cover packs three columns — center the group so a wide screen
+   gets symmetric margins instead of a dead gap (screener hero keeps left-aligned) */
+.hero-cover .hero-row { justify-content: center; gap: clamp(28px, 4vw, 60px); }
+.hero-cover .hero-left { flex: 0 1 540px; }
+/* screener hero live-signal badges — pinned to the top-right, not vertically centered */
+.hero-signals { display: flex; gap: 10px; align-items: center; align-self: flex-start; flex-wrap: wrap; margin-top: 6px; }
 /* value-prop line under the title */
 .hero-lede { max-width: 48ch; margin: 5px 0 3px; font-size: 14.5px; line-height: 1.5; color: var(--muted); text-wrap: pretty; }
 /* live event-landscape KPI cluster */
