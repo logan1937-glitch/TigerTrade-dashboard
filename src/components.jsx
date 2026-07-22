@@ -159,7 +159,7 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
 }
 
 /* ------------------------------- HERO ------------------------------ */
-export function Hero({ events, onSelectEvent, activeId, showScope, live, macro }) {
+export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, vix }) {
   const ref = useRef(null);
   const onMove = (e) => {
     const el = ref.current; if (!el) return;
@@ -230,14 +230,16 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro }
         {showScope && (
           <div className="hero-right">
             {macro && <MacroBoard macro={macro} />}
-            <div className="hero-scope">
-              <div className="scope-frame">
-                <i className="cnr tl" /><i className="cnr tr" /><i className="cnr bl" /><i className="cnr br" />
-                <RadarScope events={events} onSelect={onSelectEvent} activeId={activeId} />
+            {vix ? <VixPanel vix={vix} /> : (
+              <div className="hero-scope">
+                <div className="scope-frame">
+                  <i className="cnr tl" /><i className="cnr tr" /><i className="cnr bl" /><i className="cnr br" />
+                  <RadarScope events={events} onSelect={onSelectEvent} activeId={activeId} />
+                </div>
+                <ScopeLegend />
+                <span className="scope-caption mono">{up.length} contacts in range · 150-day horizon · clockwise = time to event</span>
               </div>
-              <ScopeLegend />
-              <span className="scope-caption mono">{up.length} contacts in range · 150-day horizon · clockwise = time to event</span>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -354,6 +356,99 @@ export function MacroBoard({ macro }) {
           <MiniSpark data={cpi.spark} />
         </div>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------ VIX PANEL ------------------------------ */
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmtShortDate = (iso) => { const [y, m, d] = String(iso).split("-"); return m ? `${MON[+m - 1]} ${+d}` : iso; };
+const VIX_REGIME = (v) =>
+  v == null ? { k: "—", c: "var(--muted)" } :
+  v < 15 ? { k: "Low", c: "var(--cat-growth)" } :
+  v < 20 ? { k: "Normal", c: "var(--accent)" } :
+  v < 28 ? { k: "Elevated", c: "var(--sev-high)" } :
+           { k: "Stress", c: "var(--sev-extreme)" };
+
+// the volatility cover panel — replaces the radar: current VIX + regime, an
+// interactive ~3-month trend (50-day avg line, hover crosshair), 52-wk range
+export function VixPanel({ vix }) {
+  const { level, chg, avg50, hi52, lo52, series } = vix;
+  const [hi, setHi] = useState(null);
+  const reg = VIX_REGIME(level);
+  const data = series && series.length > 1 ? series : null;
+  const W = 344, H = 132, padT = 10, padB = 8;
+  let chart = null;
+  if (data) {
+    const vs = data.map((p) => p.v);
+    const lo = Math.min(...vs, avg50 == null ? Infinity : avg50);
+    const hiV = Math.max(...vs, avg50 == null ? -Infinity : avg50);
+    const span = hiV - lo || 1;
+    const x = (i) => (i / (data.length - 1)) * W;
+    const y = (v) => padT + (1 - (v - lo) / span) * (H - padT - padB);
+    chart = { x, y,
+      line: data.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" "),
+      area: `0,${H} ${data.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ")} ${W},${H}`,
+      avgY: avg50 != null ? y(avg50) : null };
+  }
+  const hv = hi != null && data ? data[hi] : null;
+  const onMove = (e) => {
+    if (!data) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const rel = (e.clientX - r.left) / r.width;
+    setHi(Math.max(0, Math.min(data.length - 1, Math.round(rel * (data.length - 1)))));
+  };
+  const rangePos = hi52 != null && lo52 != null && hi52 > lo52 ? ((level - lo52) / (hi52 - lo52)) * 100 : null;
+
+  return (
+    <div className="vixpanel" style={{ "--reg": reg.c }}>
+      <div className="vix-head">
+        <span className="vix-kicker mono">CBOE Volatility · VIX</span>
+        <span className="vix-regime mono">{reg.k}</span>
+      </div>
+      <div className="vix-lvlrow">
+        <span className="vix-level">{level != null ? level.toFixed(2) : "—"}</span>
+        {chg != null && <span className="vix-chg mono" data-calm={chg <= 0}>{chg > 0 ? "▲ +" : "▼ −"}{Math.abs(chg).toFixed(2)}%</span>}
+        <span className="vix-sub mono">1-day</span>
+      </div>
+      {chart ? (
+        <div className="vix-chartwrap">
+          <svg className="vix-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
+            onMouseMove={onMove} onMouseLeave={() => setHi(null)} role="img" aria-label="VIX trend, about three months">
+            <defs>
+              <linearGradient id="vixg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--reg)" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="var(--reg)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {chart.avgY != null && <line x1="0" y1={chart.avgY} x2={W} y2={chart.avgY} className="vix-avg" />}
+            <polygon points={chart.area} fill="url(#vixg)" />
+            <polyline points={chart.line} className="vix-line" pathLength="1" />
+            {hv ? (
+              <>
+                <line x1={chart.x(hi)} y1={padT} x2={chart.x(hi)} y2={H} className="vix-cross" />
+                <circle cx={chart.x(hi)} cy={chart.y(hv.v)} r="3.2" className="vix-dot" />
+              </>
+            ) : (
+              <circle cx={chart.x(data.length - 1)} cy={chart.y(data[data.length - 1].v)} r="3.2" className="vix-dot vix-dot-live" />
+            )}
+          </svg>
+          {chart.avgY != null && <span className="vix-avg-lab mono" style={{ top: `${(chart.avgY / H) * 100}%` }}>50-day {avg50.toFixed(1)}</span>}
+          {hv && (
+            <div className="vix-tip mono" style={{ left: `${(chart.x(hi) / W) * 100}%`, transform: hi > data.length * 0.66 ? "translateX(-100%)" : hi < data.length * 0.33 ? "none" : "translateX(-50%)" }}>
+              <b>{hv.v.toFixed(2)}</b> {fmtShortDate(hv.d)}
+            </div>
+          )}
+        </div>
+      ) : <div className="vix-chart-empty mono">trend loading…</div>}
+      {rangePos != null && (
+        <div className="vix-range">
+          <span className="vix-range-lab mono">{lo52.toFixed(1)}</span>
+          <div className="vix-range-bar"><i style={{ left: `${Math.max(0, Math.min(100, rangePos))}%` }} /></div>
+          <span className="vix-range-lab mono">{hi52.toFixed(1)}</span>
+        </div>
+      )}
+      <span className="vix-foot mono">52-week range · fear gauge</span>
     </div>
   );
 }

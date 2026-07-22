@@ -45,6 +45,7 @@ export default function App() {
   const [changes, setChanges] = useState(null); // day-over-day transitions from the snapshot
   const [earnings, setEarnings] = useState(null); // { TK: { d: ISO date, t: "bmo"|"amc"|null } } — next report per name
   const [macro, setMacro] = useState(null);      // { rates, fx, cpi } — treasury/FX/inflation board on the radar cover
+  const [vix, setVix] = useState(null);          // { level, chg, avg50, hi52, lo52, series } — VIX cover panel
   const [econ, setEcon] = useState(null);       // live economic calendar (null = unavailable)
 
   // custom tickers — look up ANY symbol on demand (unlimited search)
@@ -289,6 +290,7 @@ export default function App() {
             setChanges(snap.changes || null);
             setEarnings(snap.earnings || null);
             setMacro(snap.macro || null);
+            setVix(snap.vix || null);
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
@@ -425,7 +427,7 @@ export default function App() {
           : <StockTape rows={csData.list} onPick={openStock} />}
         {product === "radar" ? (
           <>
-            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} live={!!econ} macro={macro} />
+            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} live={!!econ} macro={macro} vix={vix} />
             <StatStrip events={allEvents} />
             <SubNav tab={tab} setTab={setTab} counts={events.length} />
             {tab === "radar" && <RadarView {...radarProps} />}

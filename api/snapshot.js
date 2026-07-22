@@ -253,6 +253,43 @@ async function fmpMacro() {
   return (out.rates || out.fx || out.comm || out.cpi) ? out : null;
 }
 
+// CBOE VIX — the volatility gauge that anchors the cover. Quote (level, change,
+// 50-day avg, 52-wk range) + ~3 months of daily history for the trend chart.
+// Verified on this account's tier (unlike DXY, the ^VIX index is accessible).
+async function fmpVix() {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return null;
+  const V = encodeURIComponent("^VIX");
+  const jget = async (urls) => {
+    for (const u of urls) {
+      try { const r = await fetch(u); if (!r.ok) continue; const j = await r.json(); if (j && (Array.isArray(j) ? j.length : true)) return j; }
+      catch (e) { console.error("fmp vix:", u, e); }
+    }
+    return null;
+  };
+  const q = await jget([`https://financialmodelingprep.com/stable/quote?symbol=${V}&apikey=${key}`]);
+  const o = Array.isArray(q) ? q[0] : q;
+  const from = new Date(Date.now() - 100 * 86400000).toISOString().slice(0, 10);
+  const to = new Date().toISOString().slice(0, 10);
+  const h = await jget([
+    `https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=${V}&from=${from}&to=${to}&apikey=${key}`,
+    `https://financialmodelingprep.com/stable/historical-price-eod-light?symbol=${V}&from=${from}&to=${to}&apikey=${key}`,
+  ]);
+  const rows = Array.isArray(h) ? h.map((d) => ({ d: String(d.date).slice(0, 10), v: +(d.price ?? d.close) })).filter((r) => Number.isFinite(r.v)) : [];
+  if (!o && rows.length < 2) return null;
+  const level = o && o.price != null ? +o.price : rows[0]?.v;
+  const chg = o && o.changePercentage != null ? +(+o.changePercentage).toFixed(2)
+    : rows.length >= 2 ? +(((rows[0].v - rows[1].v) / rows[1].v) * 100).toFixed(2) : null;
+  const series = rows.slice(0, 66).reverse().map((r) => ({ d: r.d, v: +r.v.toFixed(2) }));   // chronological
+  return {
+    level: level != null ? +level.toFixed(2) : null, chg,
+    avg50: o && o.priceAvg50 != null ? +(+o.priceAvg50).toFixed(2) : null,
+    hi52: o && o.yearHigh != null ? +o.yearHigh : null,
+    lo52: o && o.yearLow != null ? +o.yearLow : null,
+    series,
+  };
+}
+
 // unify curated sector labels with the FMP taxonomy so buckets don't split
 const SECTOR_ALIAS = { Financials: "Financial Services", Materials: "Basic Materials" };
 const normSector = (s) => SECTOR_ALIAS[s] || s || "—";
@@ -339,8 +376,9 @@ async function compute() {
   const changes = detectChanges(prev, sig, metaOut);
   const earnings = await fmpEarnings(Object.keys(quotes));
   const macro = await fmpMacro();
+  const vix = await fmpVix();
 
-  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro };
+  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix };
 }
 
 export default async function handler(req, res) {
