@@ -341,14 +341,14 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
           <div className="statgrid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             {market ? (
               <>
-                <div className="statcell reveal" data-soon={market.trend === "Confirmed Uptrend"} style={{ "--i": 0 }}>
+                <div className="statcell reveal" data-soon={market.trend === "Confirmed Uptrend"} data-tone={market.trend === "Confirmed Uptrend" ? "good" : market.trend === "Market In Correction" ? "bad" : "warn"} style={{ "--i": 0 }}>
                   <div className="lab">Market Trend</div>
                   <div className="val" style={{ fontSize: 18, color: market.trend === "Confirmed Uptrend" ? "var(--cat-growth)" : market.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--sev-high)" }}>{market.trend}</div>
                   <div className="tm mono">{market.trend === "Confirmed Uptrend" ? "buying permitted" : "risk management first"}</div>
                 </div>
-                <div className="statcell reveal" style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">{market.distDays}</div><div className="tm mono">S&amp;P · rolling 25-session</div></div>
-                <div className="statcell reveal" style={{ "--i": 2 }}><div className="lab">Last Power Day</div><div className="val">{(market.lastFTD || "—").toUpperCase()}</div><div className="tm mono">1.25%+ gain on volume</div></div>
-                <div className="statcell reveal" style={{ "--i": 3 }}><div className="lab">New Highs / Lows</div><div className="val">{market.breadth.newHighs} / {market.breadth.newLows}</div><div className="tm mono">tracked universe ({market.breadth.n})</div></div>
+                <div className="statcell reveal" data-tone={market.distDays <= 3 ? "good" : market.distDays <= 5 ? "warn" : "bad"} style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">{market.distDays}</div><div className="tm mono">S&amp;P · rolling 25-session</div></div>
+                <div className="statcell reveal" data-tone="info" style={{ "--i": 2 }}><div className="lab">Last Power Day</div><div className="val">{(market.lastFTD || "—").toUpperCase()}</div><div className="tm mono">1.25%+ gain on volume</div></div>
+                <div className="statcell reveal" data-tone={market.breadth.newHighs > market.breadth.newLows ? "good" : market.breadth.newLows > market.breadth.newHighs ? "bad" : "info"} style={{ "--i": 3 }}><div className="lab">New Highs / Lows</div><div className="val">{market.breadth.newHighs} / {market.breadth.newLows}</div><div className="tm mono">tracked universe ({market.breadth.n})</div></div>
               </>
             ) : (
               <>

@@ -368,11 +368,22 @@ body { background: #0a0b0d; }
 .statcell .tm { font-family: var(--font-mono); font-size: 12px; margin-top: 3px; }
 .statcell[data-soon="true"] .tm { color: var(--accent); }
 .statcell .tm { color: var(--dim); }
+/* radar strip: jade rail on an imminent (T≤7d) event */
 .statcell[data-soon="true"]::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent);
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); border-radius: 0 2px 2px 0;
 }
-.app[data-dir="obsidian"] .statcell:first-child[data-soon="true"]::before,
-.app[data-dir="signal"] .statcell:first-child[data-soon="true"]::before { left: 0; }
+/* screener internals: state-colored rail (overrides soon when a cell has both) */
+.statcell[data-tone]::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; border-radius: 0 2px 2px 0;
+}
+.statcell[data-tone="good"]::before { background: var(--cat-growth); }
+.statcell[data-tone="warn"]::before { background: var(--sev-high); }
+.statcell[data-tone="bad"]::before  { background: var(--sev-extreme); }
+.statcell[data-tone="info"]::before { background: var(--accent); }
+/* faint state wash so the whole tile carries a whisper of its color */
+.statcell[data-tone="good"] { background: color-mix(in oklch, var(--cat-growth) 4%, transparent); }
+.statcell[data-tone="warn"] { background: color-mix(in oklch, var(--sev-high) 4%, transparent); }
+.statcell[data-tone="bad"]  { background: color-mix(in oklch, var(--sev-extreme) 5%, transparent); }
 
 /* ============================ SUB NAV ============================ */
 .subnav { display: flex; gap: 4px; padding: 14px 0 0; border-bottom: 1px solid var(--border); margin-bottom: 22px; }
