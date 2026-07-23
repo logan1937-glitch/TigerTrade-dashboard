@@ -158,6 +158,15 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
   );
 }
 
+/* small info affordance — holds the descriptive blurb off the main layout */
+export function InfoDot({ text }) {
+  return (
+    <span className="infodot" tabIndex={0} role="note" aria-label={text}>i
+      <span className="infodot-pop">{text}</span>
+    </span>
+  );
+}
+
 /* ------------------------------- HERO ------------------------------ */
 export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, vix }) {
   const ref = useRef(null);
@@ -184,8 +193,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
       <div className="wrap hero-row">
         <div className="hero-left">
           <div className="hero-eyebrow mono"><span className="hero-pulse" />Live macro-event surveillance</div>
-          <h1 className="hero-title">Volatility <span className="accentword">·</span> Momentum Radar</h1>
-          <p className="hero-lede">The scheduled catalysts that move volatility — rates, liquidity, data, and geopolitics — mapped by proximity and sized by expected impact.</p>
+          <h1 className="hero-title">Volatility <span className="accentword">·</span> Momentum Radar<InfoDot text="The scheduled catalysts that move volatility — rates, liquidity, data, and geopolitics — mapped by proximity and sized by expected impact." /></h1>
           <div className="hero-kpis">
             <div className="hero-kpi">
               <span className="hero-kpi-v mono">{thisWeek}</span>

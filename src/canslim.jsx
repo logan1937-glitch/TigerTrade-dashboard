@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
-import { SearchIcon, StarBtn } from "./components.jsx";
+import { SearchIcon, StarBtn, InfoDot } from "./components.jsx";
 import { RSLine, BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
 
@@ -324,8 +324,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         <div className="wrap hero-row">
           <div className="hero-left">
             <div className="hero-eyebrow mono"><span className="hero-pulse" style={{ background: dotColor }} />{isLive ? "Live relative-strength leadership" : "Relative-strength leadership"}</div>
-            <h1 className="hero-title">Leadership Screener</h1>
-            <p className="hero-lede">The full S&amp;P 500 ranked on real relative strength, stage, and breakout quality — the market's leaders surface first, with a buy-point read on every name.</p>
+            <h1 className="hero-title">Leadership Screener<InfoDot text="The full S&P 500 ranked on real relative strength, stage, and breakout quality — the market's leaders surface first, with a buy-point read on every name." /></h1>
             <span className="hero-meta" style={!isLive && live.status !== "loading" ? { color: "var(--sev-extreme)" } : undefined}>{meta}</span>
           </div>
           <div className="hero-signals">
