@@ -232,7 +232,7 @@ body { background: #0a0b0d; }
 .hero-left { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; flex: 1 1 480px; min-width: 0; }
 /* the radar/VIX cover packs three columns — center the group so a wide screen
    gets symmetric margins instead of a dead gap (screener hero keeps left-aligned) */
-.hero-cover .hero-row { justify-content: center; gap: clamp(28px, 4vw, 60px); }
+.hero-cover .hero-row { justify-content: center; align-items: flex-start; gap: clamp(28px, 4vw, 60px); }
 .hero-cover .hero-left { flex: 0 1 440px; }   /* smaller title → less left dominance, more room for the data columns */
 /* screener hero live-signal badges — pinned to the top-right, not vertically centered */
 .hero-signals { display: flex; gap: 10px; align-items: center; align-self: flex-start; flex-wrap: wrap; margin-top: 6px; }
@@ -249,12 +249,17 @@ body { background: #0a0b0d; }
 .hero-kpi-k { display: flex; flex-direction: column; gap: 1px; font-size: 9.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); white-space: nowrap; }
 .hero-kpi-k small { font-size: 8.5px; letter-spacing: var(--track-meta); text-transform: none; opacity: 0.85; }
 
-/* right cluster: macro board + radar */
-.hero-right { display: flex; align-items: center; justify-content: flex-end; gap: 24px; flex: 0 1 auto; flex-wrap: wrap; }
-.macroboard { display: flex; flex-direction: column; gap: 14px; width: 244px; padding: 17px 19px;
-  background: color-mix(in oklch, var(--surface) 70%, transparent); border: 1px solid var(--border);
-  border-radius: var(--radius); box-shadow: inset 0 1px 0 var(--edge-hi); }
-.mb-sec { display: flex; flex-direction: column; gap: 6px; }
+/* right cluster: the two data panels sit as an equal-height, top-aligned pair */
+.hero-right { display: flex; align-items: stretch; justify-content: flex-end; gap: 20px; flex: 0 1 auto; flex-wrap: wrap; }
+/* shared panel chrome — same surface gradient, border, edge highlight and depth
+   on both the macro board and the VIX panel so they read as one system */
+.macroboard, .vixpanel {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 86%, transparent), color-mix(in oklch, var(--surface) 60%, transparent));
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 18px 46px -30px rgba(0,0,0,0.7);
+}
+.macroboard { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; width: 246px; padding: 18px 20px; }
+.mb-sec { display: flex; flex-direction: column; gap: 7px; }
 .mb-sec + .mb-sec { padding-top: 12px; border-top: 1px solid var(--border); }
 .mb-h { font-size: 9px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
 .mb-row { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 12px; }
@@ -267,9 +272,9 @@ body { background: #0a0b0d; }
 @media (max-width: 680px) { .macroboard { width: 100%; } .hero-right { width: 100%; } }
 
 /* ===================== VIX PANEL (cover centerpiece) ===================== */
-.vixpanel { width: 372px; padding: 16px 18px 15px; border-radius: var(--radius);
-  background: color-mix(in oklch, var(--surface) 70%, transparent); border: 1px solid var(--border);
-  box-shadow: inset 0 1px 0 var(--edge-hi); display: flex; flex-direction: column; gap: 8px; }
+.vixpanel { width: 372px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 9px; }
+/* chart absorbs any extra height so the panel matches the macro board exactly */
+.vix-chartwrap { flex: 1 1 auto; min-height: 148px; }
 .vix-head { display: flex; align-items: center; justify-content: space-between; }
 .vix-kicker { font-size: 9.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
 /* matches the app-standard .badge (EXTREME etc.) — same radius / padding / weight */
@@ -283,7 +288,7 @@ body { background: #0a0b0d; }
 .vix-chg[data-calm="true"] { color: var(--cat-growth); }
 .vix-sub { font-size: 10px; color: var(--dim); margin-left: auto; }
 .vix-chartwrap { position: relative; margin-top: 2px; }
-.vix-chart { display: block; width: 100%; height: 132px; overflow: visible; }
+.vix-chart { display: block; width: 100%; height: 100%; min-height: 148px; overflow: visible; }
 .vix-line { fill: none; stroke: var(--reg); stroke-width: 2.4; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 .vix-avg { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.5; }
 .vix-avg-lab { position: absolute; right: 2px; transform: translateY(-50%); font-size: 8.5px; color: var(--muted); background: color-mix(in oklch, var(--panel) 70%, transparent); padding: 0 3px; border-radius: 3px; pointer-events: none; }
@@ -303,6 +308,21 @@ body { background: #0a0b0d; }
   background: var(--reg); border: 2px solid var(--panel); box-shadow: 0 0 0 1px color-mix(in oklch, var(--reg) 60%, transparent); }
 .vix-foot { font-size: 9px; letter-spacing: var(--track-meta); color: var(--dim); text-align: center; margin-top: 1px; }
 @media (max-width: 680px) { .vixpanel { width: 100%; } }
+
+/* loading skeletons — keep both panels' shells stable until the snapshot lands
+   (prevents the old radar-then-VIX flash and any layout shift) */
+.skel { display: block; border-radius: 5px;
+  background: linear-gradient(90deg, color-mix(in oklch, var(--muted) 9%, transparent) 25%, color-mix(in oklch, var(--muted) 20%, transparent) 37%, color-mix(in oklch, var(--muted) 9%, transparent) 63%);
+  background-size: 300% 100%; animation: skelShimmer 1.5s ease-in-out infinite; }
+@keyframes skelShimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.skel-chip { width: 58px; height: 20px; }
+.skel-lvl { width: 132px; height: 34px; border-radius: 6px; }
+.skel-fill { width: 100%; height: 100%; min-height: 148px; border-radius: 7px; }
+.skel-rlab { width: 30px; height: 13px; flex: none; }
+.skel-rbar { flex: 1; height: 6px; border-radius: 3px; }
+.skel-k { width: 62px; height: 12px; }
+.skel-v { width: 46px; height: 12px; justify-self: end; grid-column: 2 / 4; }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
 .hero-title {
   font-family: var(--font-display); font-weight: var(--display-weight);
   letter-spacing: var(--display-tracking); text-transform: var(--display-transform);

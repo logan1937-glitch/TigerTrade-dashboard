@@ -237,17 +237,8 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
         </div>
         {showScope && (
           <div className="hero-right">
-            {macro && <MacroBoard macro={macro} />}
-            {vix ? <VixPanel vix={vix} /> : (
-              <div className="hero-scope">
-                <div className="scope-frame">
-                  <i className="cnr tl" /><i className="cnr tr" /><i className="cnr bl" /><i className="cnr br" />
-                  <RadarScope events={events} onSelect={onSelectEvent} activeId={activeId} />
-                </div>
-                <ScopeLegend />
-                <span className="scope-caption mono">{up.length} contacts in range · 150-day horizon · clockwise = time to event</span>
-              </div>
-            )}
+            <MacroBoard macro={macro} />
+            <VixPanel vix={vix} />
           </div>
         )}
       </div>
@@ -326,6 +317,20 @@ const dir = (x) => (x == null || x === 0 ? undefined : x > 0);   // neutral when
 // live macro instrument panel beside the radar — rates, FX, commodities, inflation
 export function MacroBoard({ macro }) {
   const { rates, fx, comm, cpi } = macro || {};
+  if (!rates && !fx && !comm && !cpi) {
+    return (
+      <div className="macroboard" aria-busy="true">
+        {[["Rates", 4], ["FX", 3], ["Commodities", 1], ["Inflation", 1]].map(([h, n]) => (
+          <div className="mb-sec" key={h}>
+            <div className="mb-h mono">{h}</div>
+            {Array.from({ length: n }).map((_, j) => (
+              <div className="mb-row" key={j}><span className="skel skel-k" /><span className="skel skel-v" /></div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
   const Row = ({ k, v, c, up }) => (
     <div className="mb-row">
       <span className="mb-k mono">{k}</span>
@@ -381,8 +386,20 @@ const VIX_REGIME = (v) =>
 // the volatility cover panel — replaces the radar: current VIX + regime, an
 // interactive ~3-month trend (50-day avg line, hover crosshair), 52-wk range
 export function VixPanel({ vix }) {
-  const { level, chg, avg50, hi52, lo52, series } = vix;
   const [hi, setHi] = useState(null);
+  // stable skeleton until the snapshot arrives — no radar-then-VIX flash, no layout shift
+  if (!vix || !vix.series || vix.series.length < 2) {
+    return (
+      <div className="vixpanel" style={{ "--reg": "var(--muted)" }} aria-busy="true">
+        <div className="vix-head"><span className="vix-kicker mono">CBOE Volatility · VIX</span><span className="skel skel-chip" /></div>
+        <div className="vix-lvlrow"><span className="skel skel-lvl" /></div>
+        <div className="vix-chartwrap"><span className="skel skel-fill" /></div>
+        <div className="vix-range"><span className="skel skel-rlab" /><span className="skel skel-rbar" /><span className="skel skel-rlab" /></div>
+        <span className="vix-foot mono">52-week range · fear gauge</span>
+      </div>
+    );
+  }
+  const { level, chg, avg50, hi52, lo52, series } = vix;
   const reg = VIX_REGIME(level);
   const data = series && series.length > 1 ? series : null;
   const W = 344, H = 132, padT = 10, padB = 8;
