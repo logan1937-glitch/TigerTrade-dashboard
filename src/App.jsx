@@ -169,21 +169,14 @@ export default function App() {
       } else if (r.coverage === "signals") {
         status = r.sig.stage === 2 && r.sig.off52 <= 6 ? "buy" : null;
       }
-      // keep the LEADERS 'L' chip + the market 'S' factor in sync with real data
+      // LEADERS scorecard — one honest path for EVERY name (curated included).
+      // Technical factors (L, A, the breakout E, S) compute live from real
+      // signals; fundamental slots (earnings E, durable D, sponsorship R) start
+      // as pass:null "needs data" and the drawer fills E/D from real filings on
+      // open. No editorial/fabricated fundamentals are used anywhere.
       let breakdown = r.breakdown;
       let passCount = r.pass;
-      if (r.coverage === "full" && breakdown.length) {
-        breakdown = breakdown.map((b) => {
-          if (b.letter === "L") return { ...b, pass: rs >= 85, value: `RS ${rs} · grp #${r.groupRank}` };
-          if (b.key === "f7" && market) return { ...b, pass: market.trend === "Confirmed Uptrend", value: market.trend };
-          return b;
-        });
-        passCount = breakdown.filter((b) => b.pass).length;
-      } else if (r.sig) {
-        // every name gets the LEADERS scorecard. Technical factors (L, A, the
-        // breakout E, S) compute live from real signals; fundamental slots
-        // (earnings E, D, R) start as pass:null "needs data" — the drawer fills
-        // E and D from real filings on open, and NOTHING here fabricates a pass.
+      if (r.sig) {
         const g = r.sig;
         breakdown = [
           { key: "f1", letter: "L", name: "Leadership (RS)", value: `RS ${rs}`, pass: rs >= 85,
@@ -197,7 +190,7 @@ export default function App() {
           { key: "f5", letter: "E", name: "Emerging breakout", value: g.atHigh ? "At 52-wk high" : g.off52 != null ? `−${g.off52}% off high` : "—", pass: !!(g.atHigh || (g.off52 != null && g.off52 <= 3)),
             note: "Price at — or within 3% of — a 52-week high." },
           { key: "f6", letter: "R", name: "Rising sponsorship", value: "needs data", pass: null,
-            note: "Institutional accumulation — holdings data not yet wired for extended names." },
+            note: "Institutional accumulation — holdings data not yet wired." },
           { key: "f7", letter: "S", name: "Setup — market", value: market ? market.trend : "—", pass: market ? market.trend === "Confirmed Uptrend" : null,
             note: "Buy only when the general market is in a confirmed uptrend." },
         ];

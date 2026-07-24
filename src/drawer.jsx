@@ -146,10 +146,12 @@ async function fetchProfile(tk) {
     return d;
   } catch { return null; }
 }
-// real EPS growth for the two fundamental LEADERS slots — one income-statement
-// call per name (17 quarters, diluted EPS), cached a day. epsQ = latest quarter
-// vs same quarter a year ago; epsA = 3-yr CAGR of trailing-4-quarter EPS.
+// real fundamentals — replaces the old editorial figures. One income-statement
+// call (17 quarters → EPS + revenue growth) plus one ratios-TTM call (ROE, net
+// margin), cached a day. epsQ/salesQ = latest quarter vs the year-ago quarter;
+// epsA = 3-yr CAGR of trailing-4-quarter EPS. Nothing here is fabricated.
 const epsCache = new Map();
+const num = (...vals) => { for (const v of vals) if (v != null && Number.isFinite(+v)) return +v; return null; };
 async function fetchEps(tk) {
   if (epsCache.has(tk)) return epsCache.get(tk);
   try {
@@ -157,11 +159,13 @@ async function fetchEps(tk) {
     if (raw) { const { t, d } = JSON.parse(raw); if (Date.now() - t < 864e5) { epsCache.set(tk, d); return d; } }
   } catch {}
   try {
-    const r = await fetch(`/api/fmp?endpoint=income-statement&symbol=${encodeURIComponent(tk)}&period=quarter&limit=17`);
-    if (!r.ok) return null;
-    const j = await r.json();
-    if (!Array.isArray(j) || j.length < 5) return null;
-    const eps = j.map((q) => (q.epsDiluted ?? q.eps ?? null));   // newest first
+    const [incRes, ratRes] = await Promise.all([
+      fetch(`/api/fmp?endpoint=income-statement&symbol=${encodeURIComponent(tk)}&period=quarter&limit=17`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(`/api/fmp?endpoint=ratios-ttm&symbol=${encodeURIComponent(tk)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]);
+    if (!Array.isArray(incRes) || incRes.length < 5) return null;
+    const eps = incRes.map((q) => (q.epsDiluted ?? q.eps ?? null));   // newest first
+    const rev = incRes.map((q) => (q.revenue ?? null));
     let epsQ = null, epsQNew = false;
     if (eps[0] != null && eps[4] != null) {
       if (eps[4] > 0) epsQ = +(((eps[0] - eps[4]) / eps[4]) * 100).toFixed(0);
@@ -174,7 +178,12 @@ async function fetchEps(tk) {
       if (a3 > 0 && a0 > 0) epsA = +((Math.pow(a0 / a3, 1 / 3) - 1) * 100).toFixed(0);
       else if (a3 <= 0 && a0 > 0) epsANew = true;
     }
-    const d = { epsQ, epsQNew, epsA, epsANew };
+    const salesQ = rev[0] != null && rev[4] != null && rev[4] > 0 ? +(((rev[0] - rev[4]) / rev[4]) * 100).toFixed(0) : null;
+    const ro = Array.isArray(ratRes) ? ratRes[0] : ratRes;
+    const roeRaw = ro && num(ro.returnOnEquityTTM, ro.returnOnEquity);
+    const marRaw = ro && num(ro.netProfitMarginTTM, ro.netIncomeMarginTTM, ro.netProfitMargin);
+    const pct = (v) => (v == null ? null : Math.abs(v) <= 3 ? +(v * 100).toFixed(1) : +v.toFixed(1)); // ratio (0–1) → %
+    const d = { epsQ, epsQNew, epsA, epsANew, salesQ, roe: pct(roeRaw), netMargin: pct(marRaw) };
     epsCache.set(tk, d);
     try { localStorage.setItem("tt_eps_" + tk, JSON.stringify({ t: Date.now(), d })); } catch {}
     return d;
@@ -211,26 +220,28 @@ export function StockDrawerBody({ stock, onClose }) {
 
   // fill the fundamental LEADERS slots (E, D) from real filings when the
   // scorecard has "needs data" placeholders
-  const [eps, setEps] = useState(null);
+  const [eps, setEps] = useState("loading");
   useEffect(() => {
     let alive = true;
-    setEps(null);
-    if (s.breakdown?.some((b) => b.pass === null && (b.key === "f2" || b.key === "f4"))) {
-      fetchEps(s.tk).then((d) => { if (alive) setEps(d); });
-    }
+    setEps("loading");
+    // fetch real fundamentals for every name — fills the LEADERS E/D slots AND
+    // the Fundamentals block (EPS/sales growth, ROE, net margin)
+    fetchEps(s.tk).then((d) => { if (alive) setEps(d); });
     return () => { alive = false; };
   }, [s.tk, s.breakdown]);
   const shownBreakdown = useMemo(() => {
     if (!s.breakdown || !s.breakdown.length) return [];
+    const e = eps && eps !== "loading" ? eps : null;   // null while loading / on failure
     return s.breakdown.map((b) => {
-      if (eps && b.pass === null && b.key === "f2") {
-        if (eps.epsQNew) return { ...b, value: "Turned profitable YoY", pass: true };
-        if (eps.epsQ != null) return { ...b, value: `${eps.epsQ >= 0 ? "+" : ""}${eps.epsQ}% EPS vs yr-ago qtr`, pass: eps.epsQ >= 25 };
+      if (eps === "loading" && b.pass === null && (b.key === "f2" || b.key === "f4")) return { ...b, value: "loading…" };
+      if (e && b.pass === null && b.key === "f2") {
+        if (e.epsQNew) return { ...b, value: "Turned profitable YoY", pass: true };
+        if (e.epsQ != null) return { ...b, value: `${e.epsQ >= 0 ? "+" : ""}${e.epsQ}% EPS vs yr-ago qtr`, pass: e.epsQ >= 25 };
         return { ...b, value: "no filings data" };
       }
-      if (eps && b.pass === null && b.key === "f4") {
-        if (eps.epsANew) return { ...b, value: "Turned profitable (3-yr)", pass: true };
-        if (eps.epsA != null) return { ...b, value: `${eps.epsA >= 0 ? "+" : ""}${eps.epsA}%/yr · 3-yr EPS`, pass: eps.epsA >= 25 };
+      if (e && b.pass === null && b.key === "f4") {
+        if (e.epsANew) return { ...b, value: "Turned profitable (3-yr)", pass: true };
+        if (e.epsA != null) return { ...b, value: `${e.epsA >= 0 ? "+" : ""}${e.epsA}%/yr · 3-yr EPS`, pass: e.epsA >= 25 };
         return { ...b, value: "no filings data" };
       }
       return b;
@@ -390,18 +401,31 @@ export function StockDrawerBody({ stock, onClose }) {
       </div>
       )}
 
-      {s.f && (
-      <div className="dr-sec">
-        <div className="dr-sec-h"><h3>Fundamentals</h3><span className="dr-sec-sub mono">editorial estimates — verify before trading</span></div>
-        <div className="dr-funds">
-          {[["EPS, last Q", "+" + s.f.epsQ + "%"], ["EPS, 3-yr", "+" + s.f.epsA + "%"], ["Sales, last Q", "+" + s.f.salesQ + "%"],
-            ["ROE", s.f.roe + "%"], ["Net margin", s.f.margin + "%"],
-            ["Fund ownership", s.f.funds + "%"], ["Acc/Dist", s.f.acc]].map(([k, v]) => (
-            <div className="dr-fund" key={k}><span className="dr-fk mono">{k}</span><span className="dr-fv mono">{v}</span></div>
-          ))}
-        </div>
-      </div>
-      )}
+      {(() => {
+        // real fundamentals from FMP filings/ratios (nothing editorial). Each
+        // cell renders only when its value is available.
+        const e = eps && eps !== "loading" ? eps : null;
+        const g = (v, suf = "%") => (v == null ? null : `${v >= 0 ? "+" : ""}${v}${suf}`);
+        const cells = e ? [
+          ["EPS, last Q", e.epsQNew ? "profitable" : g(e.epsQ)],
+          ["EPS, 3-yr", e.epsANew ? "profitable" : g(e.epsA, "%/yr")],
+          ["Sales, last Q", g(e.salesQ)],
+          ["ROE", e.roe == null ? null : `${e.roe}%`],
+          ["Net margin", e.netMargin == null ? null : `${e.netMargin}%`],
+        ].filter(([, v]) => v != null) : [];
+        return (
+          <div className="dr-sec">
+            <div className="dr-sec-h"><h3>Fundamentals</h3><span className="dr-sec-sub mono">{eps === "loading" ? "loading filings…" : cells.length ? "real · FMP filings & ratios" : "filings data unavailable"}</span></div>
+            {cells.length > 0 && (
+              <div className="dr-funds">
+                {cells.map(([k, v]) => (
+                  <div className="dr-fund" key={k}><span className="dr-fk mono">{k}</span><span className="dr-fv mono">{v}</span></div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {s.why && (
         <div className="dr-sec">
