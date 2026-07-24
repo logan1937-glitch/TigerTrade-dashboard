@@ -239,10 +239,16 @@ body { background: #0a0b0d; }
 .hero-cover .hero-title { margin-bottom: 2px; }
 .hero-cover .hero-meta { margin-top: auto; padding-top: 4px; }   /* anchored to the card's bottom padding */
 /* nested sub-cards: sit inside the parent card with a subtle recessed tint */
-.hero-cover .hero-kpi, .hero-cover .hero-next {
+.hero-cover .hero-kpi, .hero-cover .hero-next, .risk-cell {
   background: color-mix(in oklch, var(--panel) 52%, transparent);
   border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--edge-hi);
 }
+/* near-term risk exposure strip — fills the space beneath the catalyst card */
+.riskrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.risk-cell { display: flex; flex-direction: column; gap: 3px; padding: 11px 13px 12px; min-width: 0; border-radius: var(--radius-sm); cursor: help; }
+.risk-k { font-size: 9px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+.risk-v { font-size: 14.5px; font-weight: 700; color: var(--text); }
+.risk-s { font-size: 8.5px; letter-spacing: var(--track-meta); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero-cover .hero-kpis { width: 100%; margin: 0; }
 .hero-cover .hero-next { width: 100%; margin-top: 0; }
 /* screener hero live-signal badges — pinned to the top-right, not vertically centered */
@@ -298,11 +304,16 @@ body { background: #0a0b0d; }
 .vix-chg { font-size: 12.5px; font-weight: 700; color: var(--sev-extreme); }
 .vix-chg[data-calm="true"] { color: var(--cat-growth); }
 .vix-sub { font-size: 10px; color: var(--dim); margin-left: auto; }
-.vix-chartwrap { position: relative; margin-top: 2px; }
+/* chart bleeds toward the card edges (effective ~8px inset vs the 20px panel padding) */
+.vix-chartwrap { position: relative; margin: 2px -12px 0; }
 .vix-chart { display: block; width: 100%; height: 100%; min-height: 148px; overflow: visible; }
 .vix-line { fill: none; stroke: var(--reg); stroke-width: 2.4; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 .vix-avg { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.5; }
-.vix-avg-lab { position: absolute; right: 2px; transform: translateY(-50%); font-size: 8.5px; color: var(--muted); background: color-mix(in oklch, var(--panel) 70%, transparent); padding: 0 3px; border-radius: 3px; pointer-events: none; }
+/* 50-day reference label — fixed to the far right edge in a mostly-opaque pill
+   so it never collides with the chart geometry underneath */
+.vix-avg-lab { position: absolute; right: 6px; transform: translateY(-50%); font-size: 9px; color: var(--muted);
+  background: color-mix(in oklch, var(--panel) 88%, transparent); border: 1px solid var(--border);
+  padding: 2px 8px; border-radius: 100px; pointer-events: none; white-space: nowrap; }
 .vix-cross { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .vix-dot { fill: var(--reg); stroke: var(--surface); stroke-width: 1.5; }
 .app[data-motion="full"] .vix-dot-live { animation: vixPulse 2.2s ease-in-out infinite; }
@@ -408,6 +419,18 @@ body { background: #0a0b0d; }
 /* ============================ STAT STRIP ============================ */
 .statstrip { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .statgrid { display: grid; grid-template-columns: repeat(5, 1fr); }
+/* screener variant: the market-health row is a rounded card matching the cover
+   panels (same chrome), not a full-bleed strip */
+.statstrip-card { border-top: 0; border-bottom: 0; padding: 6px 0 18px; }
+.statstrip-card .statgrid {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 86%, transparent), color-mix(in oklch, var(--surface) 60%, transparent));
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 18px 46px -30px rgba(0,0,0,0.7);
+  overflow: hidden;   /* clips rails + dividers to the rounded corners */
+}
+.statstrip-card .statcell { padding: 18px 22px 18px 26px; }   /* labels breathe off the tone rails */
+/* screener hero: badges sit on the title's center axis, not the column top */
+.hero:not(.hero-cover) .hero-signals { align-self: center; margin-top: 0; }
 .statcell { padding: 16px 22px; border-left: 1px solid var(--border); position: relative; }
 .statcell:first-child { border-left: 0; }
 .statcell .lab { font-family: var(--font-mono); font-size: 10px; letter-spacing: var(--track-wide); color: var(--dim); text-transform: uppercase; }

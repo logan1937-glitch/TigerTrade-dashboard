@@ -335,7 +335,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         </div>
       </div>
 
-      <div className="statstrip">
+      <div className="statstrip statstrip-card">
         <div className="wrap">
           <div className="statgrid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
             {market ? (

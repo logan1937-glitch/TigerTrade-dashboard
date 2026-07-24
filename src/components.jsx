@@ -158,6 +158,38 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
   );
 }
 
+/* near-term risk exposure strip — every value DERIVED from real data already on
+   the cover (nothing invented): implied move from the VIX level (÷ √252),
+   liquidity read from the 2Y yield's latest move, regime from VIX thresholds */
+function RiskSpectrum({ vix, macro }) {
+  const lvl = vix && vix.level != null ? vix.level : null;
+  const implied = lvl != null ? (lvl / Math.sqrt(252)).toFixed(2) : null;
+  const twoY = macro && macro.rates ? macro.rates.find((r) => r.k === "2Y") : null;
+  const liq = twoY == null || twoY.bp == null ? null : twoY.bp > 0 ? "Tightening" : twoY.bp < 0 ? "Easing" : "Neutral";
+  const liqColor = liq === "Tightening" ? "var(--sev-high)" : liq === "Easing" ? "var(--cat-growth)" : "var(--muted)";
+  const reg = VIX_REGIME(lvl);
+  if (implied == null && liq == null && lvl == null) return null;
+  return (
+    <div className="riskrow" role="group" aria-label="Near-term risk exposure">
+      <div className="risk-cell" title="Expected 1-day S&P 500 move implied by the current VIX level (VIX ÷ √252)">
+        <span className="risk-k mono">Implied move</span>
+        <span className="risk-v mono">{implied != null ? `±${implied}%` : "—"}</span>
+        <span className="risk-s mono">1-day · VIX-implied</span>
+      </div>
+      <div className="risk-cell" title={twoY ? `2Y Treasury ${twoY.bp > 0 ? "+" : ""}${twoY.bp}bp on the day — front-end yields lead policy expectations` : "Awaiting rates data"}>
+        <span className="risk-k mono">Liquidity</span>
+        <span className="risk-v mono" style={{ color: liqColor }}>{liq || "—"}</span>
+        <span className="risk-s mono">2Y yield · {twoY && twoY.bp != null ? `${twoY.bp > 0 ? "+" : ""}${twoY.bp}bp` : "—"}</span>
+      </div>
+      <div className="risk-cell" title="VIX regime by level: <15 Low · <20 Normal · <28 Elevated · 28+ Stress">
+        <span className="risk-k mono">Vol regime</span>
+        <span className="risk-v mono" style={{ color: reg.c }}>{reg.k}</span>
+        <span className="risk-s mono">VIX {lvl != null ? lvl.toFixed(1) : "—"}</span>
+      </div>
+    </div>
+  );
+}
+
 /* small info affordance — holds the descriptive blurb off the main layout */
 export function InfoDot({ text }) {
   return (
@@ -233,6 +265,7 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
               )}
             </button>
           )}
+          <RiskSpectrum vix={vix} macro={macro} />
           <span className="hero-meta">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} catalysts tracked · updated {TT.todayISO}</span>
         </div>
         {showScope && (
@@ -374,6 +407,29 @@ export function MacroBoard({ macro }) {
 }
 
 /* ------------------------------ VIX PANEL ------------------------------ */
+// monotone cubic interpolation (Fritsch–Carlson, à la d3.curveMonotoneX):
+// smooth Bézier segments that never overshoot the data — fluid, not jagged
+function monotonePath(pts) {
+  const n = pts.length;
+  if (n < 2) return "";
+  const dx = [], slopes = [], m = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1].x - pts[i].x || 1e-6; slopes[i] = (pts[i + 1].y - pts[i].y) / dx[i]; }
+  m[0] = slopes[0]; m[n - 1] = slopes[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = slopes[i - 1] * slopes[i] <= 0 ? 0 : (slopes[i - 1] + slopes[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (slopes[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / slopes[i], b = m[i + 1] / slopes[i], h = Math.hypot(a, b);
+    if (h > 3) { const t = 3 / h; m[i] = t * a * slopes[i]; m[i + 1] = t * b * slopes[i]; }
+  }
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const c1x = pts[i].x + dx[i] / 3, c1y = pts[i].y + (m[i] * dx[i]) / 3;
+    const c2x = pts[i + 1].x - dx[i] / 3, c2y = pts[i + 1].y - (m[i + 1] * dx[i]) / 3;
+    d += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${pts[i + 1].x.toFixed(1)},${pts[i + 1].y.toFixed(1)}`;
+  }
+  return d;
+}
+
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmtShortDate = (iso) => { const [y, m, d] = String(iso).split("-"); return m ? `${MON[+m - 1]} ${+d}` : iso; };
 const VIX_REGIME = (v) =>
@@ -411,9 +467,10 @@ export function VixPanel({ vix }) {
     const span = hiV - lo || 1;
     const x = (i) => (i / (data.length - 1)) * W;
     const y = (v) => padT + (1 - (v - lo) / span) * (H - padT - padB);
+    const curve = monotonePath(data.map((p, i) => ({ x: x(i), y: y(p.v) })));
     chart = { x, y,
-      line: data.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" "),
-      area: `0,${H} ${data.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ")} ${W},${H}`,
+      line: curve,
+      area: `${curve}L${W},${H}L0,${H}Z`,
       avgY: avg50 != null ? y(avg50) : null };
   }
   const hv = hi != null && data ? data[hi] : null;
@@ -447,8 +504,8 @@ export function VixPanel({ vix }) {
               </linearGradient>
             </defs>
             {chart.avgY != null && <line x1="0" y1={chart.avgY} x2={W} y2={chart.avgY} className="vix-avg" />}
-            <polygon points={chart.area} fill="url(#vixg)" />
-            <polyline points={chart.line} className="vix-line" pathLength="1" />
+            <path d={chart.area} fill="url(#vixg)" />
+            <path d={chart.line} className="vix-line" fill="none" />
             {hv ? (
               <>
                 <line x1={chart.x(hi)} y1={padT} x2={chart.x(hi)} y2={H} className="vix-cross" />
