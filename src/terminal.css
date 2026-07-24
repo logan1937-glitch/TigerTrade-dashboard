@@ -232,8 +232,19 @@ body { background: #0a0b0d; }
 .hero-left { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; flex: 1 1 480px; min-width: 0; }
 /* the radar/VIX cover packs three columns — center the group so a wide screen
    gets symmetric margins instead of a dead gap (screener hero keeps left-aligned) */
-.hero-cover .hero-row { justify-content: center; align-items: flex-start; gap: clamp(28px, 4vw, 60px); }
-.hero-cover .hero-left { flex: 0 1 440px; }   /* smaller title → less left dominance, more room for the data columns */
+.hero-cover .hero-row { justify-content: center; align-items: stretch; gap: clamp(20px, 2.6vw, 34px); }
+/* the left column is now a card (matches the two data panels); its sub-blocks nest inside */
+.hero-cover .hero-left { flex: 0 1 452px; align-items: stretch; gap: 16px; padding: 20px; }
+.hero-cover .hero-eyebrow { margin-bottom: -4px; }
+.hero-cover .hero-title { margin-bottom: 2px; }
+.hero-cover .hero-meta { margin-top: auto; padding-top: 4px; }   /* anchored to the card's bottom padding */
+/* nested sub-cards: sit inside the parent card with a subtle recessed tint */
+.hero-cover .hero-kpi, .hero-cover .hero-next {
+  background: color-mix(in oklch, var(--panel) 52%, transparent);
+  border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--edge-hi);
+}
+.hero-cover .hero-kpis { width: 100%; margin: 0; }
+.hero-cover .hero-next { width: 100%; margin-top: 0; }
 /* screener hero live-signal badges — pinned to the top-right, not vertically centered */
 .hero-signals { display: flex; gap: 10px; align-items: center; align-self: flex-start; flex-wrap: wrap; margin-top: 6px; }
 /* value-prop line under the title */
@@ -252,8 +263,8 @@ body { background: #0a0b0d; }
 /* right cluster: the two data panels sit as an equal-height, top-aligned pair */
 .hero-right { display: flex; align-items: stretch; justify-content: flex-end; gap: 20px; flex: 0 1 auto; flex-wrap: wrap; }
 /* shared panel chrome — same surface gradient, border, edge highlight and depth
-   on both the macro board and the VIX panel so they read as one system */
-.macroboard, .vixpanel {
+   on the left identity card, the macro board AND the VIX panel: one card system */
+.hero-cover .hero-left, .macroboard, .vixpanel {
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 86%, transparent), color-mix(in oklch, var(--surface) 60%, transparent));
   border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: inset 0 1px 0 var(--edge-hi), 0 18px 46px -30px rgba(0,0,0,0.7);
