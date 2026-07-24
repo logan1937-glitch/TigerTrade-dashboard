@@ -269,10 +269,10 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
           <span className="hero-meta">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} catalysts tracked · updated {TT.todayISO}</span>
         </div>
         {showScope && (
-          <div className="hero-right">
+          <>
             <MacroBoard macro={macro} />
             <VixPanel vix={vix} />
-          </div>
+          </>
         )}
       </div>
     </div>

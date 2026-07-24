@@ -691,7 +691,9 @@ function _buildFull(s) {
     pass / 7 * 40 + s.rs * 0.35 + Math.min(s.f.epsQ, 150) / 150 * 15 +
     (s.status === "buy" ? 10 : s.status === "ext" ? 3 : 4)));
   const buyLo = pivot, buyHi = +(pivot * 1.05).toFixed(2);
-  return { ...s, ...ser, coverage: "full", pivot, pctExt, breakdown, pass, score, buyLo, buyHi,
+  // _synthetic: the price arrays here are editorial placeholders (seeded curves,
+  // not market data) — the drawer must replace them with real history on open
+  return { ...s, ...ser, coverage: "full", pivot, pctExt, breakdown, pass, score, buyLo, buyHi, _synthetic: true,
     spark: ser.closes.filter((_, i) => i % 9 === 0).map((c) => c) };
 }
 

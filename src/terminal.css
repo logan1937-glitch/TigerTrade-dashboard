@@ -275,7 +275,7 @@ body { background: #0a0b0d; }
   border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: inset 0 1px 0 var(--edge-hi), 0 18px 46px -30px rgba(0,0,0,0.7);
 }
-.macroboard { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; width: 246px; padding: 18px 20px; }
+.macroboard { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; flex: 0 0 246px; width: 246px; padding: 18px 20px; }
 .mb-sec { display: flex; flex-direction: column; gap: 7px; }
 .mb-sec + .mb-sec { padding-top: 12px; border-top: 1px solid var(--border); }
 .mb-h { font-size: 9px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
@@ -289,7 +289,9 @@ body { background: #0a0b0d; }
 @media (max-width: 680px) { .macroboard { width: 100%; } .hero-right { width: 100%; } }
 
 /* ===================== VIX PANEL (cover centerpiece) ===================== */
-.vixpanel { width: 372px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 9px; }
+/* same width as the left identity card (452px) — the chart gets real
+   horizontal room; three equal cards now sit as direct siblings of the row */
+.vixpanel { flex: 0 1 452px; min-width: 360px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 9px; }
 /* chart absorbs any extra height so the panel matches the macro board exactly */
 .vix-chartwrap { flex: 1 1 auto; min-height: 148px; }
 .vix-head { display: flex; align-items: center; justify-content: space-between; }

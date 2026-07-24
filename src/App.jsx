@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth } from "./signals.js";
@@ -211,25 +211,36 @@ export default function App() {
 
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
   // open the live-merged record for a ticker. Compact snapshot names carry no
-  // price history, so fetch it on demand to draw the chart + RS line.
+  // price history, and curated names carry EDITORIAL placeholder series
+  // (tt.js _series — seeded curves, not market data): neither may be drawn as a
+  // price chart. Real history is fetched on demand and cached per session.
+  const barsCache = useRef(new Map());   // tk → { closes, volume, dates, rsLine, sigPatch }
   const openStock = (s) => {
     setEvDrawer(null); setWatchOpen(false); setProduct("canslim");
-    const row = csData.byTicker[s.tk] || s;
-    setStockDrawer(row);
-    if (!(row.closes && row.closes.length) && !TT.CS_BYTICKER[s.tk]?.closes?.length) {
-      (async () => {
-        try {
-          const r = await fetchMarket([s.tk, "SPY"]);
-          const rows = r.rows?.[s.tk];
-          if (!rows) return;
-          const full = computeSignals(rows, r.rows.SPY);
-          if (!full) return;
-          setStockDrawer((cur) => (cur && cur.tk === s.tk
-            ? { ...cur, closes: full.closes, volume: full.volume, dates: full.dates, rsLine: full.rsLine || cur.rsLine, sig: { ...cur.sig, ...full } }
-            : cur));
-        } catch { /* chart stays hidden; scalar signals still render */ }
-      })();
+    const base = csData.byTicker[s.tk] || s;
+    const cached = barsCache.current.get(s.tk);
+    if (cached) {
+      setStockDrawer({ ...base, ...cached.arrays, sig: { ...base.sig, ...cached.sigPatch } });
+      return;
     }
+    // real bars already attached (custom lookups / live-fallback names) — use as-is
+    if (!base._synthetic && base.closes && base.closes.length) { setStockDrawer(base); return; }
+    // synthetic or missing arrays: open without a chart, then fill with real data
+    setStockDrawer(base._synthetic ? { ...base, closes: [], volume: [], dates: null, rsLine: [] } : base);
+    (async () => {
+      try {
+        const r = await fetchMarket([s.tk, "SPY"]);
+        const rows = r.rows?.[s.tk];
+        if (!rows) return;
+        const full = computeSignals(rows, r.rows.SPY);
+        if (!full) return;
+        const arrays = { closes: full.closes, volume: full.volume, dates: full.dates, rsLine: full.rsLine || [] };
+        barsCache.current.set(s.tk, { arrays, sigPatch: full });
+        setStockDrawer((cur) => (cur && cur.tk === s.tk
+          ? { ...cur, ...arrays, sig: { ...cur.sig, ...full } }
+          : cur));
+      } catch { /* chart stays hidden; scalar signals still render */ }
+    })();
   };
 
   // look up ANY ticker on demand — fetch it live, compute its signals, add it
