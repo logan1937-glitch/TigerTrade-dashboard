@@ -232,7 +232,9 @@ export function StockDrawerBody({ stock, onClose }) {
   const shownBreakdown = useMemo(() => {
     if (!s.breakdown || !s.breakdown.length) return [];
     const e = eps && eps !== "loading" ? eps : null;   // null while loading / on failure
+    const ud = s.sig && s.sig.udVol;   // real up/down-volume ratio, refreshed once real bars load
     return s.breakdown.map((b) => {
+      if (b.key === "f6" && ud != null) return { ...b, value: `U/D vol ${ud.toFixed(2)}`, pass: ud >= 1 };
       if (eps === "loading" && b.pass === null && (b.key === "f2" || b.key === "f4")) return { ...b, value: "loading…" };
       if (e && b.pass === null && b.key === "f2") {
         if (e.epsQNew) return { ...b, value: "Turned profitable YoY", pass: true };
@@ -246,7 +248,7 @@ export function StockDrawerBody({ stock, onClose }) {
       }
       return b;
     });
-  }, [s.breakdown, eps]);
+  }, [s.breakdown, eps, s.sig && s.sig.udVol]);
   const shownPass = shownBreakdown.filter((b) => b.pass === true).length;
 
   // order-plan ticket (planning only — not connected to a broker)

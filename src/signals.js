@@ -108,6 +108,21 @@ export function computeSignals(rows, spyRows) {
     if (closes[i] < closes[i - 1] * 0.998 && vols[i] > vols[i - 1]) distDays++;
   }
 
+  // up/down volume ratio (last ~50 days): total volume on up-close days ÷ total
+  // on down-close days. O'Neil's classic institutional-demand proxy — a ratio
+  // ≥ 1 means accumulation is outpacing distribution. Real EOD volume, not 13F.
+  let udVol = null;
+  {
+    const w = Math.min(50, n - 1);
+    let up = 0, dn = 0;
+    for (let i = n - w; i < n; i++) {
+      if (closes[i] > closes[i - 1]) up += vols[i];
+      else if (closes[i] < closes[i - 1]) dn += vols[i];
+    }
+    if (dn > 0 && up + dn > 0) udVol = +(up / dn).toFixed(2);
+    else if (up > 0 && dn === 0) udVol = 9.99;   // all-up window (rare) — cap the display
+  }
+
   // pocket pivot: up day, volume > largest down-day volume of prior 10, near 10/50 MA
   let pocketPivot = false;
   if (n >= 12) {
@@ -131,7 +146,7 @@ export function computeSignals(rows, spyRows) {
     rsLine, rsNewHigh, rsLeads,
     stage, stageLabel: stage ? STAGE_LABEL[stage] : "—",
     adrPct, dollarVol,
-    distDays, pocketPivot,
+    distDays, pocketPivot, udVol,
     above50, atLow,
     asOf: dates[n - 1],
   };
@@ -347,7 +362,7 @@ export function compactSig(sig, chgPct, px) {
     off52: sig.off52, atHigh: sig.atHigh, ret12m: sig.ret12m,
     rsNewHigh: sig.rsNewHigh, rsLeads: sig.rsLeads,
     adrPct: sig.adrPct, dollarVol: sig.dollarVol, distDays: sig.distDays,
-    pocketPivot: sig.pocketPivot, above50: sig.above50, atLow: sig.atLow, asOf: sig.asOf,
+    pocketPivot: sig.pocketPivot, udVol: sig.udVol, above50: sig.above50, atLow: sig.atLow, asOf: sig.asOf,
     ret: periodReturns(sig.closes, chgPct),
     rrg: rrgTail(sig.rsLine),
     spark: sampleSpark(sig.closes),

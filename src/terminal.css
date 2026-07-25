@@ -1435,7 +1435,13 @@ body { background: #0a0b0d; }
   .brand .brand-tx { display: none; }            /* keep just the mark to save room */
   .hero { padding: 16px 0 12px; }
   .hero-row { gap: 18px; flex-direction: column; align-items: stretch; }
-  .hero-left { gap: 11px; width: 100%; }
+  /* in a column the row's cross-axis is width; the 480/452px flex-basis would
+     otherwise become a forced HEIGHT and open a tall blank gap — size to content.
+     the cover card needs the more specific selector to beat its desktop flex, and
+     its meta drops the margin-top:auto that anchored it to a fixed card bottom */
+  .hero-left { gap: 11px; width: 100%; flex: 0 0 auto; }
+  .hero-cover .hero-left { flex: 0 0 auto; padding: 16px; }
+  .hero-cover .hero-meta { margin-top: 6px; }
   .hero-title { font-size: clamp(21px, 6vw, 26px); white-space: normal; line-height: 1.06; }
   .hero-next { width: 100%; }
   /* radar scope: centered + sized to the phone, with breathing room */

@@ -171,9 +171,10 @@ export default function App() {
       }
       // LEADERS scorecard — one honest path for EVERY name (curated included).
       // Technical factors (L, A, the breakout E, S) compute live from real
-      // signals; fundamental slots (earnings E, durable D, sponsorship R) start
-      // as pass:null "needs data" and the drawer fills E/D from real filings on
-      // open. No editorial/fabricated fundamentals are used anywhere.
+      // signals; R (sponsorship) computes live from the up/down-volume demand
+      // proxy when volume history is present; the earnings E and durable D slots
+      // start as pass:null "needs data" and the drawer fills them from real
+      // filings on open. No editorial/fabricated fundamentals are used anywhere.
       let breakdown = r.breakdown;
       let passCount = r.pass;
       if (r.sig) {
@@ -189,8 +190,8 @@ export default function App() {
             note: "3-yr EPS growth (≥ 25%/yr). Loads from real filings in the full analysis." },
           { key: "f5", letter: "E", name: "Emerging breakout", value: g.atHigh ? "At 52-wk high" : g.off52 != null ? `−${g.off52}% off high` : "—", pass: !!(g.atHigh || (g.off52 != null && g.off52 <= 3)),
             note: "Price at — or within 3% of — a 52-week high." },
-          { key: "f6", letter: "R", name: "Rising sponsorship", value: "needs data", pass: null,
-            note: "Institutional accumulation — holdings data not yet wired." },
+          { key: "f6", letter: "R", name: "Rising sponsorship", value: g.udVol != null ? `U/D vol ${g.udVol.toFixed(2)}` : "needs data", pass: g.udVol != null ? g.udVol >= 1 : null,
+            note: "Institutional demand proxy: up-day vs down-day volume over ~50 days (≥ 1.0 = accumulation). Real EOD volume; true 13F holdings need a higher data tier." },
           { key: "f7", letter: "S", name: "Setup — market", value: market ? market.trend : "—", pass: market ? market.trend === "Confirmed Uptrend" : null,
             note: "Buy only when the general market is in a confirmed uptrend." },
         ];
