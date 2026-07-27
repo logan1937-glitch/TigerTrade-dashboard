@@ -73,6 +73,15 @@ TT.EVENTS = [
   { id: 16, date: "NOV 3",  approx: false, range: "",        t: -143,sort: 143, sev: "extreme", cat: "geo",
     title: "US Midterm Elections",
     desc: "Control of Congress; fiscal trajectory and the regulatory regime get repriced into year-end." },
+  { id: 17, date: "JUL 31", approx: true,  range: "",        t: -4,  sort: 4.3, sev: "high",    cat: "data",
+    title: "US Core PCE",
+    desc: "The Fed's preferred inflation gauge — confirms or fades the CPI read weeks later and steers the rate-path narrative." },
+  { id: 18, date: "JUL 16", approx: true,  range: "",        t: -20, sort: 20.3,sev: "medium",  cat: "data",
+    title: "US Retail Sales",
+    desc: "The headline read on the consumer; the control group feeds GDP nowcasts and moves discretionary + cyclicals." },
+  { id: 19, date: "JUL 30", approx: true,  range: "",        t: -3,  sort: 3.3, sev: "high",    cat: "data",
+    title: "US GDP (Advance)",
+    desc: "First estimate of quarterly output — frames the growth-vs-recession narrative and the Fed's room to cut." },
 
   /* past events (revealed via SHOW PAST) */
   { id: 101, date: "MAY 13", approx: false, range: "", t: 31, sort: -31, sev: "extreme", cat: "data", past: true,
@@ -150,10 +159,13 @@ const _RECUR = {
   12: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 91, t), approx: true }),   // earnings kickoff, quarterly
   14: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 91, t), approx: true }),   // refunding, quarterly
   15: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 364, t), approx: true }),  // Jackson Hole, annual
+  17: (t) => ({ d: _rollMonthly(t, 28), approx: true }),                     // PCE ~last business days
+  18: (t) => ({ d: _rollMonthly(t, 16), approx: true }),                     // Retail Sales ~mid-month
+  19: (t, ev) => ({ d: _rollEvery(_eventDate(ev), 91, t), approx: true }),   // GDP advance, quarterly
 };
 
 // short calendar-cell labels per curated event id
-const _SHORT = { 1: "BoJ Decision", 2: "FOMC", 3: "Quad Witching", 4: "S&P Rebal", 5: "Russell Recon", 6: "ISM Mfg", 7: "NFP", 8: "ISM Svcs", 9: "OPEC+", 10: "CPI", 11: "PPI", 12: "Earnings Kickoff", 13: "ECB", 14: "Refunding", 15: "Jackson Hole", 16: "Midterms" };
+const _SHORT = { 1: "BoJ Decision", 2: "FOMC", 3: "Quad Witching", 4: "S&P Rebal", 5: "Russell Recon", 6: "ISM Mfg", 7: "NFP", 8: "ISM Svcs", 9: "OPEC+", 10: "CPI", 11: "PPI", 12: "Earnings Kickoff", 13: "ECB", 14: "Refunding", 15: "Jackson Hole", 16: "Midterms", 17: "Core PCE", 18: "Retail Sales", 19: "GDP (Adv)" };
 
 (function _recomputeTiming() {
   const now = new Date();
@@ -258,6 +270,15 @@ TT.DETAIL = {
   16: { scenario: "Control of Congress reprices the fiscal trajectory and the regulatory regime into year-end.",
         hedge: "Trade sector rotation — healthcare, energy, defense — plus broad event vol.", move: 1.8, conviction: 75,
         tickers: ["SPX", "XLV", "ITA"] },
+  17: { scenario: "The Fed's preferred inflation gauge. A hot core PCE revives the higher-for-longer narrative and pressures duration and long-duration growth; a soft print re-opens the cut path.",
+        hedge: "Own front-end optionality into the 8:30 release — the core MoM is the number that moves the rate path.", move: 0.7,
+        tickers: ["SPX", "TLT", "DXY"] },
+  18: { scenario: "The headline read on the consumer. The control group feeds directly into GDP nowcasts; a soft print pressures discretionary and cyclicals while bidding duration.",
+        hedge: "Express through consumer-discretionary beta; watch the control group, not the noisy headline.", move: 0.6,
+        tickers: ["XLY", "SPX", "AMZN"] },
+  19: { scenario: "First estimate of quarterly output. The advance read frames the growth-vs-recession narrative and the Fed's room to cut; large revisions to prior quarters can whip the tape.",
+        hedge: "Trade broad index vol; the price-index sub-component carries inflation read-through into the rate path.", move: 0.5,
+        tickers: ["SPX", "TLT", "DXY"] },
 };
 TT.DETAIL_FALLBACK = { scenario: "Scheduled catalyst tracked on the radar. Detailed desk briefing pending analyst review.",
   hedge: "Standard pre-event risk reduction applies.", move: 0.8, conviction: 50, tickers: ["SPX"] };

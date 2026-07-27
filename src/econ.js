@@ -28,6 +28,9 @@ const MATCHERS = {
   10: { re: /(^|\s)(core )?(cpi|inflation rate)/i, countries: ["US"] },      // CPI
   11: { re: /(^|\s)(core )?ppi|producer price/i, countries: ["US"] },        // PPI
   13: { re: /ecb.*(rate|decision)|deposit facility rate/i, countries: ["EMU", "EA", "EU"] }, // ECB
+  17: { re: /(core )?pce|personal consumption expenditure|personal income( and| &)? outlays/i, countries: ["US"] }, // PCE
+  18: { re: /retail sales/i, countries: ["US"] },                            // Retail Sales
+  19: { re: /\bgdp\b|gross domestic product/i, countries: ["US"] },          // GDP
 };
 
 export async function fetchEcon() {
@@ -87,7 +90,7 @@ export function mergeEcon(events, econ) {
   const covered = new Set(out.filter((e) => e.econ).map((e) => e.econ.name));
   const extras = econ
     .filter((e) => e.country === "US" && e.impact === "high" && daysFromToday(e.date) >= 0 && !covered.has(e.event))
-    .filter((e) => !/fed(eral)? (funds|interest) rate|non ?farm|(^|\s)cpi|ism (manufacturing|services)/i.test(e.event))
+    .filter((e) => !/fed(eral)? (funds|interest) rate|non ?farm|(^|\s)cpi|ism (manufacturing|services)|pce|personal consumption|personal income|retail sales|gross domestic product|\bgdp\b/i.test(e.event))
     .sort((a, b) => a.date - b.date)
     .slice(0, 12)
     .map((e, i) => {
