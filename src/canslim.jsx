@@ -97,22 +97,41 @@ function ChangesPanel({ changes, onOpenStock }) {
   );
 }
 
+const SORT_LABEL = { score: "score", rs: "RS", pass: "pass", chg: "% change", ticker: "ticker", status: "buy status" };
+
 function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector, changes }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
+  const [dir, setDir] = useState("desc");   // "desc" = high→low / Z→A, "asc" = the reverse
   const [statusF, setStatusF] = useState("all");
   const [tf, setTf] = useState("1D");
   const [addSym, setAddSym] = useState("");
   const submitLookup = (e) => { e.preventDefault(); if (onLookup) onLookup(addSym); setAddSym(""); };
+  // click a column header (or a Sort chip): re-selecting the active key flips the
+  // direction; a new key resets to its natural default (A→Z for text, high→low otherwise)
+  const setSortKey = (key) => {
+    if (key === sort) setDir((d) => (d === "desc" ? "asc" : "desc"));
+    else { setSort(key); setDir(key === "ticker" ? "asc" : "desc"); }
+  };
+  const STATUS_RANK = { buy: 3, ext: 2, watch: 1 };
   const view = useMemo(() => {
     let r = rows.filter((x) => (x.tk + " " + x.name + " " + x.group).toLowerCase().includes(q.toLowerCase()));
     if (sectorF) r = r.filter((x) => x.sector === sectorF);
     if (statusF !== "all") r = r.filter((x) => x.status === statusF);
     r = r.map((x) => ({ ...x, _ret: periodReturn(x, tf) }));
-    if (sort === "chg") return [...r].sort((a, b) => b._ret - a._ret);
-    const key = { score: "score", rs: "rs", pass: "pass" }[sort];
-    return [...r].sort((a, b) => (b[key] || 0) - (a[key] || 0));
-  }, [rows, q, sort, statusF, tf, sectorF]);
+    const val = (x) => (sort === "chg" ? (x._ret || 0) : sort === "status" ? (STATUS_RANK[x.status] || 0) : (x[sort] || 0));
+    const dv = dir === "asc" ? 1 : -1;
+    const cmp = sort === "ticker" ? (a, b) => dv * a.tk.localeCompare(b.tk) : (a, b) => dv * (val(a) - val(b));
+    return [...r].sort(cmp);
+  }, [rows, q, sort, dir, statusF, tf, sectorF]);
+
+  // sortable column header — clickable, shows the active sort arrow
+  const Th = ({ label, k, right }) => (
+    <button type="button" className="cs-th" data-active={sort === k || undefined} data-right={right || undefined}
+      aria-sort={sort === k ? (dir === "asc" ? "ascending" : "descending") : "none"} onClick={() => setSortKey(k)}>
+      {label}<span className="cs-th-ar" aria-hidden="true">{sort === k ? (dir === "asc" ? "▲" : "▼") : "↕"}</span>
+    </button>
+  );
 
   return (
     <div className="wrap">
@@ -144,19 +163,27 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           <span className="minwt-lab">Sort</span>
           <div className="seg">
             {[["score", "Score"], ["rs", "RS"], ["pass", "Pass"], ["chg", "% Chg"]].map(([id, l]) => (
-              <button key={id} className="seg-btn" data-active={sort === id} onClick={() => setSort(id)}>{l}</button>
+              <button key={id} className="seg-btn" data-active={sort === id} onClick={() => setSortKey(id)}
+                title={sort === id ? (dir === "asc" ? "ascending — click to reverse" : "descending — click to reverse") : `sort by ${l.toLowerCase()}`}>
+                {l}{sort === id ? (dir === "asc" ? " ↑" : " ↓") : ""}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="listmeta"><span className="count"><b>{view.length}</b> leaders{sectorF && <> · <b>{sectorF}</b> <button className="linkbtn" style={{ fontSize: 9, padding: "2px 7px", marginLeft: 4 }} onClick={onClearSector}>clear ✕</button></>} · sorted by {sort}</span>
-        <span className="count mono" style={{ opacity: .8 }}>click a row for full analysis</span></div>
+      <div className="listmeta"><span className="count"><b>{view.length}</b> leaders{sectorF && <> · <b>{sectorF}</b> <button className="linkbtn" style={{ fontSize: 9, padding: "2px 7px", marginLeft: 4 }} onClick={onClearSector}>clear ✕</button></>} · sorted by {SORT_LABEL[sort] || sort} {dir === "asc" ? "↑" : "↓"}</span>
+        <span className="count mono" style={{ opacity: .8 }}>click a header to sort · a row for full analysis</span></div>
 
       <div className="cs-table">
-        <div className="cs-head">
-          <span>Ticker</span><span style={{ textAlign: "right" }}>Price · Δ{tf}</span><span>RS</span><span>Trend</span>
-          <span>Leadership</span><span>Signals</span><span style={{ textAlign: "right" }}>Buy Status</span><span style={{ textAlign: "right" }}>Score</span>
+        <div className="cs-head" role="row">
+          <Th label="Ticker" k="ticker" />
+          <Th label={`Price · Δ${tf}`} k="chg" right />
+          <Th label="RS" k="rs" />
+          <span>Trend</span>
+          <Th label="Leadership" k="pass" />
+          <span>Signals</span>
+          <Th label="Buy Status" k="status" right />
+          <Th label="Score" k="score" right />
         </div>
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}

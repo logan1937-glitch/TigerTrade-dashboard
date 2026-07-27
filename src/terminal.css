@@ -659,6 +659,18 @@ body { background: #0a0b0d; }
 .cs-head { padding: 12px 18px; border-bottom: 1px solid var(--border);
   position: sticky; top: 58px; z-index: 30; background: var(--bg); }
 .cs-head span { font-family: var(--font-mono); font-size: 10px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+/* sortable column header — reads as a label, behaves as a button */
+.cs-th { display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: var(--track-label); text-transform: uppercase;
+  color: var(--dim); transition: color .13s ease; }
+.cs-th[data-right] { justify-self: end; }
+.cs-th:hover { color: var(--muted); }
+.cs-th[data-active] { color: var(--text); }
+.cs-th-ar { font-size: 8.5px; line-height: 1; opacity: 0; transition: opacity .13s ease; }
+.cs-th:hover .cs-th-ar { opacity: .45; }
+.cs-th[data-active] .cs-th-ar { opacity: 1; color: var(--accent); }
+.cs-th:focus-visible { outline: none; color: var(--text); }
+.cs-th:focus-visible .cs-th-ar { opacity: 1; }
 .cs-row { padding: 13px 18px; border-bottom: 1px solid var(--border); transition: background .14s ease, box-shadow .14s ease; cursor: pointer;
   content-visibility: auto; contain-intrinsic-size: 0 48px; }
 .cs-row:hover { background: var(--surface); box-shadow: inset 2px 0 0 var(--accent); }

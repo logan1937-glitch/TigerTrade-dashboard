@@ -384,6 +384,53 @@ export default function App() {
     openEvent(ev);
   };
 
+  // ── deep-linkable URL state ─────────────────────────────────────────────
+  // mirror the current view (product · tab · open drawer) to the query string so
+  // any screen is shareable/bookmarkable, and the browser back button closes an
+  // open drawer. Opening a drawer pushes a history entry; every other change is
+  // written in place so we never spam history.
+  const pendingUrl = useRef(null);   // deep-linked drawer waiting for data to load
+  const prevOpen = useRef(false);
+  useEffect(() => {                  // read once on mount — the URL wins over stored prefs
+    const q = new URLSearchParams(window.location.search);
+    const p = q.get("p"); if (p === "canslim" || p === "radar") setProduct(p);
+    const t = q.get("tab"); if (t) setTab(t);
+    const ev = q.get("ev"), tk = q.get("tk");
+    if (ev || tk) pendingUrl.current = { ev, tk };
+  }, []);
+  useEffect(() => {                  // open a deep-linked drawer once its data is available
+    const p = pendingUrl.current; if (!p) return;
+    if (p.ev) { const e = allEvents.find((x) => x.id === p.ev); if (e) { pendingUrl.current = null; openEvent(e); } return; }
+    if (p.tk && (csData.byTicker[p.tk] || live.status !== "loading")) { pendingUrl.current = null; openStock({ tk: p.tk }); }
+  }, [allEvents, csData, live.status]);
+  useEffect(() => {                  // write the URL whenever the view changes
+    const q = new URLSearchParams(window.location.search);
+    product !== "radar" ? q.set("p", product) : q.delete("p");
+    tab && tab !== "radar" ? q.set("tab", tab) : q.delete("tab");
+    const tk = stockDrawer && stockDrawer.tk, ev = evDrawer && evDrawer.id;
+    tk ? q.set("tk", tk) : q.delete("tk");
+    ev ? q.set("ev", ev) : q.delete("ev");
+    const s = q.toString();
+    const url = window.location.pathname + (s ? "?" + s : "");
+    const nowOpen = !!(tk || ev);
+    if (nowOpen && !prevOpen.current) window.history.pushState({ d: 1 }, "", url);
+    else window.history.replaceState(window.history.state, "", url);
+    prevOpen.current = nowOpen;
+  }, [product, tab, stockDrawer, evDrawer]);
+  useEffect(() => {                  // back / forward → sync drawers + product to the URL
+    const onPop = () => {
+      const q = new URLSearchParams(window.location.search);
+      setProduct(q.get("p") === "canslim" ? "canslim" : "radar");
+      const t = q.get("tab"); if (t) setTab(t);
+      const tk = q.get("tk"), ev = q.get("ev");
+      if (!tk && !ev) { setStockDrawer(null); setEvDrawer(null); setWatchOpen(false); prevOpen.current = false; return; }
+      if (tk) { if (!stockDrawer || stockDrawer.tk !== tk) openStock({ tk }); }
+      else if (ev && (!evDrawer || evDrawer.id !== ev)) { const e = allEvents.find((x) => x.id === ev); if (e) openEvent(e); }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [stockDrawer, evDrawer, allEvents, csData]);
+
   const replayKey = `${tab}|${[...cats].sort().join(",")}|${minWt}|${query}|${showPast}`;
 
   // safety net: never leave entrance-animated content hidden
