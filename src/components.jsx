@@ -616,9 +616,10 @@ function FilterBar({ cats, toggleCat, query, setQuery, minWt, setMinWt }) {
 }
 
 /* ----------------------------- EVENT ROW --------------------------- */
-function EventRow({ ev, index, open, onToggle, flash, onOpenFull }) {
+function EventRow({ ev, index, open, onToggle, flash, onOpenFull, vix }) {
   const cat = TT.CAT_MAP[ev.cat];
   const d = TT.detail(ev.id);
+  const em = vix && vix.level != null ? vix.level / Math.sqrt(252) : null;   // VIX-implied 1-day move
   return (
     <div className={"event reveal" + (open ? " is-open" : "")} style={{ "--c": cat.color, "--i": index }}
          data-flash={flash || undefined} data-open={open || undefined} onClick={onToggle}>
@@ -667,10 +668,10 @@ function EventRow({ ev, index, open, onToggle, flash, onOpenFull }) {
                 <div className="ed-mv mono">±{d.move.toFixed(1)}%</div>
                 <div className="ed-bar"><i style={{ width: Math.min(d.move / 3, 1) * 100 + "%" }} /></div>
               </div>
-              <div className="ed-metric">
-                <div className="ed-mk mono">Conviction</div>
-                <div className="ed-mv mono">{d.conviction}<small>/100</small></div>
-                <div className="ed-bar"><i style={{ width: d.conviction + "%" }} /></div>
+              <div className="ed-metric" title="Expected 1-day S&P 500 move implied by the current VIX (VIX ÷ √252) — the market's live volatility read, not a desk estimate">
+                <div className="ed-mk mono">Expected move · VIX</div>
+                <div className="ed-mv mono">{em != null ? `±${em.toFixed(1)}%` : "—"}</div>
+                <div className="ed-bar"><i style={{ width: (em != null ? Math.min(em / 3, 1) * 100 : 0) + "%" }} /></div>
               </div>
               <div className="ed-actions">
                 <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} label />
@@ -701,7 +702,7 @@ export function RadarView(props) {
           ? <div className="empty">No events match the current filters.</div>
           : events.map((ev, i) => (
             <EventRow key={ev.id} ev={ev} index={i} open={openId === ev.id} flash={focus && focus.id === ev.id ? focus.tick : null}
-              onToggle={() => setOpenId((id) => id === ev.id ? null : ev.id)} onOpenFull={onOpenFull} />
+              onToggle={() => setOpenId((id) => id === ev.id ? null : ev.id)} onOpenFull={onOpenFull} vix={props.vix} />
           ))}
       </div>
     </div>

@@ -463,7 +463,7 @@ export default function App() {
     return cmds;
   }, [meta]);
 
-  const radarProps = { events, cats, toggleCat, query, setQuery, minWt, setMinWt, showPast, setShowPast, replayKey, focus, onOpenFull: openEvent };
+  const radarProps = { events, cats, toggleCat, query, setQuery, minWt, setMinWt, showPast, setShowPast, replayKey, focus, onOpenFull: openEvent, vix };
 
   return (
     <WatchCtx.Provider value={watchApi}>
@@ -495,7 +495,7 @@ export default function App() {
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} commands={commands} />
 
         <Drawer open={!!evDrawer} onClose={() => setEvDrawer(null)} label="Event analysis">
-          {evDrawer && <EventDrawerBody ev={evDrawer} onClose={() => setEvDrawer(null)} onPick={openStock} />}
+          {evDrawer && <EventDrawerBody ev={evDrawer} onClose={() => setEvDrawer(null)} onPick={openStock} vix={vix} />}
         </Drawer>
         <Drawer open={!!stockDrawer} onClose={() => setStockDrawer(null)} label="Stock analysis">
           {stockDrawer && <StockDrawerBody stock={stockDrawer} onClose={() => setStockDrawer(null)} />}

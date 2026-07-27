@@ -53,9 +53,10 @@ export function Drawer({ open, onClose, children, label }) {
 }
 
 /* ----------------------------- EVENT DRAWER ----------------------------- */
-export function EventDrawerBody({ ev, onClose, onPick }) {
+export function EventDrawerBody({ ev, onClose, onPick, vix }) {
   const cat = TT.CAT_MAP[ev.cat];
   const d = TT.detail(ev.id);
+  const em = vix && vix.level != null ? vix.level / Math.sqrt(252) : null;   // VIX-implied 1-day move
   const { byTicker } = useCanslim();
   return (
     <div className="dr" style={{ "--c": cat.color }}>
@@ -91,7 +92,11 @@ export function EventDrawerBody({ ev, onClose, onPick }) {
           <div className="dr-k mono">Desk hedge</div>
           <p className="dr-p">{d.hedge}</p>
           <div className="dr-meta-row">
-            <div><span className="dr-mk mono">Conviction <span style={{ opacity: .6 }}>· editorial</span></span><div className="dr-mv mono">{d.conviction}/100</div><BarMeter value={d.conviction} c="var(--accent)" /></div>
+            <div title="Expected 1-day S&P 500 move implied by the current VIX (VIX ÷ √252) — the market's live volatility read">
+              <span className="dr-mk mono">Expected move <span style={{ opacity: .6 }}>· VIX-implied</span></span>
+              <div className="dr-mv mono">{em != null ? `±${em.toFixed(1)}%` : "—"}</div>
+              <BarMeter value={em != null ? Math.min(em / 3, 1) * 100 : 0} c="var(--accent)" />
+            </div>
           </div>
         </div>
       </div>
