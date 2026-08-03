@@ -1,32 +1,60 @@
+import { useMemo, useState } from "react";
 import { TT } from "./tt.js";
 import { SEV_LABEL } from "./components.jsx";
 
-/* ---------------------------- CALENDAR ----------------------------- */
-export function CalendarView({ positions = [] }) {
+const CAL_MAX = 4;   // ticker chips per day before the rest collapse into a count
+
+/* ---------------------------- CALENDAR -----------------------------
+   The macro catalysts this product tracks are only half of what moves a book in
+   a given week — the other half is the earnings the tracked universe is about to
+   report. Both now sit in the same month grid: scheduled catalysts first, then
+   report dates, scoped to your own names by default because the full S&P 500
+   would bury the catalysts the calendar exists to show. */
+export function CalendarView({ rows = [], onOpenStock }) {
   const m = TT.MONTH;
+  const [scope, setScope] = useState("yours");
   const cells = [];
   for (let i = 0; i < m.firstDow; i++) cells.push({ out: true, num: 0 });
   for (let d = 1; d <= m.days; d++) cells.push({ out: false, num: d });
   while (cells.length % 7 !== 0) cells.push({ out: true, num: 0 });
   const nEvents = Object.values(TT.calEventsByDay).reduce((n, a) => n + a.length, 0);
 
-  // your holdings' REAL report dates, bucketed into this month's day cells
-  const ernByDay = {};
-  for (const p of positions) {
-    if (!p.ern || !p.ern.date) continue;
-    const d = new Date(p.ern.date + "T00:00:00");
-    if (d.getFullYear() !== m.year || d.getMonth() !== m.monthIndex) continue;
-    (ernByDay[d.getDate()] = ernByDay[d.getDate()] || []).push(p);
-  }
-  const nErn = Object.values(ernByDay).reduce((n, a) => n + a.length, 0);
+  // REAL report dates bucketed into this month's day cells. "Yours" is anything
+  // you hold, watch, or dated yourself; "universe" is every tracked name.
+  const { byDay, nErn, nMine, nAll } = useMemo(() => {
+    const inMonth = rows.filter((r) => {
+      const d = new Date(r.date + "T00:00:00");
+      return d.getFullYear() === m.year && d.getMonth() === m.monthIndex;
+    });
+    const isMine = (r) => r.held || r.watched || r.mine;
+    const shown = scope === "all" ? inMonth : inMonth.filter(isMine);
+    const map = {};
+    for (const r of shown) {
+      const day = new Date(r.date + "T00:00:00").getDate();
+      (map[day] = map[day] || []).push(r);
+    }
+    // your own names lead each day, then alphabetical so the order is stable
+    for (const k of Object.keys(map)) {
+      map[k].sort((a, b) => (isMine(b) ? 1 : 0) - (isMine(a) ? 1 : 0) || (a.tk < b.tk ? -1 : 1));
+    }
+    return { byDay: map, nErn: shown.length, nMine: inMonth.filter(isMine).length, nAll: inMonth.length };
+  }, [rows, scope, m.year, m.monthIndex]);
 
   return (
     <div className="wrap">
       <div className="cal-head">
         <div className="cal-title">{m.name}</div>
-        <div className="count mono" style={{ color: "var(--dim)", letterSpacing: ".08em", textTransform: "uppercase", fontSize: 11 }}>
-          {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
-          {nErn > 0 && <> · <span style={{ color: "var(--cat-growth)" }}>{nErn} of your positions report{nErn === 1 ? "s" : ""}</span></>}
+        <div className="cal-headr">
+          <div className="count mono" style={{ color: "var(--dim)", letterSpacing: ".08em", textTransform: "uppercase", fontSize: 11 }}>
+            {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
+            {nErn > 0 && <> · <span style={{ color: "var(--cat-growth)" }}>{nErn} report{nErn === 1 ? "s" : "s"}</span></>}
+          </div>
+          <div className="cal-scope">
+            <button className="seg-btn" data-active={scope === "yours" || undefined} onClick={() => setScope("yours")}
+              title="Names you hold, watch, or dated yourself">Your names {nMine}</button>
+            <button className="seg-btn" data-active={scope === "all" || undefined} onClick={() => setScope("all")}
+              title="Every tracked name with a known report date">Universe {nAll}</button>
+          </div>
         </div>
       </div>
       <div className="cal-dow">
@@ -41,12 +69,21 @@ export function CalendarView({ positions = [] }) {
               {evs.map((e, j) => (
                 <div className="cal-ev" key={j} style={{ "--c": TT.CAT_MAP[e.cat].color }}>{e.t}</div>
               ))}
-              {(!c.out ? (ernByDay[c.num] || []) : []).map((p) => (
-                <div className="cal-ev cal-ern" key={"e" + p.tk}
-                  title={`${p.tk} reports${p.ern.time === "bmo" ? " before the open" : p.ern.time === "amc" ? " after the close" : ""}${p.ern.est ? " (projected date — not yet confirmed)" : ""} — your position`}>
-                  {p.tk}<span className="cal-ern-d">◆</span>
-                </div>
+              {(!c.out ? (byDay[c.num] || []).slice(0, CAL_MAX) : []).map((r) => (
+                <button className="cal-ev cal-ern" key={"e" + r.tk} data-mine={(r.held || r.mine) || undefined}
+                  onClick={() => onOpenStock && onOpenStock({ tk: r.tk })}
+                  title={`${r.tk}${r.name && r.name !== r.tk ? ` — ${r.name}` : ""} reports`
+                    + `${r.time === "bmo" ? " before the open" : r.time === "amc" ? " after the close" : ""}`
+                    + `${r.mine ? " on the date you set" : r.est ? " (projected date — not yet confirmed)" : ""}`
+                    + `${r.held ? " · your position" : r.watched ? " · on your watchlist" : ""} — open full analysis`}>
+                  {r.tk}{(r.held || r.mine) && <span className="cal-ern-d">◆</span>}
+                </button>
               ))}
+              {!c.out && (byDay[c.num] || []).length > CAL_MAX && (
+                <div className="cal-more mono" title={(byDay[c.num] || []).slice(CAL_MAX).map((r) => r.tk).join(", ")}>
+                  +{(byDay[c.num] || []).length - CAL_MAX} more
+                </div>
+              )}
             </div>
           );
         })}

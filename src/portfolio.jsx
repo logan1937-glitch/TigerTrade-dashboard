@@ -34,6 +34,13 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
   const [cost, setCost] = useState("");
   const [ern, setErn] = useState("");
   const [err, setErr] = useState("");
+  // per-row report-date editor. The add form can only set a date at the moment a
+  // position is created, which is no help for one already in the book — this
+  // makes the Next-ern cell itself the place you set it.
+  const [ernEdit, setErnEdit] = useState(null);
+  const [ernDraft, setErnDraft] = useState("");
+  const openErn = (r) => { setErnDraft(r.ern && r.ern.mine ? r.ern.date : ""); setErnEdit(r.tk); };
+  const saveErn = (r, v) => { pos.add(r.tk, r.shares, r.cost, v); setErnEdit(null); };
 
   const submit = (e) => {
     e.preventDefault();
@@ -149,10 +156,32 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                     {r.plPct != null && <span className="pf-sub mono" data-up={r.plPct >= 0}>{pctS(r.plPct)}</span>}</div>
                   <div className="pf-num mono">{w == null ? "—" : `${w.toFixed(1)}%`}
                     {w != null && <i className="pf-wbar" style={{ width: `${Math.min(100, w)}%` }} />}</div>
-                  <div className="pf-num mono" title={ernTitle(r.ern)}>
-                    {r.ern ? `${r.ern.est ? "~" : ""}${r.ern.days === 0 ? "today" : `${r.ern.days}d`}` : "—"}
-                    {r.ern && r.ern.mine && <i className="pf-ernmine">yours</i>}
-                    {r.ern && r.ern.days <= 7 && <span className="pf-ernflag mono">event risk</span>}</div>
+                  <div className="pf-num mono pf-erncell" onClick={(e) => e.stopPropagation()}>
+                    {ernEdit === r.tk ? (
+                      <div className="pf-ernedit">
+                        <input className="pf-date mono" type="date" value={ernDraft} autoFocus
+                          aria-label={`Report date for ${r.tk}`}
+                          onChange={(e) => setErnDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") saveErn(r, ernDraft); if (e.key === "Escape") setErnEdit(null); }} />
+                        <div className="pf-ernedit-row">
+                          <button className="pf-ernbtn" onClick={() => saveErn(r, ernDraft)}>save</button>
+                          {r.ern && r.ern.mine
+                            ? <button className="pf-ernbtn" onClick={() => saveErn(r, "")}>clear</button>
+                            : <button className="pf-ernbtn" onClick={() => setErnEdit(null)}>cancel</button>}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* with a date this is the value itself; without one it reads
+                            as the action it is, and stays compact enough for a phone */}
+                        <button className={r.ern ? "pf-ernval" : "pf-ernbtn"} onClick={() => openErn(r)}
+                          title={ernTitle(r.ern)} aria-label={`Set the report date for ${r.tk}`}>
+                          {r.ern ? `${r.ern.est ? "~" : ""}${r.ern.days === 0 ? "today" : `${r.ern.days}d`}` : "set date"}
+                        </button>
+                        {r.ern && r.ern.mine && <i className="pf-ernmine">yours</i>}
+                        {r.ern && r.ern.days <= 7 && <span className="pf-ernflag mono">event risk</span>}
+                      </>
+                    )}</div>
                   <div style={{ textAlign: "right" }}>
                     <button className="pf-x" aria-label={`Remove ${r.tk}`} title="Remove position"
                       onClick={(e) => { e.stopPropagation(); pos.remove(r.tk); }}>✕</button>

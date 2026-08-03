@@ -759,13 +759,18 @@ body { background: #0a0b0d; }
 .star:active { transform: scale(0.86); }
 .star[data-on] { color: var(--accent); }
 .star[data-on]:hover { color: var(--accent); }
-/* inline-flex, not the bare .star grid — otherwise the icon and the label
-   stack in two rows instead of sitting side by side */
+/* The labelled star is a peer of the .ed-btn actions it sits beside, so it has
+   to match them exactly — inline-flex (the bare .star grid stacks the icon over
+   the label), and height:auto, because .star pins a 26px box that left this
+   button half the height of every button next to it. */
 .star-lbl { display: inline-flex; align-items: center; justify-content: center;
-  width: auto; gap: 7px; padding: 9px 13px; border: 1px solid var(--border-2); color: var(--muted);
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: var(--track-meta); flex: 1; }
-.star-lbl svg { width: 14px; height: 14px; }
-.star-lbl:hover { color: var(--text); background: var(--panel); }
+  width: auto; height: auto; gap: 7px; padding: 11px 12px; background: var(--panel);
+  border: 1px solid var(--border-2); border-radius: var(--radius-sm); color: var(--muted);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: var(--track-meta);
+  flex: 1 1 auto; white-space: nowrap; }
+.star-lbl svg { width: 14px; height: 14px; flex: none; }
+.star-lbl:active { transform: scale(0.985); }
+.star-lbl:hover { color: var(--text); border-color: var(--dim); background: var(--panel); }
 .star-lbl[data-on] { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 42%, transparent);
   background: color-mix(in oklch, var(--accent) 12%, transparent); }
 
@@ -1121,7 +1126,11 @@ body { background: #0a0b0d; }
 .dr-tickers .ticker[data-link="true"]:hover { background: color-mix(in oklch, var(--cat-growth) 14%, transparent); }
 
 .dr-actions { display: flex; gap: 8px; padding: 24px 26px 0; }
-.dr-actions .ed-btn { padding: 11px 12px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+/* size to the label, then share the slack: four equal columns forced "Add to
+   portfolio" onto a second line, which made every button in the row 50px tall
+   to accommodate the one that wrapped */
+.dr-actions .ed-btn { flex: 1 1 auto; white-space: nowrap; padding: 11px 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .dr-actions .ed-btn svg { width: 14px; height: 14px; flex: none; }
 /* an action whose state is already set (holding this name, alert armed) reads
    the same way the watchlist star does when it is on */
@@ -1254,6 +1263,25 @@ body { background: #0a0b0d; }
   color: var(--dim); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px 5px; }
 .pf-wbar { display: block; height: 2px; border-radius: 2px; background: var(--accent); opacity: .5; margin-top: 2px; }
 .pf-ernflag { font-size: 8.5px; letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--sev-high); }
+/* the whole Next-ern cell is the control for setting a date — a name no feed
+   covers shows "set date" here rather than a dead em dash */
+.pf-erncell { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.pf-ernval { background: none; border: 0; padding: 0; cursor: pointer; color: inherit;
+  font: inherit; text-align: right; border-bottom: 1px dashed transparent; transition: color .13s ease, border-color .13s ease; }
+.pf-ernval:hover { color: var(--accent); border-bottom-color: color-mix(in oklch, var(--accent) 50%, transparent); }
+.pf-ernedit { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.pf-ernedit-row { display: flex; gap: 4px; }
+/* the row editor's date field carries no .search class, so it needs the panel
+   treatment itself — otherwise it renders in the browser's default light chrome */
+.pf-ernedit .pf-date { width: 100%; max-width: 132px; padding: 3px 5px; font-size: 10px;
+  font-family: var(--font-mono); color: var(--text); background: var(--panel);
+  border: 1px solid var(--border-2); border-radius: var(--radius-sm); }
+.pf-ernedit .pf-date:focus { outline: none; border-color: var(--accent); }
+.pf-ernbtn { font-family: var(--font-mono); font-size: 9px; letter-spacing: var(--track-meta);
+  text-transform: uppercase; white-space: nowrap;
+  color: var(--muted); background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-sm);
+  padding: 2px 6px; cursor: pointer; transition: color .13s ease, border-color .13s ease; }
+.pf-ernbtn:hover { color: var(--text); border-color: var(--dim); }
 /* a report date you entered yourself — deliberately quiet, but never invisible:
    it must not read as a figure a feed confirmed */
 .pf-ernmine { display: inline-block; margin-left: 5px; font-style: normal; font-size: 8px; font-weight: 600;
@@ -1283,19 +1311,34 @@ body { background: #0a0b0d; }
 .pf-sec i { grid-column: 1 / 3; display: block; height: 3px; border-radius: 2px; background: var(--accent); opacity: .45; }
 .pf-disc { font-size: 10.5px; line-height: 1.6; color: var(--dim); margin: 22px 2px 64px; max-width: 78ch; }
 /* your positions' report dates on the month grid */
-.cal-ern { border-left-color: var(--cat-growth) !important; color: var(--cat-growth);
-  background: color-mix(in oklch, var(--cat-growth) 12%, transparent) !important; font-weight: 700;
-  display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+/* an earnings chip is a button now — it opens the name's full analysis. Names
+   you hold or dated yourself keep the solid accent; the rest of the universe
+   reads one step back so the catalysts above them stay legible. */
+.cal-ern { border: 0; border-left: 2px solid var(--cat-growth) !important; font-family: var(--font-mono);
+  color: color-mix(in oklch, var(--cat-growth) 72%, var(--dim));
+  background: color-mix(in oklch, var(--cat-growth) 7%, transparent) !important; font-weight: 600;
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  width: 100%; text-align: left; cursor: pointer; transition: background .13s ease, color .13s ease; }
+.cal-ern[data-mine] { color: var(--cat-growth); font-weight: 700;
+  background: color-mix(in oklch, var(--cat-growth) 15%, transparent) !important; }
+.cal-ern:hover { color: var(--cat-growth);
+  background: color-mix(in oklch, var(--cat-growth) 24%, transparent) !important; }
 .cal-ern-d { font-size: 7px; opacity: .8; }
+.cal-more { font-size: 9px; color: var(--dim); padding: 0 6px; cursor: default; }
+.cal-headr { display: flex; align-items: center; gap: 14px; }
+.cal-scope { display: flex; gap: 4px; }
+.cal-scope .seg-btn { font-size: 10px; padding: 5px 9px; }
 @media (max-width: 940px) { .pf-tiles { grid-template-columns: repeat(2, 1fr); } .pf-panels { grid-template-columns: 1fr; } }
 @media (max-width: 880px) {
   /* .pf-row also carries .cs-row, whose mobile rule hides children 3-7 — the
      portfolio keeps value + P&L, and the earnings panel below covers dates */
   .pf-head { display: none; }
-  .pf-row { grid-template-columns: 1.5fr 1fr 1fr 34px; row-gap: 8px; }
-  .pf-row > div:nth-child(4), .pf-row > div:nth-child(5) { display: flex; }
+  /* the report date used to be hidden here along with weight, which left no way
+     at all to reach it on a phone — it stays, book weight goes */
+  .pf-row { grid-template-columns: 1.35fr 0.9fr 0.9fr 0.85fr 34px; row-gap: 8px; }
+  .pf-row > div:nth-child(4), .pf-row > div:nth-child(5), .pf-row > div:nth-child(7) { display: flex; }
   .pf-row > div:nth-child(2), .pf-row > div:nth-child(3),
-  .pf-row > div:nth-child(6), .pf-row > div:nth-child(7) { display: none; }
+  .pf-row > div:nth-child(6) { display: none; }
 }
 @media (max-width: 640px) { .pf-add .search { width: 100% !important; } .pf-note { margin-left: 0; } }
 

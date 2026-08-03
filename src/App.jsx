@@ -312,6 +312,20 @@ export default function App() {
     };
   }), [positions, csData]);
 
+  // Every tracked name with a real report date, for the radar product's month
+  // calendar. In-universe names get theirs from the shared snapshot, so they
+  // land on the calendar without anyone entering anything; holdings and
+  // watchlist names are tagged so the calendar can lead with them.
+  const calErn = useMemo(() => {
+    const held = new Set(positions.map((p) => p.tk));
+    return csData.list
+      .filter((s) => s.ern && s.ern.date)
+      .map((s) => ({
+        tk: s.tk, name: s.name, date: s.ern.date, time: s.ern.time, est: s.ern.est, mine: s.ern.mine,
+        held: held.has(s.tk), watched: watchApi.has("st:" + s.tk),
+      }));
+  }, [csData, positions, watchApi]);
+
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
   // open the live-merged record for a ticker. Compact snapshot names carry no
   // price history, and curated names carry EDITORIAL placeholder series
@@ -612,7 +626,7 @@ export default function App() {
             <SubNav tab={tab} setTab={setTab} counts={events.length} />
             {tab === "radar" && <RadarView {...radarProps} />}
             {tab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
-            {tab === "calendar" && <CalendarView positions={posRows} />}
+            {tab === "calendar" && <CalendarView rows={calErn} onOpenStock={openStock} />}
             {tab === "playbook" && <CatalystTimeline events={allEvents} onOpen={openEvent} />}
           </>
         ) : (

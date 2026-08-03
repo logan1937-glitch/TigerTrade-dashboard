@@ -316,7 +316,7 @@ export function StockDrawerBody({ stock, onClose }) {
           <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
           <button className="ed-btn" data-on={positions.has(s.tk) || undefined}
             onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosErn((h && h.ern) || ""); setAlertOpen(false); setPlanOpen(false); setPosOpen((v) => !v); }}>
-            <PortfolioIcon />{positions.has(s.tk) ? "Edit position" : "Add to portfolio"}
+            <PortfolioIcon />{positions.has(s.tk) ? "Edit position" : "Add position"}
           </button>
           <button className="ed-btn" data-on={!!myAlert || undefined}
             onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setPosOpen(false); setPlanOpen(false); setAlertOpen((v) => !v); }}>
