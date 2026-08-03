@@ -2,7 +2,7 @@ import { TT } from "./tt.js";
 import { SEV_LABEL } from "./components.jsx";
 
 /* ---------------------------- CALENDAR ----------------------------- */
-export function CalendarView() {
+export function CalendarView({ positions = [] }) {
   const m = TT.MONTH;
   const cells = [];
   for (let i = 0; i < m.firstDow; i++) cells.push({ out: true, num: 0 });
@@ -10,12 +10,23 @@ export function CalendarView() {
   while (cells.length % 7 !== 0) cells.push({ out: true, num: 0 });
   const nEvents = Object.values(TT.calEventsByDay).reduce((n, a) => n + a.length, 0);
 
+  // your holdings' REAL report dates, bucketed into this month's day cells
+  const ernByDay = {};
+  for (const p of positions) {
+    if (!p.ern || !p.ern.date) continue;
+    const d = new Date(p.ern.date + "T00:00:00");
+    if (d.getFullYear() !== m.year || d.getMonth() !== m.monthIndex) continue;
+    (ernByDay[d.getDate()] = ernByDay[d.getDate()] || []).push(p);
+  }
+  const nErn = Object.values(ernByDay).reduce((n, a) => n + a.length, 0);
+
   return (
     <div className="wrap">
       <div className="cal-head">
         <div className="cal-title">{m.name}</div>
         <div className="count mono" style={{ color: "var(--dim)", letterSpacing: ".08em", textTransform: "uppercase", fontSize: 11 }}>
           {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
+          {nErn > 0 && <> · <span style={{ color: "var(--cat-growth)" }}>{nErn} of your position{nErn === 1 ? "" : "s"} report{nErn === 1 ? "s" : ""}</span></>}
         </div>
       </div>
       <div className="cal-dow">
@@ -29,6 +40,12 @@ export function CalendarView() {
               {!c.out && <div className="cal-num">{String(c.num).padStart(2, "0")}</div>}
               {evs.map((e, j) => (
                 <div className="cal-ev" key={j} style={{ "--c": TT.CAT_MAP[e.cat].color }}>{e.t}</div>
+              ))}
+              {(!c.out ? (ernByDay[c.num] || []) : []).map((p) => (
+                <div className="cal-ev cal-ern" key={"e" + p.tk}
+                  title={`${p.tk} reports${p.ern.time === "bmo" ? " before the open" : p.ern.time === "amc" ? " after the close" : ""} — your position`}>
+                  {p.tk}<span className="cal-ern-d">◆</span>
+                </div>
               ))}
             </div>
           );

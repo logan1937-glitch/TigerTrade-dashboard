@@ -1201,6 +1201,67 @@ body { background: #0a0b0d; }
 .dr-fk { font-size: 11.5px; color: var(--dim); }
 .dr-fv { font-size: 13px; font-weight: 600; color: var(--text); }
 
+/* ============================== PORTFOLIO ============================== */
+.subtab-n { margin-left: 6px; font-size: 9.5px; padding: 1px 5px; border-radius: 999px;
+  background: color-mix(in oklch, var(--accent) 18%, transparent); color: var(--accent); vertical-align: middle; }
+.pf-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin: 4px 0 16px; }
+.pf-tile { background: var(--surface); padding: 14px 16px 15px; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.pf-tk { font-size: 9.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.pf-tv { font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 1.05; color: var(--text);
+  font-variant-numeric: tabular-nums; }
+.pf-tv[data-up="true"] { color: var(--cat-growth); }
+.pf-tv[data-up="false"] { color: var(--sev-extreme); }
+.pf-ts { font-size: 10px; letter-spacing: var(--track-meta); color: var(--dim); }
+.pf-add { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 14px; }
+.pf-note { font-size: 10px; color: var(--dim); margin-left: auto; }
+.pf-head, .pf-row { grid-template-columns: 1.7fr 0.9fr 1fr 0.9fr 1fr 0.8fr 0.8fr 34px; }
+.pf-num { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; position: relative; }
+.pf-num[data-up="true"] { color: var(--cat-growth); }
+.pf-num[data-up="false"] { color: var(--sev-extreme); }
+.pf-sub { font-size: 10.5px; font-weight: 500; color: var(--dim); }
+.pf-sub[data-up="true"] { color: var(--cat-growth); }
+.pf-sub[data-up="false"] { color: var(--sev-extreme); }
+.pf-wbar { display: block; height: 2px; border-radius: 2px; background: var(--accent); opacity: .5; margin-top: 2px; }
+.pf-ernflag { font-size: 8.5px; letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--sev-high); }
+.pf-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; padding: 4px 6px;
+  border-radius: var(--radius-sm); transition: color .13s ease, background .13s ease; }
+.pf-x:hover { color: var(--sev-extreme); background: color-mix(in oklch, var(--sev-extreme) 12%, transparent); }
+.pf-panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0 8px; }
+.pf-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 15px 16px 16px; min-width: 0; }
+.pf-ph { font-size: 9.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); margin-bottom: 11px; }
+.pf-plead { font-size: 11.5px; line-height: 1.55; color: var(--muted); margin: 0 0 11px; }
+.pf-plead b { color: var(--text); }
+.pf-pempty { font-size: 11.5px; line-height: 1.55; color: var(--dim); margin: 0; }
+.pf-plist { display: flex; flex-direction: column; gap: 7px; }
+.pf-pitem { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 10px; font-size: 11.5px; color: var(--muted); }
+.pf-pitem[data-soon] .pf-pi-t { color: var(--sev-high); font-weight: 700; }
+.pf-pi-tk { font-weight: 700; color: var(--text); }
+.pf-pi-d { color: var(--dim); font-size: 10.5px; }
+.pf-pi-t { color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.pf-sec { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: baseline; font-size: 11.5px; color: var(--muted); }
+.pf-sec-k { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-sec-v { color: var(--text); font-weight: 600; }
+.pf-sec i { grid-column: 1 / 3; display: block; height: 3px; border-radius: 2px; background: var(--accent); opacity: .45; }
+.pf-disc { font-size: 10.5px; line-height: 1.6; color: var(--dim); margin: 22px 2px 64px; max-width: 78ch; }
+/* your positions' report dates on the month grid */
+.cal-ern { border-left-color: var(--cat-growth) !important; color: var(--cat-growth);
+  background: color-mix(in oklch, var(--cat-growth) 12%, transparent) !important; font-weight: 700;
+  display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.cal-ern-d { font-size: 7px; opacity: .8; }
+@media (max-width: 940px) { .pf-tiles { grid-template-columns: repeat(2, 1fr); } .pf-panels { grid-template-columns: 1fr; } }
+@media (max-width: 880px) {
+  /* .pf-row also carries .cs-row, whose mobile rule hides children 3-7 — the
+     portfolio keeps value + P&L, and the earnings panel below covers dates */
+  .pf-head { display: none; }
+  .pf-row { grid-template-columns: 1.5fr 1fr 1fr 34px; row-gap: 8px; }
+  .pf-row > div:nth-child(4), .pf-row > div:nth-child(5) { display: flex; }
+  .pf-row > div:nth-child(2), .pf-row > div:nth-child(3),
+  .pf-row > div:nth-child(6), .pf-row > div:nth-child(7) { display: none; }
+}
+@media (max-width: 640px) { .pf-add .search { width: 100% !important; } .pf-note { margin-left: 0; } }
+
 /* ---- latest earnings: actual vs estimate + quarterly revenue trend ---- */
 .dr-ernres { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border);
   border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }

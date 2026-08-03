@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
-import { StarBtn, StarIcon, Logo, useWatch, useCanslim, useAlerts, SEV_LABEL } from "./components.jsx";
+import { StarBtn, StarIcon, Logo, useWatch, useCanslim, useAlerts, usePositions, SEV_LABEL } from "./components.jsx";
 
 const fmtPx2 = (n) => (n == null || Number.isNaN(+n) ? "—" : n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : (+n).toFixed(2));
 
@@ -264,6 +264,14 @@ export function StockDrawerBody({ stock, onClose }) {
   // order-plan ticket (planning only — not connected to a broker)
   const [planOpen, setPlanOpen] = useState(false);
   const [qty, setQty] = useState(100);
+
+  // portfolio position for this name — entered here or on the portfolio tab
+  const positions = usePositions();
+  const held = positions.get(s.tk);
+  const [posOpen, setPosOpen] = useState(false);
+  const [posSh, setPosSh] = useState("");
+  const [posCost, setPosCost] = useState("");
+  const savePos = () => { if (!(+posSh > 0)) return; positions.add(s.tk, posSh, posCost); setPosOpen(false); };
 
   // price alert: armed here, persisted, evaluated on every data refresh
   const alerts = useAlerts();
@@ -546,8 +554,36 @@ export function StockDrawerBody({ stock, onClose }) {
         <button className="ed-btn" onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setAlertOpen((v) => !v); }}>
           {myAlert ? "Edit alert" : "Set price alert"}
         </button>
+        <button className="ed-btn" onClick={() => { const h = positions.get(s.tk); setPosSh(h ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosOpen((v) => !v); }}>
+          {positions.has(s.tk) ? "Edit position" : "Add to portfolio"}
+        </button>
         {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => setPlanOpen((v) => !v)}>{planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
       </div>
+
+      {posOpen && (
+        <div className="dr-alert-form">
+          <span className="mono dr-alert-lab">{positions.has(s.tk) ? "Update" : "Add"} {s.tk} position</span>
+          <div className="dr-alert-row">
+            <input className="dr-alert-in mono" type="number" step="any" min="0" value={posSh} placeholder="shares"
+              onChange={(e) => setPosSh(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Shares" autoFocus />
+            <span className="mono dr-alert-cur">@ $</span>
+            <input className="dr-alert-in mono" type="number" step="any" min="0" value={posCost} placeholder="cost (opt)"
+              onChange={(e) => setPosCost(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Cost per share" />
+            <button className="ed-btn ed-btn-primary" onClick={savePos}>Save</button>
+            {positions.has(s.tk) && <button className="ed-btn" onClick={() => { positions.remove(s.tk); setPosOpen(false); }}>Remove</button>}
+          </div>
+          <span className="mono dr-alert-note">stored on this device · powers the portfolio view and puts this name's report date on your calendar</span>
+        </div>
+      )}
+      {!posOpen && held && (
+        <div className="dr-alert">
+          Holding <b className="mono">{held.shares.toLocaleString()}</b> share{held.shares === 1 ? "" : "s"}
+          {held.cost != null && <> at <b className="mono">${held.cost}</b></>}
+          {s.px != null && <> · value <b className="mono">${fmtPx2(held.shares * s.px)}</b>
+            {held.cost != null && <> · P&amp;L <b className="mono">{s.px >= held.cost ? "+" : "−"}${fmtPx2(Math.abs((s.px - held.cost) * held.shares))}</b></>}</>}
+          <button className="linkbtn dr-alert-clear" onClick={() => positions.remove(s.tk)}>remove</button>
+        </div>
+      )}
 
       {alertOpen && (
         <div className="dr-alert-form">

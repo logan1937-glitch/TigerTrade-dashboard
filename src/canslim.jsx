@@ -4,6 +4,7 @@ import { RET_KEY } from "./signals.js";
 import { SearchIcon, StarBtn, InfoDot } from "./components.jsx";
 import { RSLine, BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
+import { PortfolioView } from "./portfolio.jsx";
 
 const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
 
@@ -329,7 +330,8 @@ function StageBreadth({ stages }) {
 }
 
 /* ------------------------------ SHELL ------------------------------ */
-export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr }) {
+export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr,
+  posRows = [], events = [], vix = null }) {
   const [tab, setTab] = useState("screener");
   const [sectorF, setSectorF] = useState(null);   // sector filter set from the Market Map
 
@@ -390,8 +392,9 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
       <div className="wrap">
         <div className="subnav">
-          {[["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"]].map(([id, l]) => (
-            <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>{l}</button>
+          {[["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"], ["portfolio", "Portfolio"]].map(([id, l]) => (
+            <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>{l}
+              {id === "portfolio" && posRows.length > 0 && <span className="subtab-n mono">{posRows.length}</span>}</button>
           ))}
         </div>
       </div>
@@ -402,6 +405,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         {tab === "map" && <MarketMap rows={rows} live={live} onOpenStock={onOpenStock}
           onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} />}
         {tab === "health" && <MarketHealth market={market} />}
+        {tab === "portfolio" && <PortfolioView rows={posRows} onOpenStock={onOpenStock} events={events} vix={vix} />}
       </div>
     </>
   );

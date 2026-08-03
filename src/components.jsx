@@ -43,6 +43,10 @@ export function useCanslim() { return useContext(CanslimCtx); }
 export const AlertCtx = createContext({ list: [], for: () => null, set: () => {}, clear: () => {}, hits: 0 });
 export function useAlerts() { return useContext(AlertCtx); }
 
+/* portfolio positions — manually entered, stored on-device only */
+export const PosCtx = createContext({ list: [], count: 0, has: () => false, get: () => null, add: () => {}, remove: () => {} });
+export function usePositions() { return useContext(PosCtx); }
+
 export function StarIcon({ filled }) {
   return (
     <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">

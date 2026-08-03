@@ -4,7 +4,7 @@ import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
-import { WatchCtx, CanslimCtx, AlertCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape } from "./components.jsx";
+import { WatchCtx, CanslimCtx, AlertCtx, PosCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
 import { CatalystTimeline } from "./catalystTimeline.jsx";
@@ -93,6 +93,26 @@ export default function App() {
       { tk, level: +level, dir: px != null && +level < px ? "below" : "above", setAt: Date.now(), setPx: px ?? null }]),
     clear: (tk) => setAlerts((prev) => prev.filter((a) => a.tk !== tk)),
   }), [alerts]);
+
+  // portfolio positions — manually entered, persisted per device (same pattern
+  // as the watchlist/alerts). { tk, shares, cost } with cost = basis per share;
+  // cost is optional, and every derived figure is hidden when it's absent
+  // rather than assumed. Nothing here is sent anywhere — it stays on-device.
+  const [positions, setPositions] = useStored("tt_positions", []);
+  const posApi = useMemo(() => ({
+    list: positions,
+    count: positions.length,
+    has: (tk) => positions.some((p) => p.tk === tk),
+    get: (tk) => positions.find((p) => p.tk === tk) || null,
+    add: (tk, shares, cost) => setPositions((prev) => {
+      const t = String(tk || "").toUpperCase().trim().replace(/[^A-Z0-9.\-]/g, "");
+      const n = +shares;
+      if (!t || !Number.isFinite(n) || n <= 0) return prev;
+      const c = cost === "" || cost == null || !Number.isFinite(+cost) || +cost <= 0 ? null : +cost;
+      return [...prev.filter((p) => p.tk !== t), { tk: t, shares: n, cost: c, at: Date.now() }];
+    }),
+    remove: (tk) => setPositions((prev) => prev.filter((p) => p.tk !== tk)),
+  }), [positions]);
 
   // single source of screener data: live quotes + real EOD signals merged over the
   // editorial base, then a real universe-wide RS rating + momentum score so curated
@@ -205,6 +225,26 @@ export default function App() {
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
   }, [universe, meta, live, hist, customData, market, earnings]);
+
+  // positions joined with live quotes + the universe record — drives the
+  // portfolio view and the earnings overlay on the calendar. Every derived
+  // number stays null when its input is missing (no price, no cost basis).
+  const posRows = useMemo(() => positions.map((p) => {
+    const r = csData.byTicker[p.tk] || null;
+    const px = r && r.px != null ? r.px : null;
+    const chg = r && r.chg != null ? r.chg : null;
+    const prevPx = px != null && chg != null && chg !== -100 ? px / (1 + chg / 100) : null;
+    const value = px != null ? px * p.shares : null;
+    const basis = p.cost != null ? p.cost * p.shares : null;
+    return {
+      ...p, row: r, name: (r && r.name) || p.tk, sector: (r && r.sector) || "—",
+      px, chg, value, basis,
+      pl: value != null && basis != null ? value - basis : null,
+      plPct: px != null && p.cost ? (px / p.cost - 1) * 100 : null,
+      dayPl: px != null && prevPx != null ? (px - prevPx) * p.shares : null,
+      ern: (r && r.ern) || null,
+    };
+  }), [positions, csData]);
 
   const openEvent = (ev) => { setStockDrawer(null); setWatchOpen(false); setEvDrawer(ev); };
   // open the live-merged record for a ticker. Compact snapshot names carry no
@@ -489,6 +529,7 @@ export default function App() {
     <WatchCtx.Provider value={watchApi}>
     <CanslimCtx.Provider value={csData}>
     <AlertCtx.Provider value={alertApi}>
+    <PosCtx.Provider value={posApi}>
       <div className="app" data-dir={DIR} data-mode={mode} data-density={DENSITY} data-glow={GLOW} data-motion={MOTION} data-typeface={TYPEFACE}>
         <div className="grain" />
         <TopBar product={product} setProduct={setProduct} onOpenCmd={() => setCmdOpen(true)}
@@ -504,12 +545,13 @@ export default function App() {
             <SubNav tab={tab} setTab={setTab} counts={events.length} />
             {tab === "radar" && <RadarView {...radarProps} />}
             {tab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
-            {tab === "calendar" && <CalendarView />}
+            {tab === "calendar" && <CalendarView positions={posRows} />}
             {tab === "playbook" && <CatalystTimeline events={allEvents} onOpen={openEvent} />}
           </>
         ) : (
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
-            onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr} />
+            onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr}
+            posRows={posRows} events={upcoming} vix={vix} />
         )}
 
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} commands={commands} />
@@ -543,6 +585,7 @@ export default function App() {
           </button>
         </nav>
       </div>
+    </PosCtx.Provider>
     </AlertCtx.Provider>
     </CanslimCtx.Provider>
     </WatchCtx.Provider>
