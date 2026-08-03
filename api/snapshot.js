@@ -26,6 +26,18 @@ const BLOB_KEY = "snapshot.json";
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
+/* Without a Blob store, a normal read falls straight through to a full compute,
+   and each compute spends ~13 FMP calls on the macro board, VIX and earnings
+   calendar before it even touches quotes. At s-maxage=300 that is a recompute
+   every five minutes per edge region — thousands of upstream calls a day against
+   a quota of a few hundred. That is how the macro board, VIX and the S&P
+   earnings dates all go blank at once: the plan's quota is spent, not the code.
+   So a warm lambda keeps its own last result, and concurrent requests share one
+   compute instead of each paying for their own. */
+let memSnap = null;                     // { at, body }
+let computeJob = null;                  // in-flight compute, shared by a burst
+const MEM_TTL = 30 * 60 * 1000;
+
 async function readBlob() {
   if (!hasBlob) return null;
   try {
@@ -420,13 +432,27 @@ export default async function handler(req, res) {
     const stored = await readBlob();
     if (stored && stored.count > 0) {
       res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
-      return res.status(200).json({ ...stored, served: "blob" });
+      return res.status(200).json({ ...stored, blob: hasBlob, served: "blob" });
+    }
+    // no Blob store connected: serve this lambda's own last compute rather than
+    // buying a fresh one — the alternative is spending upstream quota per request
+    if (memSnap && memSnap.body.count > 0 && Date.now() - memSnap.at < MEM_TTL) {
+      res.setHeader("Cache-Control", "s-maxage=1800, stale-while-revalidate=86400");
+      return res.status(200).json({ ...memSnap.body, blob: hasBlob, served: "memory" });
     }
   }
 
-  // cron refresh, or no stored snapshot yet: compute and persist
-  const body = await compute();
-  if (body.count > 0) await writeBlob(body);
-  res.setHeader("Cache-Control", body.count > 0 ? "s-maxage=300, stale-while-revalidate=86400" : "no-store");
-  return res.status(200).json({ ...body, served: refresh ? "compute-refresh" : "compute" });
+  // cron refresh, or nothing cached yet: compute once, however many asked at once
+  if (!computeJob) computeJob = compute().finally(() => { computeJob = null; });
+  const body = await computeJob;
+  if (body.count > 0) {
+    memSnap = { at: Date.now(), body };
+    await writeBlob(body);
+  }
+  // a deployment with no Blob store has only the edge cache standing between it
+  // and its upstream quota, so it holds the result far longer
+  res.setHeader("Cache-Control", body.count > 0
+    ? (hasBlob ? "s-maxage=300, stale-while-revalidate=86400" : "s-maxage=1800, stale-while-revalidate=86400")
+    : "no-store");
+  return res.status(200).json({ ...body, blob: hasBlob, served: refresh ? "compute-refresh" : "compute" });
 }

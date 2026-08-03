@@ -98,6 +98,17 @@ to hundreds), connect a **Vercel Blob** store:
 3. The snapshot now reads/writes Blob automatically; without it, it falls back to
    compute-on-demand + edge cache (zero setup, still works).
 
+> **Connect Blob before you consider paying for a bigger data plan.** Without it
+> every cache miss recomputes the whole universe, and each recompute spends ~13
+> FMP calls on the macro board, VIX and the earnings calendar before it touches a
+> single quote. That is how those three go blank together: the API quota is
+> spent, not the code broken. With Blob connected the cron computes once per
+> weekday and normal reads cost nothing upstream.
+>
+> Check which mode you're in: load `/api/snapshot` and look at the top level —
+> `"blob": true` and `"served": "blob"` is right; `"blob": false` with
+> `"served": "compute"` means every visit is burning quota.
+
 ### Report dates for names outside the S&P 500
 The shared snapshot is the same for everyone, so it can't carry report dates for
 *your* holdings outside the tracked universe. `/api/earnings?symbols=NBIS,ASML`
