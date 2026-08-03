@@ -119,7 +119,8 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                   aria-label={`${r.tk} — open full analysis`}
                   onClick={() => onOpenStock && onOpenStock({ tk: r.tk })}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock && onOpenStock({ tk: r.tk }); } }}>
-                  <div className="cs-tk"><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
+                  <div className="cs-tk"><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span>
+                    {r.name && r.name !== r.tk && <span className="cs-name">{r.name}</span>}</span></div>
                   <div className="pf-num mono">{r.shares.toLocaleString()}
                     {r.cost != null && <span className="pf-sub mono">@ {money(r.cost)}</span>}</div>
                   <div className="pf-num mono">{r.px != null ? money(r.px) : "—"}

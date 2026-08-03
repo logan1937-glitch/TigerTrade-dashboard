@@ -26,7 +26,7 @@ export function CalendarView({ positions = [] }) {
         <div className="cal-title">{m.name}</div>
         <div className="count mono" style={{ color: "var(--dim)", letterSpacing: ".08em", textTransform: "uppercase", fontSize: 11 }}>
           {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
-          {nErn > 0 && <> · <span style={{ color: "var(--cat-growth)" }}>{nErn} of your position{nErn === 1 ? "" : "s"} report{nErn === 1 ? "s" : ""}</span></>}
+          {nErn > 0 && <> · <span style={{ color: "var(--cat-growth)" }}>{nErn} of your positions report{nErn === 1 ? "s" : ""}</span></>}
         </div>
       </div>
       <div className="cal-dow">

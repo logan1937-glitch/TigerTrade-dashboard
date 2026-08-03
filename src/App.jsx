@@ -15,6 +15,48 @@ import { CanslimView } from "./canslim.jsx";
 /* fixed presentation settings (the prototype's design-tool tweaks, pinned for production) */
 const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grotesk", GLOW = "on", SHOW_SCOPE = true;
 
+// Earnings for a single symbol. The nightly snapshot only covers the tracked
+// universe (S&P 500 + curated), so a portfolio holding outside it — a non-S&P
+// name — has no report date. Fetch it on demand and cache for a day. Returns
+// null when the symbol has no calendar entry or the tier lacks the endpoint;
+// the UI then simply shows no date rather than inventing one.
+const ernCache = new Map();
+async function fetchSymEarnings(tk) {
+  if (ernCache.has(tk)) return ernCache.get(tk);
+  try {
+    const raw = localStorage.getItem("tt_ern_" + tk);
+    if (raw) { const { t, d } = JSON.parse(raw); if (Date.now() - t < 864e5) { ernCache.set(tk, d); return d; } }
+  } catch {}
+  const num = (v) => (v != null && Number.isFinite(+v) ? +v : null);
+  const today = new Date().toISOString().slice(0, 10);
+  for (const url of [`/api/fmp?endpoint=earnings&symbol=${encodeURIComponent(tk)}&limit=16`,
+                     `/api/fmp?endpoint=earnings-calendar&symbol=${encodeURIComponent(tk)}`]) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (!Array.isArray(j) || !j.length) continue;
+      let next = null, last = null;
+      for (const e of j) {
+        const d = String(e.date || "").slice(0, 10);
+        if (!d) continue;
+        if (d >= today) { if (!next || d < next) next = d; }
+        const epsA = num(e.epsActual), revA = num(e.revenueActual);
+        if (d <= today && (epsA != null || revA != null) && (!last || d > last.d)) {
+          last = { d, epsA, epsE: num(e.epsEstimated), revA, revE: num(e.revenueEstimated) };
+        }
+      }
+      if (!next && !last) continue;
+      const out = { d: next, t: null, last };
+      ernCache.set(tk, out);
+      try { localStorage.setItem("tt_ern_" + tk, JSON.stringify({ t: Date.now(), d: out })); } catch {}
+      return out;
+    } catch { /* try the next spelling */ }
+  }
+  ernCache.set(tk, null);
+  return null;
+}
+
 function useStored(key, init) {
   const [v, setV] = useState(() => {
     try { const s = localStorage.getItem(key); return s === null ? init : JSON.parse(s); } catch { return init; }
@@ -114,6 +156,20 @@ export default function App() {
     remove: (tk) => setPositions((prev) => prev.filter((p) => p.tk !== tk)),
   }), [positions]);
 
+  // report dates for holdings the shared snapshot doesn't cover (non-S&P names)
+  const [extraErn, setExtraErn] = useState({});   // { TK: { d, t, last } }
+  useEffect(() => {
+    const need = positions.map((p) => p.tk).filter((tk) => tk && !earnings?.[tk] && extraErn[tk] === undefined);
+    if (!need.length) return;
+    let alive = true;
+    (async () => {
+      const got = await Promise.all(need.map((tk) => fetchSymEarnings(tk).then((d) => [tk, d]).catch(() => [tk, null])));
+      if (!alive) return;
+      setExtraErn((prev) => { const next = { ...prev }; for (const [tk, d] of got) next[tk] = d; return next; });
+    })();
+    return () => { alive = false; };
+  }, [positions, earnings]);
+
   // single source of screener data: live quotes + real EOD signals merged over the
   // editorial base, then a real universe-wide RS rating + momentum score so curated
   // and extended (signals-only) names are ranked on the same honest, technical basis
@@ -133,8 +189,11 @@ export default function App() {
     const extra = [];
     for (const tk of Object.keys(meta)) { if (!seen.has(tk)) { extra.push(signalsOnly(tk, meta[tk])); seen.add(tk); } }
     for (const sym of customSyms) { if (!seen.has(sym)) { extra.push(signalsOnly(sym, null)); seen.add(sym); } }
+    // portfolio names off the tracked universe (e.g. a non-S&P holding) are
+    // first-class too — otherwise they'd carry no price, sector or earnings
+    for (const p of positions) { if (p.tk && !seen.has(p.tk)) { extra.push(signalsOnly(p.tk, null)); seen.add(p.tk); } }
     return [...TT.CANSLIM, ...extra];
-  }, [meta, customSyms]);
+  }, [meta, customSyms, positions]);
 
   const csData = useMemo(() => {
     let list = universe.map((s) => {
@@ -151,7 +210,7 @@ export default function App() {
         if (sg.closes && sg.closes.length) r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine };
       }
       // earnings-risk overlay: days until the next confirmed report
-      const ern = earnings?.[s.tk];
+      const ern = earnings?.[s.tk] || extraErn[s.tk];
       if (ern?.d) {
         const days = Math.round((new Date(ern.d + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
         if (days >= 0) r = { ...r, ern: { date: ern.d, time: ern.t, days } };
@@ -224,7 +283,7 @@ export default function App() {
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
-  }, [universe, meta, live, hist, customData, market, earnings]);
+  }, [universe, meta, live, hist, customData, market, earnings, extraErn]);
 
   // positions joined with live quotes + the universe record — drives the
   // portfolio view and the earnings overlay on the calendar. Every derived
@@ -315,7 +374,8 @@ export default function App() {
 
   // re-fetch persisted custom tickers (e.g. after reload) that have no data yet
   useEffect(() => {
-    const missing = customSyms.filter((sym) => !customData[sym] && !TT.CS_BYTICKER[sym]);
+    const want = [...new Set([...customSyms, ...positions.map((p) => p.tk)])];
+    const missing = want.filter((sym) => sym && !customData[sym] && !TT.CS_BYTICKER[sym] && !meta[sym]);
     if (!missing.length) return;
     let alive = true;
     (async () => {
@@ -328,7 +388,7 @@ export default function App() {
       });
     })().catch(() => {});
     return () => { alive = false; };
-  }, [customSyms]);
+  }, [customSyms, positions, meta]);
 
   // Data feed, in priority order:
   //  1) /api/snapshot — the nightly precompute (one cached request, all signals)

@@ -22,6 +22,8 @@ const ALLOWED = [
   "quote-short",
   "batch-quote",
   "profile",
+  "earnings",
+  "earnings-calendar",
   "income-statement",
   "ratios-ttm",
   "key-metrics-ttm",
