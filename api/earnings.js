@@ -10,29 +10,33 @@
 //   GET /api/earnings?symbols=NBIS&debug=1     ← every upstream status code
 //   GET /api/earnings?symbols=NBIS&refresh=1   ← ignore the cache, re-ask upstream
 //
-// WHY NOT FMP. This account's plan cannot answer for an off-universe name,
-// re-verified against the live API: per-symbol `earnings` → ACCESS DENIED, as do
-// `income-statement` and `financial-estimates`, and the date-range
-// `earnings-calendar` it does serve returned 21 mega-cap names for a 17-day
-// window with no NBIS in it. Only `profile` and quotes come back. FMP is still
-// asked first and simply starts winning again if the plan is upgraded.
+// NO FMP HERE, DELIBERATELY. This account's plan cannot answer for an
+// off-universe name, verified twice against the live API: per-symbol `earnings`
+// → ACCESS DENIED (as do `income-statement` and `financial-estimates`), and the
+// date-range `earnings-calendar` it does serve returned 21 mega-cap names for a
+// 17-day window with no NBIS in it — and those mega-caps are already in the
+// nightly snapshot, so it could never add anything this endpoint exists for.
+// Calling it was two guaranteed-failing round trips per request. It is gone.
 //
-// SO: YAHOO, BY TWO DIFFERENT DOORS.
-//   1. quoteSummary (v10) — the richest answer (next date, estimate flag, EPS
-//      history, revenue) but crumb-gated since 2023, and Yahoo rate-limits
-//      datacenter egress, so the handshake is the step most likely to be refused
-//      on Vercel. That is the suspected reason NBIS showed no date.
-//   2. chart (v8) — no cookie, no crumb. This is the same endpoint /api/yahoo
-//      and the nightly snapshot already hit successfully for ~500 tickers, so it
-//      is the one Yahoo path this deployment is known to reach. Asked with
-//      `events=earn`, it can carry the report dates too. Tried whenever door 1
-//      fails to produce a date.
+// WHAT IS LEFT IS TWO YAHOO DOORS, CHEAPEST FIRST.
+//   1. chart (v8) — no cookie, no crumb, one request. The same endpoint
+//      /api/yahoo and the nightly snapshot already hit ~500 times a night from
+//      this deployment, so it is the Yahoo path known to be reachable here.
+//      Asked with `events=earn` it carries report dates too.
+//   2. quoteSummary (v10) — richer (estimate flag, EPS history, revenue) but
+//      crumb-gated since 2023, so it costs a two-request handshake before it can
+//      even be tried, and Yahoo rate-limits datacenter egress. Asked only when
+//      the chart came back without a date, or without a reported quarter.
 //
-// AND A CACHE THAT REMEMBERS. Both doors are flaky by nature — rate limits are
-// per-IP and intermittent. A resolved date is therefore written to Vercel Blob
-// (the store the snapshot already uses), so ONE success from any region at any
-// time is served to everyone afterwards instead of being re-earned per request.
-// When every upstream fails, a stale cached date is served rather than a blank.
+// AND A CACHE THAT REMEMBERS. Rate limits are per-IP and intermittent, so a
+// resolved date is written to Vercel Blob (the store the snapshot already uses):
+// ONE success from any region at any time is served to everyone afterwards
+// instead of being re-earned per request. A warm cache hit costs no upstream
+// call at all. When both doors fail, a stale cached date is served rather than a
+// blank, flagged `stale`.
+//
+// If a listing defeats both doors, the UI lets you set the date on the position
+// yourself — labelled as yours, never as confirmed.
 //
 // Nothing is ever estimated locally. Yahoo flags its own projected dates and that
 // flag is passed straight through as `est` so the UI can mark them with a "~"
@@ -182,9 +186,9 @@ async function yahooQuoteSummary(sym, today, diag) {
   const path = `/v10/finance/quoteSummary/${encodeURIComponent(sym)}?modules=calendarEvents%2CearningsHistory%2Cearnings`;
   // Both gateways, with the crumb when we have one and bare afterwards — they
   // don't fail identically. Costs nothing when the first attempt succeeds.
-  const attempts = cred
-    ? [["query2", true], ["query1", true], ["query2", false], ["query1", false]]
-    : [["query2", false], ["query1", false]];
+  // one crumbed attempt and one bare one — the second gateway almost never
+  // answers when the first refuses, and this path is already the slow one
+  const attempts = cred ? [["query2", true], ["query1", false]] : [["query2", false]];
 
   for (const [host, withCrumb] of attempts) {
     if (withCrumb && !yCred) continue;                                   // crumb went stale mid-ladder
@@ -247,36 +251,17 @@ async function yahooChart(sym, today, diag) {
   return null;
 }
 
-// quoteSummary first for its richer payload; the crumb-free chart covers the
-// case where the handshake is refused, which is the failure this deployment hits.
+// Chart first: it is one request with no cookie/crumb handshake in front of it,
+// on the endpoint this deployment already reaches ~500 times a night. quoteSummary
+// is asked only when the chart yields no date — it is richer (estimate flag, EPS
+// history, revenue) but costs a two-request handshake before it can even be tried.
 async function yahooEarnings(sym, today, diag) {
-  const qs = await yahooQuoteSummary(sym, today, diag);
-  if (qs && qs.d) return qs;
   const ch = await yahooChart(sym, today, diag);
-  if (!ch) return qs;
+  if (ch && ch.d && ch.last) return ch;
+  const qs = await yahooQuoteSummary(sym, today, diag);
   if (!qs) return ch;
-  return { ...ch, last: qs.last || ch.last };      // date from the chart, results from quoteSummary
-}
-
-/* ── FMP rows → the same record shape ───────────────────────────────────── */
-function foldFmp(rows, today) {
-  const out = {};
-  for (const e of rows) {
-    const tk = e.symbol;
-    const day = String(e.date || "").slice(0, 10);
-    if (!tk || !day) continue;
-    const rec = out[tk] || (out[tk] = { d: null, t: null, est: false, src: "fmp", last: null });
-    if (day >= today && (!rec.d || day < rec.d)) {
-      rec.d = day;
-      rec.t = e.time && /bmo|amc/i.test(e.time) ? String(e.time).toLowerCase() : null;
-    }
-    const epsA = num(e.epsActual), revA = num(e.revenueActual);
-    if (day <= today && (epsA != null || revA != null) && (!rec.last || day > rec.last.d)) {
-      rec.last = { d: day, epsA, epsE: num(e.epsEstimated), revA, revE: num(e.revenueEstimated), qEnd: false };
-    }
-  }
-  for (const k of Object.keys(out)) if (!out[k].d && !out[k].last) delete out[k];
-  return out;
+  if (!ch) return qs;
+  return { ...qs, d: ch.d || qs.d, est: ch.d ? false : qs.est, last: qs.last || ch.last };
 }
 
 export default async function handler(req, res) {
@@ -291,11 +276,8 @@ export default async function handler(req, res) {
   const debug = req.query.debug === "1" || req.query.debug === "true";
   const refresh = req.query.refresh === "1" || req.query.refresh === "true";
   const diag = debug ? [] : null;
-  const key = process.env.FMP_API_KEY;          // optional — Yahoo needs no key
   const today = iso(Date.now());
-  const from = iso(Date.now() - 98 * 86400000);
-  const to = iso(Date.now() + 70 * 86400000);
-  diag?.push({ step: "start", today, symbols: want, fmpKey: !!key, blob: hasBlob, refresh, node: process.version });
+  diag?.push({ step: "start", today, symbols: want, blob: hasBlob, refresh, node: process.version });
 
   // Pass 0: anything the cache still vouches for is answered without touching
   // an upstream at all.
@@ -309,51 +291,13 @@ export default async function handler(req, res) {
   }
 
   if (ask.length) {
-    // Passes 1 and 2 race per symbol: FMP is preferred when it answers (real
-    // report date + revenue), Yahoo is what actually covers off-universe names.
-    const fmpRows = [];
-    const [, yahoo] = await Promise.all([
-      key ? Promise.all(ask.map(async (sym) => {
-        try {
-          const r = await fetch(`https://financialmodelingprep.com/stable/earnings?symbol=${encodeURIComponent(sym)}&limit=16&apikey=${key}`);
-          diag?.push({ step: "fmp:earnings", sym, status: r.status });
-          if (!r.ok) return;                        // 402/403 on plans without this endpoint
-          const j = await r.json();
-          if (Array.isArray(j)) for (const e of j) if (e && e.date) fmpRows.push({ ...e, symbol: e.symbol || sym });
-        } catch (e) { diag?.push({ step: "fmp:earnings", sym, error: errText(e) }); }
-      })) : Promise.resolve(),
-      Promise.all(ask.map((sym) => yahooEarnings(sym, today, diag).catch((e) => {
-        diag?.push({ step: "yahoo", sym, error: errText(e) });
-        return null;
-      }))),
-    ]);
+    const yahoo = await Promise.all(ask.map((sym) => yahooEarnings(sym, today, diag).catch((e) => {
+      diag?.push({ step: "yahoo", sym, error: errText(e) });
+      return null;
+    })));
+    ask.forEach((sym, i) => { if (yahoo[i]) out[sym] = yahoo[i]; });
 
-    Object.assign(out, foldFmp(fmpRows, today));
-    ask.forEach((sym, i) => { if (!out[sym] && yahoo[i]) out[sym] = yahoo[i]; });
-
-    // Pass 3, last resort: the market-wide FMP calendar, filtered to whatever is
-    // still missing. Deliberately a single request — this plan ignores a `symbol`
-    // filter here, so asking per name would pull the same payload once per symbol.
-    const missing = ask.filter((s) => !out[s]);
-    if (key && missing.length) {
-      const need = new Set(missing);
-      for (const url of [
-        `https://financialmodelingprep.com/stable/earnings-calendar?from=${from}&to=${to}&includeReportTimes=true&apikey=${key}`,
-        `https://financialmodelingprep.com/api/v3/earning_calendar?from=${from}&to=${to}&apikey=${key}`,
-      ]) {
-        try {
-          const r = await fetch(url);
-          const j = r.ok ? await r.json() : null;
-          const hits = Array.isArray(j) ? j.filter((e) => e && e.symbol && need.has(e.symbol)) : [];
-          diag?.push({ step: "fmp:calendar", status: r.status, rows: Array.isArray(j) ? j.length : 0, matched: hits.length });
-          if (!Array.isArray(j) || !j.length) continue;
-          Object.assign(out, foldFmp(hits, today));
-          break;
-        } catch (e) { diag?.push({ step: "fmp:calendar", error: errText(e) }); }
-      }
-    }
-
-    // Pass 4: a symbol every upstream just refused falls back to whatever the
+    // A symbol every upstream just refused falls back to whatever the
     // cache last knew, however old — a date earned last week is still the real
     // date, and beats the blank the user has been looking at.
     for (const sym of ask) {

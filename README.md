@@ -103,17 +103,22 @@ The shared snapshot is the same for everyone, so it can't carry report dates for
 *your* holdings outside the tracked universe. `/api/earnings?symbols=NBIS,ASML`
 fills that gap, trying each source in turn and stopping at the first real answer:
 
-| # | Source | Needs | Notes |
-|---|--------|-------|-------|
-| 1 | Blob cache | — | A date resolved once is served to everyone afterwards. |
-| 2 | FMP per-symbol `earnings` | `FMP_API_KEY` | **ACCESS DENIED below the top plan** — kept so it wins again after an upgrade. |
-| 3 | Yahoo `quoteSummary` | — | Richest (date, projected-date flag, EPS history, revenue) but cookie+crumb gated, and Yahoo rate-limits datacenter IPs. |
-| 4 | Yahoo `chart` `events=earn` | — | No cookie, no crumb — the same endpoint the snapshot already reaches, so it answers when the crumb handshake is refused. |
-| 5 | FMP `earnings-calendar` | `FMP_API_KEY` | Market-wide; this plan returns only ~20 mega-caps per window. |
-| 6 | Stale cache | — | A date from an earlier read, flagged `stale`, rather than a blank. |
+| # | Source | Cost | Notes |
+|---|--------|------|-------|
+| 1 | Blob cache | 0 requests | A date resolved once is served to everyone afterwards. |
+| 2 | Yahoo `chart` `events=earn` | 1 request | No cookie, no crumb. The same endpoint the snapshot already reaches ~500×/night, so it's the Yahoo path known to work from this deployment. |
+| 3 | Yahoo `quoteSummary` | 3 requests | Richer (projected-date flag, EPS history, revenue) but cookie+crumb gated, so it costs a handshake first. Asked only when the chart returns no date or no reported quarter. |
+| 4 | Stale cache | 0 requests | A date from an earlier read, flagged `stale`, rather than a blank. |
+
+**FMP is deliberately not in this list.** Verified twice against the live API:
+per-symbol `earnings`, `income-statement` and `financial-estimates` all answer
+ACCESS DENIED on this plan, and the `earnings-calendar` it does serve returned 21
+mega-cap names for a 17-day window — names the nightly snapshot already carries.
+It could never answer for the off-universe holdings this endpoint exists for, so
+calling it was two guaranteed-failing round trips per request.
 
 Every result is written back to the Blob store, so one success anywhere is
-permanent. Add `&debug=1` to see the status code of every upstream hop (no key,
+permanent. Add `&debug=1` to see the status code of every upstream hop (no
 cookie or crumb value is ever echoed), or `&refresh=1` to bypass the cache.
 
 If every source is silent for a listing — which happens, these are free feeds —

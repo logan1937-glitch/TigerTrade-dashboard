@@ -1,8 +1,8 @@
 // Exercises api/earnings.js against a stubbed Yahoo (realistic quoteSummary and
-// chart shapes) plus an FMP that denies the per-symbol endpoint, as this plan
-// does. The endpoint cannot be exercised for real without a deploy — this covers
-// the parse, the cookie/crumb handshake and its reuse, the crumb-free chart
-// door, and the cache that makes one success durable.
+// chart shapes). The endpoint cannot be exercised for real without a deploy —
+// this covers both parses, the cookie/crumb handshake and its reuse, the ordering
+// (crumb-free chart first, quoteSummary only when it must), the cache that makes
+// one success durable, and the guarantee that FMP is never called.
 //
 //   npm run test:earnings
 
@@ -44,9 +44,11 @@ const CHART = { chart: { result: [{
 // to take an upstream away without resetting those caches — that is how the
 // durable-cache behaviour is exercised.
 let calls = [];
+let fmpHits = 0;
 let mode = {};
 async function scenario(name, opts = {}) {
   calls = [];
+  fmpHits = 0;
   mode = { crumbStatus: 200, bareWorks: true, chart: null, ...opts };
   globalThis.fetch = async (url, o) => {
     const u = String(url);
@@ -75,8 +77,7 @@ async function scenario(name, opts = {}) {
       if (u.includes("/NOPE")) return new Response(JSON.stringify({ quoteSummary: { result: null } }), { status: 200 });
       return new Response(JSON.stringify(YS), { status: 200 });
     }
-    if (u.includes("financialmodelingprep.com/stable/earnings?")) return new Response("Access denied", { status: 403 });
-    if (u.includes("earnings-calendar") || u.includes("earning_calendar")) return new Response(JSON.stringify([]), { status: 200 });
+    if (u.includes("financialmodelingprep.com")) { fmpHits++; return new Response("Access denied", { status: 403 }); }
     throw new Error("unexpected fetch: " + u);
   };
   const { default: handler } = await import(`../api/earnings.js?s=${encodeURIComponent(name)}`);
@@ -132,7 +133,7 @@ run = await scenario("debug");
 const d = await run({ symbols: "NBIS", debug: "1" });
 const steps = d.body?.diag?.steps || [];
 eq("debug wraps the result", !!d.body.result?.NBIS, true);
-eq("records the FMP denial", steps.some((s) => s.step === "fmp:earnings" && s.status === 403), true);
+eq("never calls FMP — verified incapable for these names", fmpHits, 0);
 eq("records the seed status", steps.some((s) => s.step === "yahoo:seed" && s.status === 404), true);
 eq("records the crumb status", steps.some((s) => s.step === "yahoo:crumb" && s.status === 200), true);
 eq("records the quoteSummary status", steps.some((s) => s.step === "yahoo:quoteSummary" && s.status === 200), true);
@@ -141,7 +142,17 @@ eq("never echoes the crumb value", blob.includes("Xy1z.AbC"), false);
 eq("never echoes the cookie value", blob.includes("AQABBxyz"), false);
 eq("never echoes the API key", blob.includes("test-key"), false);
 
-/* ── 5. the crumb door is shut, the crumb-free chart door answers ────────── */
+/* ── 5. the cheap door is tried first and alone when it fully answers ────── */
+console.log("\n— chart answers, quoteSummary and its handshake are skipped —");
+run = await scenario("cheap-first", { chart: CHART });
+const e8 = await run({ symbols: "NBIS" });
+eq("resolved from the chart", e8.body.NBIS?.src, "yahoo-chart");
+eq("no crumb handshake was run", calls.some((c) => c.includes("getcrumb")), false);
+eq("quoteSummary was never called", calls.some((c) => c.includes("/v10/finance/quoteSummary/")), false);
+eq("one upstream call only", calls.filter((c) => c.includes("finance.yahoo.com")).length, 1);
+eq("and FMP still untouched", fmpHits, 0);
+
+/* ── 6. the crumb door is shut, the crumb-free chart door answers ────────── */
 console.log("\n— quoteSummary refused, chart events answer —");
 run = await scenario("chart", { crumbStatus: 429, bareWorks: false, chart: CHART });
 const e = await run({ symbols: "NBIS" });
@@ -152,7 +163,7 @@ eq("past quarter's EPS read from the same block", e.body.NBIS?.last?.epsA, -0.41
 eq("a chart date is never flagged as projected", e.body.NBIS?.est, false);
 eq("the chart was actually tried", calls.some((c) => c.includes("/v8/finance/chart/")), true);
 
-/* ── 6. one success is durable: cached, then served when Yahoo goes dark ─── */
+/* ── 7. one success is durable: cached, then served when Yahoo goes dark ─── */
 console.log("\n— cache makes a single success stick —");
 run = await scenario("cache", { crumbStatus: 429, bareWorks: false, chart: CHART });
 eq("first request resolves upstream", (await run({ symbols: "NBIS" })).body.NBIS?.d, soon);
@@ -169,7 +180,7 @@ eq("a forced refresh still tries upstream", calls.length > 0, true);
 eq("the known date survives the outage", dark.body.NBIS?.d, soon);
 eq("and is flagged as not re-confirmed", dark.body.NBIS?.stale, true);
 
-/* ── 7. an unknown symbol is never invented, cached or otherwise ─────────── */
+/* ── 8. an unknown symbol is never invented, cached or otherwise ─────────── */
 const never = await run({ symbols: "NOPE" });
 eq("an unresolvable symbol stays absent", "NOPE" in never.body, false);
 

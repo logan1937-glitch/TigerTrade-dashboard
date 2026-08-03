@@ -41,7 +41,8 @@ body { background: #0a0b0d; }
   --border-2:  rgba(255,255,255,0.16);
   --text:      #F1E9E2;
   --muted:     #C0B2A3;   /* 9.5:1 on bg — secondary text stays readable at small sizes */
-  --dim:       #9C8A78;   /* 5.9:1 — the old value failed WCAG at 3.85:1 */
+  --dim:       #B3A392;   /* 8.0:1 — tertiary labels are small and light-weight,
+                             so they need headroom well past the 4.5:1 floor */
   --accent:    #19B5A3;        /* jade — interactive / signal only */
   --accent-2:  #19B5A3;
   --accent-ink:#06201D;        /* dark text on jade */
@@ -73,7 +74,8 @@ body { background: #0a0b0d; }
   --border-2:  rgba(46,26,12,0.34);
   --text:      #1C1108;        /* near-black warm */
   --muted:     #40311F;        /* 8:1 on sand — primary secondary text */
-  --dim:       #54432D;        /* 5.85:1 — tertiary labels, darkened for quick-scan legibility */
+  --dim:       #4B3A22;        /* 9.0:1 — same reasoning as dark: small caps at
+                                  low weight read as ghosted long before they fail a ratio */
   --accent:    #0A5F55;        /* deep jade — 4.7:1 as small text on sand */
   --accent-2:  #0A5F55;
   --accent-ink:#FFFFFF;
@@ -104,7 +106,7 @@ body { background: #0a0b0d; }
   --border-2:  oklch(0.40 0.030 160);
   --text:      oklch(0.90 0.030 150);
   --muted:     oklch(0.68 0.040 150);
-  --dim:       oklch(0.52 0.035 155);
+  --dim:       oklch(0.60 0.035 155);
   --accent:    oklch(0.80 0.13 152);
   --accent-2:  oklch(0.80 0.13 152);
   --accent-ink:oklch(0.18 0.06 150);
@@ -130,7 +132,7 @@ body { background: #0a0b0d; }
   --border-2:  oklch(0.44 0.040 264);
   --text:      oklch(0.96 0.010 264);
   --muted:     oklch(0.76 0.024 264);
-  --dim:       oklch(0.58 0.030 264);
+  --dim:       oklch(0.66 0.030 264);
   --accent:    oklch(0.74 0.105 222);
   --accent-2:  oklch(0.67 0.125 294);
   --accent-ink:oklch(0.18 0.05 264);
@@ -763,15 +765,20 @@ body { background: #0a0b0d; }
    to match them exactly — inline-flex (the bare .star grid stacks the icon over
    the label), and height:auto, because .star pins a 26px box that left this
    button half the height of every button next to it. */
-.star-lbl { display: inline-flex; align-items: center; justify-content: center;
+/* Qualified with .star on purpose. The plain .star box is re-sized again inside
+   a later max-width query, and at equal specificity the last rule wins — which
+   is how the labelled button ended up 32px tall next to 38px neighbours on a
+   narrow screen. .star.star-lbl outranks every bare .star rule wherever it
+   appears, so this button's geometry can't be reset out from under it. */
+.star.star-lbl { display: inline-flex; align-items: center; justify-content: center;
   width: auto; height: auto; gap: 7px; padding: 11px 12px; background: var(--panel);
   border: 1px solid var(--border-2); border-radius: var(--radius-sm); color: var(--muted);
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: var(--track-meta);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: var(--track-meta);
   flex: 1 1 auto; white-space: nowrap; }
-.star-lbl svg { width: 14px; height: 14px; flex: none; }
-.star-lbl:active { transform: scale(0.985); }
-.star-lbl:hover { color: var(--text); border-color: var(--dim); background: var(--panel); }
-.star-lbl[data-on] { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 42%, transparent);
+.star.star-lbl svg { width: 14px; height: 14px; flex: none; }
+.star.star-lbl:active { transform: scale(0.985); }
+.star.star-lbl:hover { color: var(--text); border-color: var(--dim); background: var(--panel); }
+.star.star-lbl[data-on] { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 42%, transparent);
   background: color-mix(in oklch, var(--accent) 12%, transparent); }
 
 .watch-btn { position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px;
@@ -1051,7 +1058,7 @@ body { background: #0a0b0d; }
 .donut[data-grade="c"] .donut-val { stroke: var(--sev-high); }
 .donut-mid { position: absolute; display: flex; flex-direction: column; align-items: center; line-height: 1; }
 .donut-num { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--text); }
-.donut-lab { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); margin-top: 3px; }
+.donut-lab { font-family: var(--font-mono); font-size: 8.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); margin-top: 3px; }
 
 /* ============================ DRAWER ============================ */
 .drawer-root { position: fixed; inset: 0; z-index: 180; pointer-events: none; }
@@ -1071,7 +1078,7 @@ body { background: #0a0b0d; }
 .dr-top { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between;
   padding: 16px 22px; background: color-mix(in oklch, var(--panel) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
 .dr-top-l { display: flex; align-items: center; gap: 10px; }
-.dr-kicker { font-size: 11px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.dr-kicker { font-size: 11px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
 .dr-close { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
 .dr-close:hover { color: var(--text); border-color: var(--border-2); }
@@ -1085,14 +1092,14 @@ body { background: #0a0b0d; }
 
 .dr-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); margin: 20px 26px 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .dr-tile { background: var(--surface); padding: 13px 14px; display: flex; flex-direction: column; gap: 5px; }
-.dr-tk { font-size: 9.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.dr-tk { font-size: 9.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
 .dr-tv { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--text); }
 .dr-tv[data-neg="true"] { color: var(--cat-growth); }
 
 .dr-sec { padding: 22px 26px 0; }
 .dr-sec-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
 .dr-sec-h h3 { font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--text); margin: 0; }
-.dr-sec-sub { font-size: 10.5px; letter-spacing: var(--track-meta); color: var(--dim); }
+.dr-sec-sub { font-size: 10.5px; font-weight: 500; letter-spacing: var(--track-meta); color: var(--muted); }
 .dr-k { font-size: 10px; letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--dim); margin-bottom: 7px; }
 .dr-p { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--muted); margin: 0; text-wrap: pretty; }
 .dr-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
@@ -1154,7 +1161,7 @@ body { background: #0a0b0d; }
 .dr-pxrow { display: flex; align-items: baseline; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
 .dr-px { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--text); }
 .dr-chg { font-size: 13px; } .dr-chg[data-up="true"] { color: var(--cat-growth); } .dr-chg[data-up="false"] { color: var(--sev-extreme); }
-.dr-rs, .dr-grp { font-size: 11.5px; color: var(--dim); letter-spacing: var(--track-meta); }
+.dr-rs, .dr-grp { font-size: 11.5px; font-weight: 500; color: var(--muted); letter-spacing: var(--track-meta); }
 .dr-rs-wrap { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .dr-rs-lab { font-size: 10px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); white-space: nowrap; }
 
@@ -1169,7 +1176,7 @@ body { background: #0a0b0d; }
 .dr-buygrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .dr-bp { background: var(--surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 4px; }
 .dr-bp[data-warn="true"] { background: color-mix(in oklch, var(--sev-high) 12%, var(--surface)); }
-.dr-bpk { font-size: 9.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.dr-bpk { font-size: 9.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
 .dr-bpv { font-size: 13.5px; font-weight: 600; color: var(--text); }
 .dr-bpv[data-up="true"] { color: var(--cat-growth); }
 .dr-verdict { margin-top: 12px; padding: 11px 14px; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; border: 1px solid var(--border); }
