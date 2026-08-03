@@ -188,7 +188,12 @@ async function fetchEps(tk) {
     const roeRaw = ro && num(ro.returnOnEquityTTM, ro.returnOnEquity);
     const marRaw = ro && num(ro.netProfitMarginTTM, ro.netIncomeMarginTTM, ro.netProfitMargin);
     const pct = (v) => (v == null ? null : Math.abs(v) <= 3 ? +(v * 100).toFixed(1) : +v.toFixed(1)); // ratio (0–1) → %
-    const d = { epsQ, epsQNew, epsA, epsANew, salesQ, roe: pct(roeRaw), netMargin: pct(marRaw) };
+    // last 8 reported quarters of revenue, oldest first — the results-card bars
+    const revSeries = incRes.slice(0, 8)
+      .map((q) => ({ v: q.revenue ?? null, p: q.period || null, y: q.calendarYear || q.fiscalYear || (q.date || "").slice(0, 4) || null }))
+      .filter((x) => x.v != null && Number.isFinite(+x.v))
+      .reverse();
+    const d = { epsQ, epsQNew, epsA, epsANew, salesQ, roe: pct(roeRaw), netMargin: pct(marRaw), revSeries };
     epsCache.set(tk, d);
     try { localStorage.setItem("tt_eps_" + tk, JSON.stringify({ t: Date.now(), d })); } catch {}
     return d;
@@ -389,6 +394,74 @@ export function StockDrawerBody({ stock, onClose }) {
           {" — "}reports gap through stops. New breakout entries this close to the print carry event risk.
         </div>
       )}
+
+      {(() => {
+        // ── latest reported quarter ────────────────────────────────────────
+        // actual vs estimate straight from the FMP earnings calendar (baked into
+        // the nightly snapshot), YoY from the filings, and the quarterly revenue
+        // trend from the income statement. Every cell renders only when its real
+        // value exists — a missing estimate is said, never inferred.
+        const L = s.ernLast;
+        const e = eps && eps !== "loading" ? eps : null;
+        const bars = e && e.revSeries && e.revSeries.length >= 2 ? e.revSeries : null;
+        if (!L && !bars) return null;
+        const money = (v) => {
+          if (v == null) return null;
+          const a = Math.abs(v), sg = v < 0 ? "−" : "";
+          if (a >= 1e12) return `${sg}$${(a / 1e12).toFixed(2)}T`;
+          if (a >= 1e9) return `${sg}$${(a / 1e9).toFixed(2)}B`;
+          if (a >= 1e6) return `${sg}$${(a / 1e6).toFixed(0)}M`;
+          if (a >= 1e3) return `${sg}$${(a / 1e3).toFixed(0)}K`;
+          return `${sg}$${a.toFixed(0)}`;
+        };
+        const usd = (v) => (v == null ? null : `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`);
+        const sur = (a, est) => (a == null || est == null || est === 0 ? null : ((a - est) / Math.abs(est)) * 100);
+        const yoy = (v) => (v == null ? null : `${v >= 0 ? "+" : ""}${v}% YoY`);
+        const pill = (v) => v == null ? null : (
+          <span className="dr-er-sur mono" data-beat={v >= 0}>{v >= 0 ? "Beat" : "Miss"} {v >= 0 ? "+" : "−"}{Math.abs(v).toFixed(1)}%</span>
+        );
+        const cells = [];
+        if (L && L.epsA != null) cells.push({ k: "EPS", v: usd(L.epsA), est: L.epsE != null ? `est ${usd(L.epsE)}` : "no estimate", s: sur(L.epsA, L.epsE), y: e ? yoy(e.epsQ) : null });
+        if (L && L.revA != null) cells.push({ k: "Revenue", v: money(L.revA), est: L.revE != null ? `est ${money(L.revE)}` : "no estimate", s: sur(L.revA, L.revE), y: e ? yoy(e.salesQ) : null });
+        const max = bars ? Math.max(...bars.map((b) => Math.abs(b.v))) : 0;
+        const when = L && L.d ? new Date(L.d + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : null;
+        return (
+          <div className="dr-sec">
+            <div className="dr-sec-h">
+              <h3>Latest earnings</h3>
+              <span className="dr-sec-sub mono">{when ? `reported ${when} · real · FMP calendar` : "quarterly revenue · FMP filings"}</span>
+            </div>
+            {cells.length > 0 && (
+              <div className="dr-ernres">
+                {cells.map((c) => (
+                  <div className="dr-er-cell" key={c.k}>
+                    <span className="dr-er-k mono">{c.k}</span>
+                    <span className="dr-er-v">{c.v}</span>
+                    <div className="dr-er-meta">
+                      <span className="dr-er-est mono">{c.est}</span>
+                      {pill(c.s)}
+                    </div>
+                    {c.y && <span className="dr-er-yoy mono" data-up={!String(c.y).startsWith("-")}>{c.y}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {bars && (
+              <div className="dr-erbars">
+                <div className="dr-erbars-k mono">Quarterly revenue · last {bars.length}</div>
+                <div className="dr-erbars-row">
+                  {bars.map((b, i) => (
+                    <div className="dr-erbar" key={i} title={`${[b.p, b.y].filter(Boolean).join(" ")} — ${money(b.v)}`}>
+                      <i style={{ height: `${max > 0 ? Math.max(3, (Math.abs(b.v) / max) * 100) : 3}%` }} data-last={i === bars.length - 1 || undefined} />
+                      <span className="dr-erbar-l mono">{b.p ? `${b.p}${b.y ? `’${String(b.y).slice(-2)}` : ""}` : "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {shownBreakdown.length > 0 && (
       <div className="dr-sec">

@@ -133,40 +133,68 @@ async function fmpConstituents() {
   return SP500.map((x) => ({ ...x }));  // committed full-index fallback
 }
 
-// next confirmed earnings date per universe ticker — one FMP calendar request
-// covering the next ~5 weeks. Best-effort: returns null (feature hidden on the
-// client) when there's no key or the tier lacks the endpoint. { TK: { d, t } }
-// where d = ISO date and t = "bmo" / "amc" when the calendar provides it.
+// earnings per universe ticker, from the FMP calendar: the NEXT confirmed report
+// date (forward ~5 weeks) plus the MOST RECENTLY REPORTED quarter's actual vs
+// estimate (back ~14 weeks, so every name has its latest print). Best-effort:
+// returns null (feature hidden on the client) when there's no key or the tier
+// lacks the endpoint.
+//   { TK: { d, t, last: { d, epsA, epsE, revA, revE } } }
+// d = ISO date, t = "bmo"/"amc" when provided; `last` omitted until a name has
+// a reported quarter in the window. Nothing is estimated or filled in locally.
 async function fmpEarnings(tickers) {
   const key = process.env.FMP_API_KEY;
   if (!key) return null;
-  const from = new Date().toISOString().slice(0, 10);
-  const to = new Date(Date.now() + 35 * 86400000).toISOString().slice(0, 10);
   const want = new Set(tickers);
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const today = iso(Date.now());
   // includeReportTimes adds time ("bmo"/"amc") + confirmed to each record —
   // verified available on this account's tier via the FMP calendar API
-  const endpoints = [
-    `https://financialmodelingprep.com/stable/earnings-calendar?from=${from}&to=${to}&includeReportTimes=true&apikey=${key}`,
-    `https://financialmodelingprep.com/api/v3/earning_calendar?from=${from}&to=${to}&apikey=${key}`,
-  ];
-  for (const url of endpoints) {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const j = await r.json();
-      if (!Array.isArray(j) || !j.length) continue;
-      const out = {};
-      for (const e of j) {
-        const tk = e.symbol;
-        if (!tk || !want.has(tk) || !e.date) continue;
-        const d = String(e.date).slice(0, 10);
-        if (d < from) continue;
-        if (!out[tk] || d < out[tk].d) out[tk] = { d, t: e.time && /bmo|amc/i.test(e.time) ? String(e.time).toLowerCase() : null };
-      }
-      if (Object.keys(out).length) return out;
-    } catch (e) { console.error("fmp earnings:", url, e); }
+  const fetchWindow = async (from, to) => {
+    const endpoints = [
+      `https://financialmodelingprep.com/stable/earnings-calendar?from=${from}&to=${to}&includeReportTimes=true&apikey=${key}`,
+      `https://financialmodelingprep.com/api/v3/earning_calendar?from=${from}&to=${to}&apikey=${key}`,
+    ];
+    for (const url of endpoints) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) continue;
+        const j = await r.json();
+        if (Array.isArray(j) && j.length) return j;
+      } catch (e) { console.error("fmp earnings:", url, e); }
+    }
+    return null;
+  };
+
+  const [fwd, back] = await Promise.all([
+    fetchWindow(today, iso(Date.now() + 35 * 86400000)),
+    fetchWindow(iso(Date.now() - 98 * 86400000), today),
+  ]);
+  if (!fwd && !back) return null;
+
+  const num = (v) => (v != null && Number.isFinite(+v) ? +v : null);
+  const out = {};
+  // next confirmed report date
+  for (const e of fwd || []) {
+    const tk = e.symbol;
+    if (!tk || !want.has(tk) || !e.date) continue;
+    const d = String(e.date).slice(0, 10);
+    if (d < today) continue;
+    const t = e.time && /bmo|amc/i.test(e.time) ? String(e.time).toLowerCase() : null;
+    if (!out[tk] || out[tk].d == null || d < out[tk].d) out[tk] = { ...(out[tk] || {}), d, t };
   }
-  return null;
+  // most recent REPORTED quarter — rows without an actual haven't printed yet
+  for (const e of back || []) {
+    const tk = e.symbol;
+    if (!tk || !want.has(tk) || !e.date) continue;
+    const d = String(e.date).slice(0, 10);
+    if (d > today) continue;
+    const epsA = num(e.epsActual), revA = num(e.revenueActual);
+    if (epsA == null && revA == null) continue;
+    const prev = out[tk] && out[tk].last;
+    if (prev && prev.d >= d) continue;
+    out[tk] = { d: null, t: null, ...(out[tk] || {}), last: { d, epsA, epsE: num(e.epsEstimated), revA, revE: num(e.revenueEstimated) } };
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 // macro board: US Treasury yields, key FX, and the CPI-YoY nowcast + trend.

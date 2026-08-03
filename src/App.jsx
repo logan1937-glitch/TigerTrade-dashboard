@@ -136,6 +136,9 @@ export default function App() {
         const days = Math.round((new Date(ern.d + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
         if (days >= 0) r = { ...r, ern: { date: ern.d, time: ern.t, days } };
       }
+      // most recent reported quarter (actual vs estimate) — drives the drawer's
+      // earnings-results card. Real calendar data or absent; never inferred.
+      if (ern?.last) r = { ...r, ernLast: ern.last };
       return r;
     });
 
@@ -236,6 +239,23 @@ export default function App() {
       } catch { /* chart stays hidden; scalar signals still render */ }
     })();
   };
+
+  // keep an OPEN stock drawer in sync as data lands. A deep-linked drawer
+  // (?tk=NVDA) can open before the snapshot resolves, and the record it opened
+  // with would otherwise stay frozen — missing earnings, live price and signals.
+  // Real bars already fetched for this session still win over synthetic series.
+  useEffect(() => {
+    setStockDrawer((cur) => {
+      if (!cur) return cur;
+      const fresh = csData.byTicker[cur.tk];
+      if (!fresh) return cur;
+      const cached = barsCache.current.get(cur.tk);
+      const arrays = cached ? cached.arrays
+        : (cur.closes && cur.closes.length ? { closes: cur.closes, volume: cur.volume, dates: cur.dates, rsLine: cur.rsLine }
+        : (fresh._synthetic ? { closes: [], volume: [], dates: null, rsLine: [] } : null));
+      return { ...fresh, ...(arrays || {}), sig: { ...fresh.sig, ...(cached ? cached.sigPatch : null) } };
+    });
+  }, [csData]);
 
   // look up ANY ticker on demand — fetch it live, compute its signals, add it
   const lookupTicker = async (raw) => {
