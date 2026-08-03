@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
 import { StarBtn, StarIcon, Logo, useWatch, useCanslim, useAlerts, usePositions, SEV_LABEL } from "./components.jsx";
+import { fetchProfile } from "./profile.js";
 
 const fmtPx2 = (n) => (n == null || Number.isNaN(+n) ? "—" : n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : (+n).toFixed(2));
 
@@ -124,33 +125,6 @@ export function EventDrawerBody({ ev, onClose, onPick, vix }) {
 /* ----------------------------- STOCK DRAWER ----------------------------- */
 const fmtCap = (v) => (v == null ? "—" : v >= 1e12 ? (v / 1e12).toFixed(2) + "T" : v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : (v / 1e6).toFixed(0) + "M");
 
-// company profile (description, mkt cap, HQ, industry) — one lazy FMP call per
-// name, memory + localStorage cached (7 days; profiles barely change). Serves
-// the ~450 extended-universe names that carry no curated bio.
-const profCache = new Map();
-async function fetchProfile(tk) {
-  if (profCache.has(tk)) return profCache.get(tk);
-  try {
-    const raw = localStorage.getItem("tt_prof_" + tk);
-    if (raw) { const { t, d } = JSON.parse(raw); if (Date.now() - t < 7 * 864e5) { profCache.set(tk, d); return d; } }
-  } catch {}
-  try {
-    const r = await fetch(`/api/fmp?endpoint=profile&symbol=${encodeURIComponent(tk)}`);
-    if (!r.ok) return null;
-    const j = await r.json();
-    const p = Array.isArray(j) ? j[0] : j;
-    if (!p || !(p.symbol || p.companyName)) return null;
-    const d = {
-      cap: p.marketCap ?? p.mktCap ?? null,
-      desc: p.description || null,
-      city: p.city || null, state: p.state || null, country: p.country || null,
-      industry: p.industry || null,
-    };
-    profCache.set(tk, d);
-    try { localStorage.setItem("tt_prof_" + tk, JSON.stringify({ t: Date.now(), d })); } catch {}
-    return d;
-  } catch { return null; }
-}
 // real fundamentals — replaces the old editorial figures. One income-statement
 // call (17 quarters → EPS + revenue growth) plus one ratios-TTM call (ROE, net
 // margin), cached a day. epsQ/salesQ = latest quarter vs the year-ago quarter;

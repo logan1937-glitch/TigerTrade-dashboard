@@ -4,6 +4,7 @@ import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
+import { fetchProfile } from "./profile.js";
 import { WatchCtx, CanslimCtx, AlertCtx, PosCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
@@ -14,48 +15,6 @@ import { CanslimView } from "./canslim.jsx";
 
 /* fixed presentation settings (the prototype's design-tool tweaks, pinned for production) */
 const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grotesk", GLOW = "on", SHOW_SCOPE = true;
-
-// Earnings for a single symbol. The nightly snapshot only covers the tracked
-// universe (S&P 500 + curated), so a portfolio holding outside it — a non-S&P
-// name — has no report date. Fetch it on demand and cache for a day. Returns
-// null when the symbol has no calendar entry or the tier lacks the endpoint;
-// the UI then simply shows no date rather than inventing one.
-const ernCache = new Map();
-async function fetchSymEarnings(tk) {
-  if (ernCache.has(tk)) return ernCache.get(tk);
-  try {
-    const raw = localStorage.getItem("tt_ern_" + tk);
-    if (raw) { const { t, d } = JSON.parse(raw); if (Date.now() - t < 864e5) { ernCache.set(tk, d); return d; } }
-  } catch {}
-  const num = (v) => (v != null && Number.isFinite(+v) ? +v : null);
-  const today = new Date().toISOString().slice(0, 10);
-  for (const url of [`/api/fmp?endpoint=earnings&symbol=${encodeURIComponent(tk)}&limit=16`,
-                     `/api/fmp?endpoint=earnings-calendar&symbol=${encodeURIComponent(tk)}`]) {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const j = await r.json();
-      if (!Array.isArray(j) || !j.length) continue;
-      let next = null, last = null;
-      for (const e of j) {
-        const d = String(e.date || "").slice(0, 10);
-        if (!d) continue;
-        if (d >= today) { if (!next || d < next) next = d; }
-        const epsA = num(e.epsActual), revA = num(e.revenueActual);
-        if (d <= today && (epsA != null || revA != null) && (!last || d > last.d)) {
-          last = { d, epsA, epsE: num(e.epsEstimated), revA, revE: num(e.revenueEstimated) };
-        }
-      }
-      if (!next && !last) continue;
-      const out = { d: next, t: null, last };
-      ernCache.set(tk, out);
-      try { localStorage.setItem("tt_ern_" + tk, JSON.stringify({ t: Date.now(), d: out })); } catch {}
-      return out;
-    } catch { /* try the next spelling */ }
-  }
-  ernCache.set(tk, null);
-  return null;
-}
 
 function useStored(key, init) {
   const [v, setV] = useState(() => {
@@ -156,6 +115,23 @@ export default function App() {
     remove: (tk) => setPositions((prev) => prev.filter((p) => p.tk !== tk)),
   }), [positions]);
 
+  // real company name / sector / industry for names the snapshot doesn't
+  // classify (portfolio holdings and custom lookups outside the S&P 500), so
+  // they read like any tracked name instead of falling back to the ticker.
+  const [customMeta, setCustomMeta] = useState({});   // { TK: { name, sector, industry, cap } | null }
+  useEffect(() => {
+    const want = [...new Set([...customSyms, ...positions.map((p) => p.tk)])];
+    const need = want.filter((tk) => tk && !meta[tk] && customMeta[tk] === undefined);
+    if (!need.length) return;
+    let alive = true;
+    (async () => {
+      const got = await Promise.all(need.map((tk) => fetchProfile(tk).then((d) => [tk, d]).catch(() => [tk, null])));
+      if (!alive) return;
+      setCustomMeta((prev) => { const n = { ...prev }; for (const [tk, d] of got) n[tk] = d; return n; });
+    })();
+    return () => { alive = false; };
+  }, [customSyms, positions, meta]);
+
   // report dates for holdings the shared snapshot doesn't cover (non-S&P names)
   const [extraErn, setExtraErn] = useState({});   // { TK: { d, t, last } }
   useEffect(() => {
@@ -163,9 +139,13 @@ export default function App() {
     if (!need.length) return;
     let alive = true;
     (async () => {
-      const got = await Promise.all(need.map((tk) => fetchSymEarnings(tk).then((d) => [tk, d]).catch(() => [tk, null])));
+      let j = {};
+      try {
+        const r = await fetch(`/api/earnings?symbols=${encodeURIComponent(need.join(","))}`);
+        if (r.ok) j = await r.json();
+      } catch { /* leave the dates blank rather than guessing */ }
       if (!alive) return;
-      setExtraErn((prev) => { const next = { ...prev }; for (const [tk, d] of got) next[tk] = d; return next; });
+      setExtraErn((prev) => { const next = { ...prev }; for (const tk of need) next[tk] = (j && j[tk]) || null; return next; });
     })();
     return () => { alive = false; };
   }, [positions, earnings]);
@@ -176,9 +156,9 @@ export default function App() {
   // universe = curated + extended + any custom-looked-up tickers
   const universe = useMemo(() => {
     const seen = new Set(TT.CANSLIM.map((s) => s.tk));
-    const signalsOnly = (tk, m) => ({
+    const signalsOnly = (tk, m, custom = false) => ({
       tk, name: (m && m.name) || tk, sector: (m && m.sector) || "Custom", group: (m && m.industry) || "Custom lookup",
-      coverage: "signals", custom: !m,
+      coverage: "signals", custom,
       groupRank: null, rs: null, status: null, px: null, chg: null,
       f: null, breakdown: [], pass: 0, score: 0, pivot: null, buyLo: null, buyHi: null, pctExt: null,
       closes: [], volume: [], rsLine: [], spark: [],
@@ -188,12 +168,13 @@ export default function App() {
     // any custom-looked-up ticker not already present
     const extra = [];
     for (const tk of Object.keys(meta)) { if (!seen.has(tk)) { extra.push(signalsOnly(tk, meta[tk])); seen.add(tk); } }
-    for (const sym of customSyms) { if (!seen.has(sym)) { extra.push(signalsOnly(sym, null)); seen.add(sym); } }
-    // portfolio names off the tracked universe (e.g. a non-S&P holding) are
-    // first-class too — otherwise they'd carry no price, sector or earnings
-    for (const p of positions) { if (p.tk && !seen.has(p.tk)) { extra.push(signalsOnly(p.tk, null)); seen.add(p.tk); } }
+    // off-universe names (custom lookups + portfolio holdings) are first-class:
+    // their real name/sector/industry come from the fetched company profile
+    const prof = (tk) => { const m = customMeta[tk]; return m ? { name: m.name, sector: m.sector, industry: m.industry } : null; };
+    for (const sym of customSyms) { if (!seen.has(sym)) { extra.push(signalsOnly(sym, prof(sym), true)); seen.add(sym); } }
+    for (const p of positions) { if (p.tk && !seen.has(p.tk)) { extra.push(signalsOnly(p.tk, prof(p.tk), true)); seen.add(p.tk); } }
     return [...TT.CANSLIM, ...extra];
-  }, [meta, customSyms, positions]);
+  }, [meta, customSyms, positions, customMeta]);
 
   const csData = useMemo(() => {
     let list = universe.map((s) => {
