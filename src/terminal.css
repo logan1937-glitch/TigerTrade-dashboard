@@ -1223,6 +1223,9 @@ body { background: #0a0b0d; }
 .pf-sub { font-size: 10.5px; font-weight: 500; color: var(--dim); }
 .pf-sub[data-up="true"] { color: var(--cat-growth); }
 .pf-sub[data-up="false"] { color: var(--sev-extreme); }
+/* a position entered without a share count: tracked, but contributing no size */
+.pf-untracked { font-size: 8.5px; font-weight: 600; letter-spacing: var(--track-meta); text-transform: uppercase;
+  color: var(--dim); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px 5px; }
 .pf-wbar { display: block; height: 2px; border-radius: 2px; background: var(--accent); opacity: .5; margin-top: 2px; }
 .pf-ernflag { font-size: 8.5px; letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--sev-high); }
 .pf-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; padding: 4px 6px;

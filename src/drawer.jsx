@@ -245,7 +245,9 @@ export function StockDrawerBody({ stock, onClose }) {
   const [posOpen, setPosOpen] = useState(false);
   const [posSh, setPosSh] = useState("");
   const [posCost, setPosCost] = useState("");
-  const savePos = () => { if (!(+posSh > 0)) return; positions.add(s.tk, posSh, posCost); setPosOpen(false); };
+  // shares and cost are both optional — saving with neither still tracks the
+  // name in the portfolio (price, sector, report date), just without a size
+  const savePos = () => { positions.add(s.tk, posSh, posCost); setPosOpen(false); };
 
   // price alert: armed here, persisted, evaluated on every data refresh
   const alerts = useAlerts();
@@ -528,7 +530,7 @@ export function StockDrawerBody({ stock, onClose }) {
         <button className="ed-btn" onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setAlertOpen((v) => !v); }}>
           {myAlert ? "Edit alert" : "Set price alert"}
         </button>
-        <button className="ed-btn" onClick={() => { const h = positions.get(s.tk); setPosSh(h ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosOpen((v) => !v); }}>
+        <button className="ed-btn" onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosOpen((v) => !v); }}>
           {positions.has(s.tk) ? "Edit position" : "Add to portfolio"}
         </button>
         {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => setPlanOpen((v) => !v)}>{planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
@@ -538,7 +540,7 @@ export function StockDrawerBody({ stock, onClose }) {
         <div className="dr-alert-form">
           <span className="mono dr-alert-lab">{positions.has(s.tk) ? "Update" : "Add"} {s.tk} position</span>
           <div className="dr-alert-row">
-            <input className="dr-alert-in mono" type="number" step="any" min="0" value={posSh} placeholder="shares"
+            <input className="dr-alert-in mono" type="number" step="any" min="0" value={posSh} placeholder="shares (opt)"
               onChange={(e) => setPosSh(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Shares" autoFocus />
             <span className="mono dr-alert-cur">@ $</span>
             <input className="dr-alert-in mono" type="number" step="any" min="0" value={posCost} placeholder="cost (opt)"
@@ -546,15 +548,19 @@ export function StockDrawerBody({ stock, onClose }) {
             <button className="ed-btn ed-btn-primary" onClick={savePos}>Save</button>
             {positions.has(s.tk) && <button className="ed-btn" onClick={() => { positions.remove(s.tk); setPosOpen(false); }}>Remove</button>}
           </div>
-          <span className="mono dr-alert-note">stored on this device · powers the portfolio view and puts this name's report date on your calendar</span>
+          <span className="mono dr-alert-note">both optional — a tracked name with no size still gets live price and its report date on your calendar · stored on this device</span>
         </div>
       )}
       {!posOpen && held && (
         <div className="dr-alert">
-          Holding <b className="mono">{held.shares.toLocaleString()}</b> share{held.shares === 1 ? "" : "s"}
+          {held.shares != null
+            ? <>Holding <b className="mono">{held.shares.toLocaleString()}</b> share{held.shares === 1 ? "" : "s"}</>
+            : <>Tracked in your portfolio<span className="mono"> · no size entered</span></>}
           {held.cost != null && <> at <b className="mono">${held.cost}</b></>}
-          {s.px != null && <> · value <b className="mono">${fmtPx2(held.shares * s.px)}</b>
+          {s.px != null && held.shares != null && <> · value <b className="mono">${fmtPx2(held.shares * s.px)}</b>
             {held.cost != null && <> · P&amp;L <b className="mono">{s.px >= held.cost ? "+" : "−"}${fmtPx2(Math.abs((s.px - held.cost) * held.shares))}</b></>}</>}
+          {s.px != null && held.shares == null && held.cost != null && <> · <b className="mono">
+            {s.px >= held.cost ? "+" : "−"}{Math.abs((s.px / held.cost - 1) * 100).toFixed(1)}%</b> vs cost</>}
           <button className="linkbtn dr-alert-clear" onClick={() => positions.remove(s.tk)}>remove</button>
         </div>
       )}

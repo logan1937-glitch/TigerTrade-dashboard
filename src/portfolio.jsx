@@ -29,15 +29,17 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
     e.preventDefault();
     const t = tk.trim().toUpperCase();
     if (!t) { setErr("Enter a ticker"); return; }
-    if (!(+sh > 0)) { setErr("Enter share count"); return; }
-    setErr(""); pos.add(t, sh, cost);
+    setErr(""); pos.add(t, sh, cost);   // shares and cost are both optional
     setTk(""); setSh(""); setCost("");
   };
 
-  // ── totals. P&L only counts positions that actually have a cost basis ──
+  // ── totals. Only sized positions can carry a dollar value, and dollar P&L
+  // additionally needs a cost basis — anything short of that stays out of the
+  // sums rather than being counted as zero.
   const tot = useMemo(() => {
-    let value = 0, dayPl = 0, priced = 0, plValue = 0, plBasis = 0, plN = 0;
+    let value = 0, dayPl = 0, priced = 0, plValue = 0, plBasis = 0, plN = 0, unsized = 0, costNoSize = 0;
     for (const r of rows) {
+      if (r.shares == null) { unsized++; if (r.cost != null) costNoSize++; }
       if (r.value != null) { value += r.value; priced++; }
       if (r.dayPl != null) dayPl += r.dayPl;
       if (r.value != null && r.basis != null) { plValue += r.value; plBasis += r.basis; plN++; }
@@ -48,7 +50,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
       dayPct: priced && value - dayPl !== 0 ? (dayPl / (value - dayPl)) * 100 : null,
       pl: plN ? plValue - plBasis : null,
       plPct: plN && plBasis > 0 ? (plValue / plBasis - 1) * 100 : null,
-      plN, priced,
+      plN, priced, unsized, costNoSize,
     };
   }, [rows]);
 
@@ -75,13 +77,15 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
     <div className="wrap">
       <div className="pf-tiles">
         <div className="pf-tile"><span className="pf-tk mono">Market value</span><span className="pf-tv">{compact(tot.value)}</span>
-          <span className="pf-ts mono">{tot.priced} priced · {rows.length} position{rows.length === 1 ? "" : "s"}</span></div>
+          <span className="pf-ts mono">{rows.length} position{rows.length === 1 ? "" : "s"}
+            {tot.unsized ? ` · ${tot.unsized} without a size` : ` · ${tot.priced} priced`}</span></div>
         <div className="pf-tile"><span className="pf-tk mono">Day P&amp;L</span>
           <span className="pf-tv" data-up={tot.dayPl == null ? undefined : tot.dayPl >= 0}>{compact(tot.dayPl)}</span>
           <span className="pf-ts mono">{pctS(tot.dayPct)} today</span></div>
         <div className="pf-tile"><span className="pf-tk mono">Total P&amp;L</span>
           <span className="pf-tv" data-up={tot.pl == null ? undefined : tot.pl >= 0}>{compact(tot.pl)}</span>
-          <span className="pf-ts mono">{tot.plN ? `${pctS(tot.plPct)} · ${tot.plN} of ${rows.length} with cost basis` : "add a cost basis to track"}</span></div>
+          <span className="pf-ts mono">{tot.plN ? `${pctS(tot.plPct)} · ${tot.plN} of ${rows.length} with cost basis`
+            : tot.costNoSize ? "add share counts for dollar P&L" : "add a cost basis to track"}</span></div>
         <div className="pf-tile"><span className="pf-tk mono">Expected 1-day move</span>
           <span className="pf-tv">{impliedUsd == null ? "—" : `±${compact(impliedUsd).replace("−", "")}`}</span>
           <span className="pf-ts mono">{impliedPct != null ? `±${impliedPct.toFixed(2)}% · VIX-implied` : "awaiting VIX"}</span></div>
@@ -90,19 +94,19 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
       <form className="pf-add" onSubmit={submit}>
         <input className="search" style={{ width: 130 }} placeholder="ticker" value={tk}
           onChange={(e) => setTk(e.target.value)} aria-label="Ticker" />
-        <input className="search" style={{ width: 120 }} placeholder="shares" value={sh} inputMode="decimal"
+        <input className="search" style={{ width: 120 }} placeholder="shares (opt)" value={sh} inputMode="decimal"
           onChange={(e) => setSh(e.target.value)} aria-label="Shares" />
         <input className="search" style={{ width: 150 }} placeholder="cost / share (opt)" value={cost} inputMode="decimal"
           onChange={(e) => setCost(e.target.value)} aria-label="Cost per share" />
         <button type="submit" className="seg-btn" data-active="true" style={{ padding: "9px 14px" }}>＋ Add position</button>
         {err && <span className="cs-lookup-err mono">{err}</span>}
-        <span className="pf-note mono">stored on this device only</span>
+        <span className="pf-note mono">ticker alone is enough · stored on this device only</span>
       </form>
 
       {rows.length === 0 ? (
         <div className="empty" style={{ marginTop: 18 }}>
-          No positions yet — add one above to see live P&amp;L, your earnings dates on the calendar,
-          and how much of your book is exposed to the next macro catalyst.
+          No positions yet — a ticker on its own is enough to track a name's price, sector and report date.
+          Add shares and a cost basis when you want live P&amp;L and the book's exposure to the next macro catalyst.
         </div>
       ) : (
         <>
@@ -113,7 +117,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
               <span style={{ textAlign: "right" }}>Weight</span><span style={{ textAlign: "right" }}>Next ern</span><span />
             </div>
             {sorted.map((r) => {
-              const w = tot.value ? ((r.value || 0) / tot.value) * 100 : null;
+              const w = tot.value && r.value != null ? (r.value / tot.value) * 100 : null;
               return (
                 <div className="cs-row pf-row" key={r.tk} role="button" tabIndex={0}
                   aria-label={`${r.tk} — open full analysis`}
@@ -121,7 +125,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock && onOpenStock({ tk: r.tk }); } }}>
                   <div className="cs-tk"><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span>
                     {r.name && r.name !== r.tk && <span className="cs-name">{r.name}</span>}</span></div>
-                  <div className="pf-num mono">{r.shares.toLocaleString()}
+                  <div className="pf-num mono">{r.shares != null ? r.shares.toLocaleString() : <span className="pf-untracked">tracking</span>}
                     {r.cost != null && <span className="pf-sub mono">@ {money(r.cost)}</span>}</div>
                   <div className="pf-num mono">{r.px != null ? money(r.px) : "—"}
                     {r.chg != null && <span className="pf-sub mono" data-up={r.chg >= 0}>{pctS(r.chg)}</span>}</div>
@@ -186,7 +190,8 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             <div className="pf-panel">
               <div className="pf-ph mono">Sector weight</div>
               {sectors.length === 0
-                ? <p className="pf-pempty mono">Awaiting live prices.</p>
+                ? <p className="pf-pempty mono">{rows.length > 0 && tot.unsized === rows.length
+                    ? "Add share counts to weight the book by sector." : "Awaiting live prices."}</p>
                 : (
                   <div className="pf-plist">
                     {sectors.map(([s, v]) => (

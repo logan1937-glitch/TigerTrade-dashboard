@@ -96,10 +96,13 @@ export default function App() {
   }), [alerts]);
 
   // portfolio positions — manually entered, persisted per device (same pattern
-  // as the watchlist/alerts). { tk, shares, cost } with cost = basis per share;
-  // cost is optional, and every derived figure is hidden when it's absent
-  // rather than assumed. Nothing here is sent anywhere — it stays on-device.
+  // as the watchlist/alerts). { tk, shares, cost }: BOTH shares and cost are
+  // optional, so a ticker alone is a valid position for someone who just wants
+  // the name tracked (earnings dates, live price, sector) without disclosing
+  // size. Every derived figure is hidden when its input is absent rather than
+  // assumed. Nothing here is sent anywhere — it stays on-device.
   const [positions, setPositions] = useStored("tt_positions", []);
+  const posNum = (v) => (v === "" || v == null || !Number.isFinite(+v) || +v <= 0 ? null : +v);
   const posApi = useMemo(() => ({
     list: positions,
     count: positions.length,
@@ -107,10 +110,8 @@ export default function App() {
     get: (tk) => positions.find((p) => p.tk === tk) || null,
     add: (tk, shares, cost) => setPositions((prev) => {
       const t = String(tk || "").toUpperCase().trim().replace(/[^A-Z0-9.\-]/g, "");
-      const n = +shares;
-      if (!t || !Number.isFinite(n) || n <= 0) return prev;
-      const c = cost === "" || cost == null || !Number.isFinite(+cost) || +cost <= 0 ? null : +cost;
-      return [...prev.filter((p) => p.tk !== t), { tk: t, shares: n, cost: c, at: Date.now() }];
+      if (!t) return prev;
+      return [...prev.filter((p) => p.tk !== t), { tk: t, shares: posNum(shares), cost: posNum(cost), at: Date.now() }];
     }),
     remove: (tk) => setPositions((prev) => prev.filter((p) => p.tk !== tk)),
   }), [positions]);
@@ -268,20 +269,24 @@ export default function App() {
 
   // positions joined with live quotes + the universe record — drives the
   // portfolio view and the earnings overlay on the calendar. Every derived
-  // number stays null when its input is missing (no price, no cost basis).
+  // number stays null when its input is missing (no price, no share count, no
+  // cost basis). A size-less position still carries price, sector and report
+  // date; it just contributes nothing to dollar value or dollar P&L. Percent
+  // return needs only a cost basis, so it survives without a share count.
   const posRows = useMemo(() => positions.map((p) => {
     const r = csData.byTicker[p.tk] || null;
     const px = r && r.px != null ? r.px : null;
     const chg = r && r.chg != null ? r.chg : null;
     const prevPx = px != null && chg != null && chg !== -100 ? px / (1 + chg / 100) : null;
-    const value = px != null ? px * p.shares : null;
-    const basis = p.cost != null ? p.cost * p.shares : null;
+    const sh = p.shares != null && Number.isFinite(+p.shares) && +p.shares > 0 ? +p.shares : null;
+    const value = px != null && sh != null ? px * sh : null;
+    const basis = p.cost != null && sh != null ? p.cost * sh : null;
     return {
-      ...p, row: r, name: (r && r.name) || p.tk, sector: (r && r.sector) || "—",
+      ...p, shares: sh, row: r, name: (r && r.name) || p.tk, sector: (r && r.sector) || "—",
       px, chg, value, basis,
       pl: value != null && basis != null ? value - basis : null,
       plPct: px != null && p.cost ? (px / p.cost - 1) * 100 : null,
-      dayPl: px != null && prevPx != null ? (px - prevPx) * p.shares : null,
+      dayPl: px != null && prevPx != null && sh != null ? (px - prevPx) * sh : null,
       ern: (r && r.ern) || null,
     };
   }), [positions, csData]);
