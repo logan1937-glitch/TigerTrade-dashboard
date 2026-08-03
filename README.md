@@ -92,6 +92,29 @@ to hundreds), connect a **Vercel Blob** store:
 3. The snapshot now reads/writes Blob automatically; without it, it falls back to
    compute-on-demand + edge cache (zero setup, still works).
 
+### Report dates for names outside the S&P 500
+The shared snapshot is the same for everyone, so it can't carry report dates for
+*your* holdings outside the tracked universe. `/api/earnings?symbols=NBIS,ASML`
+fills that gap, trying each source in turn and stopping at the first real answer:
+
+| # | Source | Needs | Notes |
+|---|--------|-------|-------|
+| 1 | Blob cache | — | A date resolved once is served to everyone afterwards. |
+| 2 | FMP per-symbol `earnings` | `FMP_API_KEY` | **ACCESS DENIED below the top plan** — kept so it wins again after an upgrade. |
+| 3 | Yahoo `quoteSummary` | — | Richest (date, projected-date flag, EPS history, revenue) but cookie+crumb gated, and Yahoo rate-limits datacenter IPs. |
+| 4 | Yahoo `chart` `events=earn` | — | No cookie, no crumb — the same endpoint the snapshot already reaches, so it answers when the crumb handshake is refused. |
+| 5 | FMP `earnings-calendar` | `FMP_API_KEY` | Market-wide; this plan returns only ~20 mega-caps per window. |
+| 6 | Stale cache | — | A date from an earlier read, flagged `stale`, rather than a blank. |
+
+Every result is written back to the Blob store, so one success anywhere is
+permanent. Add `&debug=1` to see the status code of every upstream hop (no key,
+cookie or crumb value is ever echoed), or `&refresh=1` to bypass the cache.
+
+If every source is silent for a listing — which happens, these are free feeds —
+set the date yourself on the position (**Portfolio → add**, or **Edit position**
+in the stock drawer). It's stored on-device with the rest of the position and
+shown tagged `yours` everywhere, never as a confirmed date.
+
 ---
 
 ## Deploy to Vercel (recommended — free, ~5 minutes)

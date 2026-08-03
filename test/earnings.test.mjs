@@ -1,7 +1,8 @@
-// Exercises api/earnings.js against a stubbed Yahoo (realistic quoteSummary
-// shape) plus an FMP that denies the per-symbol endpoint, as this plan does.
-// The endpoint cannot be exercised for real without a deploy — this covers the
-// parse, the cookie/crumb handshake, its reuse, and the crumb-free fallback.
+// Exercises api/earnings.js against a stubbed Yahoo (realistic quoteSummary and
+// chart shapes) plus an FMP that denies the per-symbol endpoint, as this plan
+// does. The endpoint cannot be exercised for real without a deploy — this covers
+// the parse, the cookie/crumb handshake and its reuse, the crumb-free chart
+// door, and the cache that makes one success durable.
 //
 //   npm run test:earnings
 
@@ -29,14 +30,33 @@ const eq = (label, got, want) => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}: ${got}${ok ? "" : ` (want ${want})`}`);
 };
 
-// Each scenario gets a fresh module instance so the warm-lambda credential
-// cache doesn't leak between them.
+// chart events: the crumb-free door. Yahoo keys the block by timestamp.
+const CHART = { chart: { result: [{
+  meta: { symbol: "NBIS" },
+  events: { earnings: {
+    [String(day(soon))]: { date: day(soon), epsEstimate: { raw: -0.5 } },
+    [String(day(pastQ))]: { date: day(pastQ), epsActual: { raw: -0.41 }, epsEstimate: { raw: -0.55 } },
+  } },
+}] } };
+
+// Each scenario gets a fresh module instance so the warm-lambda credential and
+// result caches don't leak between them. `mode` can be reassigned mid-scenario
+// to take an upstream away without resetting those caches — that is how the
+// durable-cache behaviour is exercised.
 let calls = [];
-async function scenario(name, { crumbStatus = 200, bareWorks = true } = {}) {
+let mode = {};
+async function scenario(name, opts = {}) {
   calls = [];
-  globalThis.fetch = async (url, opts) => {
+  mode = { crumbStatus: 200, bareWorks: true, chart: null, ...opts };
+  globalThis.fetch = async (url, o) => {
     const u = String(url);
+    const opts = o;
+    const { crumbStatus, bareWorks } = mode;
     calls.push(u.split("?")[0]);
+    if (u.includes("/v8/finance/chart/")) {
+      if (!mode.chart) return new Response("not found", { status: 404 });
+      return new Response(JSON.stringify(mode.chart), { status: 200 });
+    }
     if (u.startsWith("https://fc.yahoo.com")) {
       const h = new Headers();
       h.append("set-cookie", "A1=d=AQABBxyz&S=AQAAA; Domain=.yahoo.com; Path=/; HttpOnly");
@@ -120,6 +140,38 @@ const blob = JSON.stringify(d.body);
 eq("never echoes the crumb value", blob.includes("Xy1z.AbC"), false);
 eq("never echoes the cookie value", blob.includes("AQABBxyz"), false);
 eq("never echoes the API key", blob.includes("test-key"), false);
+
+/* ── 5. the crumb door is shut, the crumb-free chart door answers ────────── */
+console.log("\n— quoteSummary refused, chart events answer —");
+run = await scenario("chart", { crumbStatus: 429, bareWorks: false, chart: CHART });
+const e = await run({ symbols: "NBIS" });
+eq("date resolves without a crumb", e.body.NBIS?.d, soon);
+eq("source names the door it came through", e.body.NBIS?.src, "yahoo-chart");
+eq("chart dates are announcement days, not quarter ends", e.body.NBIS?.last?.qEnd, false);
+eq("past quarter's EPS read from the same block", e.body.NBIS?.last?.epsA, -0.41);
+eq("a chart date is never flagged as projected", e.body.NBIS?.est, false);
+eq("the chart was actually tried", calls.some((c) => c.includes("/v8/finance/chart/")), true);
+
+/* ── 6. one success is durable: cached, then served when Yahoo goes dark ─── */
+console.log("\n— cache makes a single success stick —");
+run = await scenario("cache", { crumbStatus: 429, bareWorks: false, chart: CHART });
+eq("first request resolves upstream", (await run({ symbols: "NBIS" })).body.NBIS?.d, soon);
+calls = [];
+const warm = await run({ symbols: "NBIS" });
+eq("second request is served from cache", warm.body.NBIS?.d, soon);
+eq("no upstream was touched at all", calls.length, 0);
+eq("a cache hit is not flagged stale", warm.body.NBIS?.stale, undefined);
+
+mode.chart = null;                       // Yahoo now refuses every door
+calls = [];
+const dark = await run({ symbols: "NBIS", refresh: "1" });
+eq("a forced refresh still tries upstream", calls.length > 0, true);
+eq("the known date survives the outage", dark.body.NBIS?.d, soon);
+eq("and is flagged as not re-confirmed", dark.body.NBIS?.stale, true);
+
+/* ── 7. an unknown symbol is never invented, cached or otherwise ─────────── */
+const never = await run({ symbols: "NOPE" });
+eq("an unresolvable symbol stays absent", "NOPE" in never.body, false);
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

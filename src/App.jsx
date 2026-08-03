@@ -103,18 +103,31 @@ export default function App() {
   // assumed. Nothing here is sent anywhere — it stays on-device.
   const [positions, setPositions] = useStored("tt_positions", []);
   const posNum = (v) => (v === "" || v == null || !Number.isFinite(+v) || +v <= 0 ? null : +v);
+  // a report date you enter yourself. The feeds cannot answer for every listing
+  // — a name outside the S&P 500 whose data vendor is silent would otherwise sit
+  // blank forever — so the date can be typed in. It is stored on this device
+  // like the rest of the position and labelled everywhere it is shown, so it is
+  // never mistaken for something a feed confirmed.
+  const posDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : null);
   const posApi = useMemo(() => ({
     list: positions,
     count: positions.length,
     has: (tk) => positions.some((p) => p.tk === tk),
     get: (tk) => positions.find((p) => p.tk === tk) || null,
-    add: (tk, shares, cost) => setPositions((prev) => {
+    add: (tk, shares, cost, ern) => setPositions((prev) => {
       const t = String(tk || "").toUpperCase().trim().replace(/[^A-Z0-9.\-]/g, "");
       if (!t) return prev;
-      return [...prev.filter((p) => p.tk !== t), { tk: t, shares: posNum(shares), cost: posNum(cost), at: Date.now() }];
+      return [...prev.filter((p) => p.tk !== t), { tk: t, shares: posNum(shares), cost: posNum(cost), ern: posDate(ern), at: Date.now() }];
     }),
     remove: (tk) => setPositions((prev) => prev.filter((p) => p.tk !== tk)),
   }), [positions]);
+
+  // ticker → the date you entered for it, if any
+  const posErn = useMemo(() => {
+    const m = {};
+    for (const p of positions) { const d = posDate(p.ern); if (d) m[p.tk] = d; }
+    return m;
+  }, [positions]);
 
   // real company name / sector / industry for names the snapshot doesn't
   // classify (portfolio holdings and custom lookups outside the S&P 500), so
@@ -191,13 +204,19 @@ export default function App() {
         // compact snapshot records carry none — the drawer fetches those on demand
         if (sg.closes && sg.closes.length) r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine };
       }
-      // earnings-risk overlay: days until the next confirmed report
-      const ern = earnings?.[s.tk] || extraErn[s.tk];
+      // earnings-risk overlay: days until the next confirmed report. A date you
+      // entered yourself wins over the feed — you asked for that name to be
+      // watched on that day — and is tagged `mine` so every surface can say so.
+      const feed = earnings?.[s.tk] || extraErn[s.tk];
+      const mine = posErn[s.tk];
+      // keep the feed's `last` (the reported-quarter card still wants it) but drop
+      // its flags — they described the feed's date, not the one you typed
+      const ern = mine ? { ...(feed || {}), d: mine, t: null, est: false, stale: false, mine: true } : feed;
       if (ern?.d) {
         const days = Math.round((new Date(ern.d + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
         // est = the source projected the date rather than confirming it (Yahoo
         // flags these); the UI marks them "~" instead of stating them flatly
-        if (days >= 0) r = { ...r, ern: { date: ern.d, time: ern.t, days, est: !!ern.est } };
+        if (days >= 0) r = { ...r, ern: { date: ern.d, time: ern.t, days, est: !!ern.est, mine: !!ern.mine, stale: !!ern.stale } };
       }
       // most recent reported quarter (actual vs estimate) — drives the drawer's
       // earnings-results card. Real calendar data or absent; never inferred.
@@ -267,7 +286,7 @@ export default function App() {
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };
-  }, [universe, meta, live, hist, customData, market, earnings, extraErn]);
+  }, [universe, meta, live, hist, customData, market, earnings, extraErn, posErn]);
 
   // positions joined with live quotes + the universe record — drives the
   // portfolio view and the earnings overlay on the calendar. Every derived

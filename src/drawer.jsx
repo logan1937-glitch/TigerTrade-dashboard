@@ -252,9 +252,12 @@ export function StockDrawerBody({ stock, onClose }) {
   const [posOpen, setPosOpen] = useState(false);
   const [posSh, setPosSh] = useState("");
   const [posCost, setPosCost] = useState("");
+  const [posErn, setPosErn] = useState("");
   // shares and cost are both optional — saving with neither still tracks the
-  // name in the portfolio (price, sector, report date), just without a size
-  const savePos = () => { positions.add(s.tk, posSh, posCost); setPosOpen(false); };
+  // name in the portfolio (price, sector, report date), just without a size.
+  // The report date is optional too: it only earns its keep for a listing no
+  // feed covers, and it is labelled as yours wherever it then appears.
+  const savePos = () => { positions.add(s.tk, posSh, posCost, posErn); setPosOpen(false); };
 
   // price alert: armed here, persisted, evaluated on every data refresh
   const alerts = useAlerts();
@@ -312,7 +315,7 @@ export function StockDrawerBody({ stock, onClose }) {
         <div className="dr-actions">
           <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
           <button className="ed-btn" data-on={positions.has(s.tk) || undefined}
-            onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setAlertOpen(false); setPlanOpen(false); setPosOpen((v) => !v); }}>
+            onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosErn((h && h.ern) || ""); setAlertOpen(false); setPlanOpen(false); setPosOpen((v) => !v); }}>
             <PortfolioIcon />{positions.has(s.tk) ? "Edit position" : "Add to portfolio"}
           </button>
           <button className="ed-btn" data-on={!!myAlert || undefined}
@@ -335,7 +338,22 @@ export function StockDrawerBody({ stock, onClose }) {
               <button className="ed-btn ed-btn-primary" onClick={savePos}>Save</button>
               {positions.has(s.tk) && <button className="ed-btn" onClick={() => { positions.remove(s.tk); setPosOpen(false); }}>Remove</button>}
             </div>
-            <span className="mono dr-alert-note">both optional — a tracked name with no size still gets live price and its report date on your calendar · stored on this device</span>
+            <div className="dr-alert-row">
+              <span className="mono dr-alert-cur">Reports</span>
+              <input className="dr-alert-in mono dr-date-in" type="date" value={posErn}
+                onChange={(e) => setPosErn(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()}
+                aria-label="Next report date" style={{ flex: "0 0 auto" }} />
+              {posErn && <button className="ed-btn" onClick={() => setPosErn("")}>Clear date</button>}
+            </div>
+            <span className="mono dr-alert-note">
+              {s.ern && !s.ern.mine
+                ? <>all three optional — the calendar already has {s.tk} reporting {new Date(s.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    {s.ern.est ? " (projected)" : ""}, so a date here would override it · stored on this device</>
+                : s.ern
+                  ? <>all three optional — your date is what puts {s.tk} on the earnings calendar; it is shown as yours,
+                      never as confirmed. Clear it to fall back to whatever the feeds know · stored on this device</>
+                  : <>all three optional — no feed has a report date for {s.tk}, so setting one here is what puts it on
+                      your calendar. It is shown as yours, never as confirmed · stored on this device</>}</span>
           </div>
         )}
         {!posOpen && held && (
@@ -484,6 +502,7 @@ export function StockDrawerBody({ stock, onClose }) {
           <span className="dr-ern-tag mono">{s.ern.days === 0 ? "E·TODAY" : `E-${s.ern.days}`}</span>
           Earnings {s.ern.est ? "around " : ""}{new Date(s.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           {s.ern.time === "bmo" ? " before the open" : s.ern.time === "amc" ? " after the close" : ""}
+          {s.ern.mine ? " — the date you set for this position, not a confirmed one" : ""}
           {s.ern.est ? " (projected — the company hasn't confirmed the date)" : ""}
           {" — "}reports gap through stops. New breakout entries this close to the print carry event risk.
         </div>

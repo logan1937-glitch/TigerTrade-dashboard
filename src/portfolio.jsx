@@ -18,19 +18,29 @@ const compact = (v) => {
 };
 const pctS = (v, dp = 2) => (v == null ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(dp)}%`);
 
+// Where a report date came from, said plainly. A name no feed covers can carry a
+// date you typed in yourself, and that must never read as a confirmed one.
+const ernTitle = (e) => {
+  if (!e) return "No report date for this name yet — open it and set one under Edit position.";
+  if (e.mine) return `Reports ${e.date} — the date you entered for this position.`;
+  return `Reports ${e.date}${e.est ? " (projected by the data source, not confirmed by the company)" : ""}`
+    + (e.stale ? " · from the last successful feed read, not re-confirmed today" : "");
+};
+
 export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null }) {
   const pos = usePositions();
   const [tk, setTk] = useState("");
   const [sh, setSh] = useState("");
   const [cost, setCost] = useState("");
+  const [ern, setErn] = useState("");
   const [err, setErr] = useState("");
 
   const submit = (e) => {
     e.preventDefault();
     const t = tk.trim().toUpperCase();
     if (!t) { setErr("Enter a ticker"); return; }
-    setErr(""); pos.add(t, sh, cost);   // shares and cost are both optional
-    setTk(""); setSh(""); setCost("");
+    setErr(""); pos.add(t, sh, cost, ern);   // shares, cost and report date are all optional
+    setTk(""); setSh(""); setCost(""); setErn("");
   };
 
   // ── totals. Only sized positions can carry a dollar value, and dollar P&L
@@ -63,6 +73,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
   // real earnings dates for held names, soonest first
   const ernAhead = useMemo(() => rows.filter((r) => r.ern && r.ern.days != null)
     .sort((a, b) => a.ern.days - b.ern.days), [rows]);
+  const ernNoDate = useMemo(() => rows.filter((r) => !r.ern), [rows]);
   const ernSoon = ernAhead.filter((r) => r.ern.days <= 14);
   const ernSoonVal = ernSoon.reduce((n, r) => n + (r.value || 0), 0);
 
@@ -98,6 +109,10 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
           onChange={(e) => setSh(e.target.value)} aria-label="Shares" />
         <input className="search" style={{ width: 150 }} placeholder="cost / share (opt)" value={cost} inputMode="decimal"
           onChange={(e) => setCost(e.target.value)} aria-label="Cost per share" />
+        <span className="pf-inlab mono">reports</span>
+        <input className="search pf-date" style={{ width: 158 }} type="date" value={ern}
+          onChange={(e) => setErn(e.target.value)} aria-label="Next report date"
+          title="Next report date — optional. Only worth filling in for a name no data feed covers; the calendar fills this in by itself when it can." />
         <button type="submit" className="seg-btn" data-active="true" style={{ padding: "9px 14px" }}>＋ Add position</button>
         {err && <span className="cs-lookup-err mono">{err}</span>}
         <span className="pf-note mono">ticker alone is enough · stored on this device only</span>
@@ -134,8 +149,9 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                     {r.plPct != null && <span className="pf-sub mono" data-up={r.plPct >= 0}>{pctS(r.plPct)}</span>}</div>
                   <div className="pf-num mono">{w == null ? "—" : `${w.toFixed(1)}%`}
                     {w != null && <i className="pf-wbar" style={{ width: `${Math.min(100, w)}%` }} />}</div>
-                  <div className="pf-num mono" title={r.ern ? `Reports ${r.ern.date}${r.ern.est ? " (projected date)" : ""}` : undefined}>
+                  <div className="pf-num mono" title={ernTitle(r.ern)}>
                     {r.ern ? `${r.ern.est ? "~" : ""}${r.ern.days === 0 ? "today" : `${r.ern.days}d`}` : "—"}
+                    {r.ern && r.ern.mine && <i className="pf-ernmine">yours</i>}
                     {r.ern && r.ern.days <= 7 && <span className="pf-ernflag mono">event risk</span>}</div>
                   <div style={{ textAlign: "right" }}>
                     <button className="pf-x" aria-label={`Remove ${r.tk}`} title="Remove position"
@@ -150,7 +166,8 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             <div className="pf-panel">
               <div className="pf-ph mono">Earnings ahead · your book</div>
               {ernAhead.length === 0
-                ? <p className="pf-pempty mono">No confirmed report dates for these names in the calendar window.</p>
+                ? <p className="pf-pempty mono">No report dates for these names yet. The feeds don't cover every
+                    listing — open a name and set its date under <b>Edit position</b> to put it on this calendar.</p>
                 : (
                   <>
                     {ernSoon.length > 0 && (
@@ -161,15 +178,20 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                       {ernAhead.slice(0, 6).map((r) => (
                         <div className="pf-pitem" key={r.tk} data-soon={r.ern.days <= 7 || undefined}>
                           <span className="pf-pi-tk mono">{r.tk}</span>
-                          <span className="pf-pi-d mono" title={r.ern.est ? "Projected date — not yet confirmed by the company" : undefined}>
+                          <span className="pf-pi-d mono" title={ernTitle(r.ern)}>
                             {r.ern.est ? "~" : ""}{new Date(r.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                            {r.ern.time === "bmo" ? " · pre" : r.ern.time === "amc" ? " · post" : ""}</span>
+                            {r.ern.time === "bmo" ? " · pre" : r.ern.time === "amc" ? " · post" : ""}
+                            {r.ern.mine && <i className="pf-ernmine">yours</i>}</span>
                           <span className="pf-pi-t mono">{r.ern.days === 0 ? "today" : `T−${r.ern.days}d`}</span>
                         </div>
                       ))}
                     </div>
                   </>
                 )}
+              {ernAhead.length > 0 && ernNoDate.length > 0 && (
+                <p className="pf-pnote mono">No date yet for {ernNoDate.slice(0, 5).map((r) => r.tk).join(", ")}
+                  {ernNoDate.length > 5 ? ` +${ernNoDate.length - 5}` : ""} — set one under Edit position.</p>
+              )}
             </div>
 
             <div className="pf-panel">

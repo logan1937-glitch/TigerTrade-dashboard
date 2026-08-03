@@ -1186,6 +1186,12 @@ body { background: #0a0b0d; }
 .dr-alert-in { width: 110px; padding: 7px 9px; font-size: 13px; color: var(--text);
   background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-sm); }
 .dr-alert-in:focus { outline: none; border-color: var(--accent); }
+/* native date pickers ship a light chrome by default — color-scheme hands them
+   the terminal's palette so the popup doesn't flash white over a dark drawer */
+.dr-date-in, .pf-date { color-scheme: dark; }
+.dr-date-in { width: auto; min-width: 140px; }
+.dr-date-in::-webkit-calendar-picker-indicator,
+.pf-date::-webkit-calendar-picker-indicator { filter: invert(.65); cursor: pointer; }
 .dr-alert-note { font-size: 9.5px; color: var(--dim); letter-spacing: var(--track-data); }
 .dr-alert { margin: 12px 26px 0; padding: 11px 14px; border-radius: var(--radius-sm);
   font-family: var(--font-mono); font-size: 12px; line-height: 1.55;
@@ -1232,6 +1238,9 @@ body { background: #0a0b0d; }
 .pf-ts { font-size: 10px; letter-spacing: var(--track-meta); color: var(--dim); }
 .pf-add { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 14px; }
 .pf-note { font-size: 10px; color: var(--dim); margin-left: auto; }
+/* a native date field shows only "mm/dd/yyyy" when empty, which says nothing
+   about what it is for next to three labelled inputs */
+.pf-inlab { font-size: 10px; color: var(--dim); margin-right: -3px; }
 .pf-head, .pf-row { grid-template-columns: 1.7fr 0.9fr 1fr 0.9fr 1fr 0.8fr 0.8fr 34px; }
 .pf-num { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
   font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; position: relative; }
@@ -1245,6 +1254,11 @@ body { background: #0a0b0d; }
   color: var(--dim); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px 5px; }
 .pf-wbar { display: block; height: 2px; border-radius: 2px; background: var(--accent); opacity: .5; margin-top: 2px; }
 .pf-ernflag { font-size: 8.5px; letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--sev-high); }
+/* a report date you entered yourself — deliberately quiet, but never invisible:
+   it must not read as a figure a feed confirmed */
+.pf-ernmine { display: inline-block; margin-left: 5px; font-style: normal; font-size: 8px; font-weight: 600;
+  letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--dim);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 4px; vertical-align: 1px; }
 .pf-x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; padding: 4px 6px;
   border-radius: var(--radius-sm); transition: color .13s ease, background .13s ease; }
 .pf-x:hover { color: var(--sev-extreme); background: color-mix(in oklch, var(--sev-extreme) 12%, transparent); }
@@ -1254,6 +1268,9 @@ body { background: #0a0b0d; }
 .pf-plead { font-size: 11.5px; line-height: 1.55; color: var(--muted); margin: 0 0 11px; }
 .pf-plead b { color: var(--text); }
 .pf-pempty { font-size: 11.5px; line-height: 1.55; color: var(--dim); margin: 0; }
+.pf-pempty b { color: var(--muted); font-weight: 600; }
+.pf-pnote { font-size: 10.5px; line-height: 1.5; color: var(--dim); margin: 10px 0 0;
+  padding-top: 9px; border-top: 1px solid var(--border); }
 .pf-plist { display: flex; flex-direction: column; gap: 7px; }
 .pf-pitem { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 10px; font-size: 11.5px; color: var(--muted); }
 .pf-pitem[data-soon] .pf-pi-t { color: var(--sev-high); font-weight: 700; }
