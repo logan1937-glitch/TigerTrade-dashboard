@@ -18,7 +18,15 @@
 // nightly snapshot, so it could never add anything this endpoint exists for.
 // Calling it was two guaranteed-failing round trips per request. It is gone.
 //
-// WHAT IS LEFT IS TWO YAHOO DOORS, CHEAPEST FIRST.
+// FINNHUB IS THE ONE TO SET UP. Its earnings calendar takes a symbol filter, so
+// one request answers for one name — including the off-universe listings FMP
+// refuses — and it ships the forward EPS/revenue estimate with the date. It is a
+// documented, supported API rather than an endpoint that can change shape
+// without notice, which is what makes it dependable. Free tier; set
+// FINNHUB_API_KEY in the Vercel env and it becomes the primary source. Without
+// the key it is skipped entirely and nothing below changes.
+//
+// BEHIND IT, TWO YAHOO DOORS, CHEAPEST FIRST.
 //   1. chart (v8) — no cookie, no crumb, one request. The same endpoint
 //      /api/yahoo and the nightly snapshot already hit ~500 times a night from
 //      this deployment, so it is the Yahoo path known to be reachable here.
@@ -208,6 +216,54 @@ async function yahooQuoteSummary(sym, today, diag) {
   return null;
 }
 
+/* ── the keyed door: Finnhub ─────────────────────────────────────────────────
+   The only source here that is a documented, supported API rather than an
+   undocumented endpoint that can change shape without notice. Its calendar takes
+   a symbol filter directly, so one request answers for one name — including the
+   off-universe listings FMP's plan will not serve — and it carries the forward
+   EPS/revenue estimates alongside the date. Free tier, but it needs a key, so it
+   is skipped entirely when FINNHUB_API_KEY is absent and Yahoo carries on as
+   before. When the key IS set this runs first and Yahoo becomes the backup. */
+function parseFinnhub(j, today) {
+  const rows = j && Array.isArray(j.earningsCalendar) ? j.earningsCalendar : null;
+  if (!rows || !rows.length) return null;
+  let d = null, t = null, last = null;
+  for (const e of rows) {
+    const day = String((e && e.date) || "").slice(0, 10);
+    if (!day) continue;
+    if (day >= today) {
+      if (!d || day < d) { d = day; t = /^(bmo|amc)$/i.test(e.hour || "") ? String(e.hour).toLowerCase() : null; }
+      continue;
+    }
+    const epsA = num(e.epsActual);
+    if (epsA == null) continue;
+    // Finnhub dates the row by the announcement day, so this is a real
+    // "reported on", not a fiscal period end
+    if (!last || day > last.d) {
+      last = { d: day, epsA, epsE: num(e.epsEstimate), revA: num(e.revenueActual), revE: num(e.revenueEstimate), qEnd: false };
+    }
+  }
+  if (!d && !last) return null;
+  return { d, t, est: false, src: "finnhub", last };
+}
+
+async function finnhubEarnings(sym, today, diag) {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return null;
+  const from = iso(Date.now() - 98 * 86400000);
+  const to = iso(Date.now() + 150 * 86400000);
+  const url = `https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}`
+    + `&symbol=${encodeURIComponent(sym)}&token=${encodeURIComponent(key)}`;
+  try {
+    const r = await fetch(url, { headers: { Accept: "application/json" } });
+    diag?.push({ step: "finnhub", sym, status: r.status });
+    if (!r.ok) return null;                       // 401 bad key, 429 over the free-tier rate
+    const rec = parseFinnhub(await r.json(), today);
+    diag?.push({ step: "finnhub:parsed", sym, d: rec?.d ?? null, hasLast: !!rec?.last });
+    return rec;
+  } catch (e) { diag?.push({ step: "finnhub", sym, error: errText(e) }); return null; }
+}
+
 /* ── door 2: chart events (no cookie, no crumb) ──────────────────────────────
    The same v8 endpoint /api/yahoo and the snapshot already reach from this
    deployment, asked over a window that runs into the future so an upcoming
@@ -255,6 +311,16 @@ async function yahooChart(sym, today, diag) {
 // on the endpoint this deployment already reaches ~500 times a night. quoteSummary
 // is asked only when the chart yields no date — it is richer (estimate flag, EPS
 // history, revenue) but costs a two-request handshake before it can even be tried.
+async function resolve(sym, today, diag) {
+  // a supported API with a key beats two undocumented endpoints, when there is one
+  const fh = await finnhubEarnings(sym, today, diag);
+  if (fh && fh.d) return fh;
+  const y = await yahooEarnings(sym, today, diag);
+  if (!y) return fh;
+  if (!fh) return y;
+  return { ...y, last: fh.last || y.last };       // keep Finnhub's revenue figures
+}
+
 async function yahooEarnings(sym, today, diag) {
   const ch = await yahooChart(sym, today, diag);
   if (ch && ch.d && ch.last) return ch;
@@ -277,7 +343,7 @@ export default async function handler(req, res) {
   const refresh = req.query.refresh === "1" || req.query.refresh === "true";
   const diag = debug ? [] : null;
   const today = iso(Date.now());
-  diag?.push({ step: "start", today, symbols: want, blob: hasBlob, refresh, node: process.version });
+  diag?.push({ step: "start", today, symbols: want, blob: hasBlob, finnhubKey: !!process.env.FINNHUB_API_KEY, refresh, node: process.version });
 
   // Pass 0: anything the cache still vouches for is answered without touching
   // an upstream at all.
@@ -291,11 +357,11 @@ export default async function handler(req, res) {
   }
 
   if (ask.length) {
-    const yahoo = await Promise.all(ask.map((sym) => yahooEarnings(sym, today, diag).catch((e) => {
-      diag?.push({ step: "yahoo", sym, error: errText(e) });
+    const got = await Promise.all(ask.map((sym) => resolve(sym, today, diag).catch((e) => {
+      diag?.push({ step: "resolve", sym, error: errText(e) });
       return null;
     })));
-    ask.forEach((sym, i) => { if (yahoo[i]) out[sym] = yahoo[i]; });
+    ask.forEach((sym, i) => { if (got[i]) out[sym] = got[i]; });
 
     // A symbol every upstream just refused falls back to whatever the
     // cache last knew, however old — a date earned last week is still the real

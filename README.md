@@ -106,9 +106,22 @@ fills that gap, trying each source in turn and stopping at the first real answer
 | # | Source | Cost | Notes |
 |---|--------|------|-------|
 | 1 | Blob cache | 0 requests | A date resolved once is served to everyone afterwards. |
-| 2 | Yahoo `chart` `events=earn` | 1 request | No cookie, no crumb. The same endpoint the snapshot already reaches ~500×/night, so it's the Yahoo path known to work from this deployment. |
-| 3 | Yahoo `quoteSummary` | 3 requests | Richer (projected-date flag, EPS history, revenue) but cookie+crumb gated, so it costs a handshake first. Asked only when the chart returns no date or no reported quarter. |
-| 4 | Stale cache | 0 requests | A date from an earlier read, flagged `stale`, rather than a blank. |
+| 2 | **Finnhub** `calendar/earnings` | 1 request | **Set `FINNHUB_API_KEY` and this becomes the primary source.** A documented, supported API that takes a symbol filter, so one request answers for one name — and it ships the forward EPS/revenue estimate with the date. Skipped entirely without a key. |
+| 3 | Yahoo `chart` `events=earn` | 1 request | No cookie, no crumb. The same endpoint the snapshot already reaches ~500×/night, so it's the Yahoo path known to work from this deployment. |
+| 4 | Yahoo `quoteSummary` | 3 requests | Richer (projected-date flag, EPS history, revenue) but cookie+crumb gated, so it costs a handshake first. Asked only when the chart returns no date or no reported quarter. |
+| 5 | Stale cache | 0 requests | A date from an earlier read, flagged `stale`, rather than a blank. |
+
+**Getting the Finnhub key** (free, ~2 minutes, no card):
+1. Go to https://finnhub.io/register and sign up.
+2. The dashboard shows your API key immediately — copy it.
+3. Vercel → your project → **Settings → Environment Variables** → add
+   `FINNHUB_API_KEY`, paste the value, tick all environments, **Save**.
+4. **Redeploy** (Deployments → ⋯ → Redeploy). Env vars only apply to new builds.
+5. Check it: `/api/earnings?symbols=NBIS&debug=1` should show a
+   `{"step":"finnhub","status":200}` line and `src: "finnhub"` on the result.
+
+The free tier allows 60 calls/minute, and the Blob cache means a symbol is asked
+at most twice a day, so a normal portfolio uses a handful of calls per day.
 
 **FMP is deliberately not in this list.** Verified twice against the live API:
 per-symbol `earnings`, `income-statement` and `financial-estimates` all answer

@@ -204,7 +204,7 @@ export function InfoDot({ text }) {
 }
 
 /* ------------------------------- HERO ------------------------------ */
-export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, vix }) {
+export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, vix, settled }) {
   const ref = useRef(null);
   const onMove = (e) => {
     const el = ref.current; if (!el) return;
@@ -274,8 +274,8 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
         </div>
         {showScope && (
           <>
-            <MacroBoard macro={macro} />
-            <VixPanel vix={vix} />
+            <MacroBoard macro={macro} settled={settled} />
+            <VixPanel vix={vix} settled={settled} />
           </>
         )}
       </div>
@@ -352,9 +352,22 @@ const pctTxt = (c) => (c == null ? "—" : c === 0 ? "0.00%" : `${c > 0 ? "+" : 
 const dir = (x) => (x == null || x === 0 ? undefined : x > 0);   // neutral when flat
 
 // live macro instrument panel beside the radar — rates, FX, commodities, inflation
-export function MacroBoard({ macro }) {
+export function MacroBoard({ macro, settled }) {
   const { rates, fx, comm, cpi } = macro || {};
+  // The board is fed only by the nightly snapshot's FMP calls. When those don't
+  // answer — no key, a plan that denies the endpoints, an exhausted quota — the
+  // data is not late, it is not coming, and a skeleton that pulses forever
+  // claims otherwise. Say so instead.
   if (!rates && !fx && !comm && !cpi) {
+    if (settled) {
+      return (
+        <div className="macroboard mb-out">
+          <div className="mb-h mono">Macro board</div>
+          <p className="mb-outmsg mono">No rates, FX, commodity or inflation data came back from the market-data
+            feed. These come from FMP — check that <b>FMP_API_KEY</b> is set and that the plan's quota isn't spent.</p>
+        </div>
+      );
+    }
     return (
       <div className="macroboard" aria-busy="true">
         {[["Rates", 4], ["FX", 3], ["Commodities", 1], ["Inflation", 1]].map(([h, n]) => (
@@ -445,10 +458,22 @@ const VIX_REGIME = (v) =>
 
 // the volatility cover panel — replaces the radar: current VIX + regime, an
 // interactive ~3-month trend (50-day avg line, hover crosshair), 52-wk range
-export function VixPanel({ vix }) {
+export function VixPanel({ vix, settled }) {
   const [hi, setHi] = useState(null);
-  // stable skeleton until the snapshot arrives — no radar-then-VIX flash, no layout shift
+  // stable skeleton until the snapshot arrives — no radar-then-VIX flash, no
+  // layout shift. Once the load has settled with nothing, the skeleton becomes a
+  // lie, so it resolves to a stated reason instead.
   if (!vix || !vix.series || vix.series.length < 2) {
+    if (settled) {
+      return (
+        <div className="vixpanel vix-out" style={{ "--reg": "var(--muted)" }}>
+          <div className="vix-head"><span className="vix-kicker mono">CBOE Volatility · VIX</span></div>
+          <p className="mb-outmsg mono">No VIX quote or history came back from the market-data feed. This panel is
+            fed by FMP — check that <b>FMP_API_KEY</b> is set and that the plan's quota isn't spent.</p>
+          <span className="vix-foot mono">52-week range · fear gauge</span>
+        </div>
+      );
+    }
     return (
       <div className="vixpanel" style={{ "--reg": "var(--muted)" }} aria-busy="true">
         <div className="vix-head"><span className="vix-kicker mono">CBOE Volatility · VIX</span><span className="skel skel-chip" /></div>

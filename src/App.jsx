@@ -50,6 +50,10 @@ export default function App() {
   const [earnings, setEarnings] = useState(null); // { TK: { d: ISO date, t: "bmo"|"amc"|null } } — next report per name
   const [macro, setMacro] = useState(null);      // { rates, fx, cpi } — treasury/FX/inflation board on the radar cover
   const [vix, setVix] = useState(null);          // { level, chg, avg50, hi52, lo52, series } — VIX cover panel
+  // Whether the data load has finished, win or lose. macro/vix/earnings only
+  // ever arrive with the snapshot; without this the panels cannot tell "still
+  // coming" from "never coming" and skeleton forever on a feed that failed.
+  const [feedSettled, setFeedSettled] = useState(false);
   const [econ, setEcon] = useState(null);       // live economic calendar (null = unavailable)
 
   // custom tickers — look up ANY symbol on demand (unlimited search)
@@ -456,6 +460,7 @@ export default function App() {
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
+            setFeedSettled(true);
             return; // snapshot covered it — skip live per-ticker fetching
           }
         }
@@ -499,7 +504,14 @@ export default function App() {
       });
       const mh = computeMarketHealth(indices, tickers.map((t) => ({ chg: quotes[t]?.changePercentage, sig: sig[t] })));
       if (mh) setMarket({ ...mh, asOf: asOf || Date.now() });
-    })().catch(() => { if (alive) setLive({ status: "unavailable", code: "ERROR", quotes: {} }); });
+      // reached only when the snapshot did NOT answer: quotes came per-ticker
+      // from Yahoo, which carries no macro board, VIX or earnings calendar
+      setFeedSettled(true);
+    })().catch(() => {
+      if (!alive) return;
+      setLive({ status: "unavailable", code: "ERROR", quotes: {} });
+      setFeedSettled(true);
+    });
     return () => { alive = false; };
   }, []);
 
@@ -637,7 +649,7 @@ export default function App() {
           : <StockTape rows={csData.list} onPick={openStock} />}
         {product === "radar" ? (
           <>
-            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} live={!!econ} macro={macro} vix={vix} />
+            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />
             <StatStrip events={allEvents} />
             <SubNav tab={tab} setTab={setTab} counts={events.length} />
             {tab === "radar" && <RadarView {...radarProps} />}

@@ -1662,3 +1662,11 @@ body { background: #0a0b0d; }
   .pchart-toolbar { gap: 6px; }
   .event-head { gap: 10px; }
 }
+
+/* Feed-unavailable states. The macro board and VIX panel are fed only by the
+   nightly snapshot's FMP calls; when those never answer, a pulsing skeleton
+   claims data is on its way that is not coming. These replace it with the
+   reason, in the same box, so the layout doesn't jump. */
+.mb-out, .vix-out { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.mb-outmsg { font-size: 10.5px; line-height: 1.6; color: var(--dim); margin: 0; max-width: 46ch; }
+.mb-outmsg b { color: var(--muted); font-weight: 600; }

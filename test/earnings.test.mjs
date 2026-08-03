@@ -30,6 +30,12 @@ const eq = (label, got, want) => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}: ${got}${ok ? "" : ` (want ${want})`}`);
 };
 
+// Finnhub's calendar shape: announcement-dated rows with estimates attached.
+const FH = { earningsCalendar: [
+  { date: soon, hour: "amc", epsEstimate: -0.5, revenueEstimate: 1.6e8, quarter: 2, year: 2026, symbol: "NBIS" },
+  { date: pastQ, hour: "bmo", epsActual: -0.41, epsEstimate: -0.55, revenueActual: 1.461e8, revenueEstimate: 1.4e8, symbol: "NBIS" },
+] };
+
 // chart events: the crumb-free door. Yahoo keys the block by timestamp.
 const CHART = { chart: { result: [{
   meta: { symbol: "NBIS" },
@@ -76,6 +82,10 @@ async function scenario(name, opts = {}) {
       if (!hasCrumb && !bareWorks) return new Response("unauthorized", { status: 401 });
       if (u.includes("/NOPE")) return new Response(JSON.stringify({ quoteSummary: { result: null } }), { status: 200 });
       return new Response(JSON.stringify(YS), { status: 200 });
+    }
+    if (u.includes("finnhub.io")) {
+      if (!mode.finnhub) return new Response("unauthorized", { status: 401 });
+      return new Response(JSON.stringify(mode.finnhub), { status: 200 });
     }
     if (u.includes("financialmodelingprep.com")) { fmpHits++; return new Response("Access denied", { status: 403 }); }
     throw new Error("unexpected fetch: " + u);
@@ -183,6 +193,27 @@ eq("and is flagged as not re-confirmed", dark.body.NBIS?.stale, true);
 /* ── 8. an unknown symbol is never invented, cached or otherwise ─────────── */
 const never = await run({ symbols: "NOPE" });
 eq("an unresolvable symbol stays absent", "NOPE" in never.body, false);
+
+/* ── 9. with a key, Finnhub answers first and Yahoo is never touched ─────── */
+console.log("\n— Finnhub key present —");
+process.env.FINNHUB_API_KEY = "fh-test-key";
+run = await scenario("finnhub", { finnhub: FH, chart: CHART });
+const f = await run({ symbols: "NBIS" });
+eq("date comes from Finnhub", f.body.NBIS?.d, soon);
+eq("source names it", f.body.NBIS?.src, "finnhub");
+eq("report time carried through", f.body.NBIS?.t, "amc");
+eq("reported quarter is an announcement date, not a period end", f.body.NBIS?.last?.qEnd, false);
+eq("revenue actual from the same row", f.body.NBIS?.last?.revA, 146100000);
+eq("Yahoo was not called at all", calls.some((c) => c.includes("finance.yahoo.com")), false);
+eq("the key is never echoed", JSON.stringify(f.body).includes("fh-test-key"), false);
+
+/* ── 10. a bad or rate-limited key falls through to Yahoo, not to nothing ── */
+console.log("\n— Finnhub key rejected —");
+run = await scenario("finnhub-401", { finnhub: null, chart: CHART });
+const g = await run({ symbols: "NBIS" });
+eq("Yahoo still answers", g.body.NBIS?.d, soon);
+eq("via the chart door", g.body.NBIS?.src, "yahoo-chart");
+delete process.env.FINNHUB_API_KEY;
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
