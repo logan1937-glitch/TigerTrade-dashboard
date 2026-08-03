@@ -10,6 +10,9 @@ import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
 import { CatalystTimeline } from "./catalystTimeline.jsx";
 import { CommandPalette } from "./commandPalette.jsx";
+
+// the windows the screener can rank on — RS and score are precomputed for each
+export const RANK_TFS = ["1D", "1W", "1M", "3M", "1Y"];
 import { Drawer, EventDrawerBody, StockDrawerBody, WatchlistBody } from "./drawer.jsx";
 import { CanslimView } from "./canslim.jsx";
 
@@ -224,13 +227,26 @@ export default function App() {
       return r;
     });
 
-    const rsMap = rsRatings(list);             // 1–99 percentile of 12-mo return
+    // RS is a percentile of return across the universe, so it is only defined
+    // relative to a window. The screener lets you pick that window, and score is
+    // built on RS, so both are computed for every window here — ranking a name
+    // is universe-wide work that can't be done inside the screener's own rows.
+    // `rs`/`score` stay the 12-month values every other surface expects.
+    const rsMaps = {};
+    for (const tf of RANK_TFS) rsMaps[tf] = rsRatings(list, tf);
     const sampleSpark = (c) => (c && c.length ? c.filter((_, i) => i % Math.max(1, Math.floor(c.length / 8)) === 0) : null);
 
     list = list.map((r) => {
       if (!r.sig) return r;
-      const rs = rsMap[r.tk] != null ? rsMap[r.tk] : (r.rs || 50);
-      const score = momentumScore(r.sig, rs);
+      const rsBy = {}, scoreBy = {};
+      for (const tf of RANK_TFS) {
+        const v = rsMaps[tf][r.tk];
+        const rv = v != null ? v : (r.rs || 50);
+        rsBy[tf] = rv;
+        scoreBy[tf] = momentumScore(r.sig, rv);
+      }
+      const rs = rsBy["1Y"];
+      const score = scoreBy["1Y"];
       const grade = score >= 80 ? "a" : score >= 60 ? "b" : "c";
       const spark = r.sig.spark || sampleSpark(r.sig.closes) || r.spark;
       // technical buy point: precomputed on compact snapshot records; derived
@@ -282,7 +298,7 @@ export default function App() {
         ];
         passCount = breakdown.filter((b) => b.pass === true).length;
       }
-      return { ...r, rs, score, grade, spark, status, breakdown, pass: passCount, ...pivotFields };
+      return { ...r, rs, score, rsBy, scoreBy, grade, spark, status, breakdown, pass: passCount, ...pivotFields };
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };

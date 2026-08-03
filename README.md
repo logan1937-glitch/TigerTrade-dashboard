@@ -34,7 +34,13 @@ right-side analysis drawers, a persistent watchlist, and animated SVG charts.
    Each name scores 0–100 with a letter grade. Features:
    - **Screener** — sortable/filterable universe with per-factor pass-fail chips,
      RS rank, and live **buy-zone** detection (Basing → Approaching → In Buy Zone
-     → Extended vs. the pivot)
+     → Extended vs. the pivot). The **Window** control (1D/1W/1M/3M/1Y) is the
+     period everything is *measured and ranked* over, not just a price format:
+     price change, the RS percentile, the leadership **L** chip and the score all
+     recompute over it, so switching to 3M re-ranks the board on 3-month
+     relative strength. It defaults to 1Y — the model's classic 12-month
+     definition — and any column not showing 1Y is labelled with its window
+     (`RS · 3M`, `Score · 3M`).
    - **Market Health** — the "Setup" gate: index trend vs. 50/200-DMA,
      distribution-day count, last follow-through day, and breadth. Buy only in a
      Confirmed Uptrend.

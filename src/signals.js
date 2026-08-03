@@ -388,9 +388,19 @@ export function momentumScore(sig, rs) {
 
 // universe-wide RS rating (1–99) from the percentile of 12-month return.
 // Pass the rows that have a signal bundle; returns { TICKER: rating }.
-export function rsRatings(rows) {
-  const withRet = rows.filter((r) => r.sig && r.sig.ret12m != null);
-  const sorted = [...withRet].sort((a, b) => a.sig.ret12m - b.sig.ret12m);
+// `tf` picks the window the ranking is measured over. "1Y" ranks on ret12m —
+// the model's own 12-month definition, and the default — so the classic board is
+// unchanged; the shorter windows rank on the precomputed period returns, which
+// is what lets the screener re-rank when you change its Δ selector.
+export function rsRatings(rows, tf = "1Y") {
+  const key = RET_KEY[tf];
+  const retOf = (r) => {
+    if (!r.sig) return null;
+    if (tf === "1Y") return r.sig.ret12m != null ? r.sig.ret12m : (r.sig.ret ? r.sig.ret.y1 : null);
+    return r.sig.ret && key && r.sig.ret[key] != null ? r.sig.ret[key] : null;
+  };
+  const withRet = rows.filter((r) => retOf(r) != null);
+  const sorted = [...withRet].sort((a, b) => retOf(a) - retOf(b));
   const map = {};
   sorted.forEach((r, i) => { map[r.tk] = sorted.length > 1 ? Math.round(1 + (i / (sorted.length - 1)) * 98) : 50; });
   return map;

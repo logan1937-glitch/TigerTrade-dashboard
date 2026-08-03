@@ -99,13 +99,19 @@ function ChangesPanel({ changes, onOpenStock }) {
 }
 
 const SORT_LABEL = { score: "score", rs: "RS", pass: "pass", chg: "% change", ticker: "ticker", status: "buy status" };
+// the factors the Δ window actually changes — pass follows because its L chip is
+// the RS test, which moves with the window
+const TF_SCOPED = { chg: true, rs: true, score: true, pass: true };
 
 function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector, changes }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
   const [dir, setDir] = useState("desc");   // "desc" = high→low / Z→A, "asc" = the reverse
   const [statusF, setStatusF] = useState("all");
-  const [tf, setTf] = useState("1D");
+  // Δ is the ranking window, not just a price-column format: RS, score and the
+  // leadership L chip are all measured over it. 1Y is the default so the board
+  // still opens on the classic 12-month leadership ranking.
+  const [tf, setTf] = useState("1Y");
   const [addSym, setAddSym] = useState("");
   const submitLookup = (e) => { e.preventDefault(); if (onLookup) onLookup(addSym); setAddSym(""); };
   // click a column header (or a Sort chip): re-selecting the active key flips the
@@ -119,8 +125,28 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
     let r = rows.filter((x) => (x.tk + " " + x.name + " " + x.group).toLowerCase().includes(q.toLowerCase()));
     if (sectorF) r = r.filter((x) => x.sector === sectorF);
     if (statusF !== "all") r = r.filter((x) => x.status === statusF);
-    r = r.map((x) => ({ ...x, _ret: periodReturn(x, tf) }));
-    const val = (x) => (sort === "chg" ? (x._ret || 0) : sort === "status" ? (STATUS_RANK[x.status] || 0) : (x[sort] || 0));
+    // every ranked quantity is resolved for the selected window before sorting,
+    // so changing Δ re-orders the board on whichever factor is active — not just
+    // the number in the price column
+    r = r.map((x) => {
+      const _ret = periodReturn(x, tf);
+      const _rs = x.rsBy && x.rsBy[tf] != null ? x.rsBy[tf] : x.rs;
+      const _score = x.scoreBy && x.scoreBy[tf] != null ? x.scoreBy[tf] : x.score;
+      const _grade = _score == null ? x.grade : _score >= 80 ? "a" : _score >= 60 ? "b" : "c";
+      // L is "leadership = RS ≥ 85", so it has to move with the window too —
+      // otherwise a row could read "RS 92" beside an unlit L chip
+      let _breakdown = x.breakdown, _pass = x.pass;
+      if (tf !== "1Y" && _rs != null && _breakdown && _breakdown[0] && _breakdown[0].key === "f1") {
+        _breakdown = [{ ..._breakdown[0], value: `RS ${_rs}`, pass: _rs >= 85 }, ..._breakdown.slice(1)];
+        _pass = _breakdown.filter((b) => b.pass === true).length;
+      }
+      return { ...x, _ret, _rs, _score, _grade, _breakdown, _pass };
+    });
+    const val = (x) => (sort === "chg" ? (x._ret || 0)
+      : sort === "rs" ? (x._rs || 0)
+      : sort === "score" ? (x._score || 0)
+      : sort === "pass" ? (x._pass || 0)
+      : sort === "status" ? (STATUS_RANK[x.status] || 0) : (x[sort] || 0));
     const dv = dir === "asc" ? 1 : -1;
     const cmp = sort === "ticker" ? (a, b) => dv * a.tk.localeCompare(b.tk) : (a, b) => dv * (val(a) - val(b));
     return [...r].sort(cmp);
@@ -155,10 +181,11 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           </div>
         </div>
         <div className="filters-right">
-          <span className="minwt-lab">Δ</span>
+          <span className="minwt-lab" title="The window everything is measured and ranked over — price change, RS and score">Window</span>
           <div className="seg">
             {["1D", "1W", "1M", "3M", "1Y"].map((id) => (
-              <button key={id} className="seg-btn" data-active={tf === id} onClick={() => setTf(id)}>{id}</button>
+              <button key={id} className="seg-btn" data-active={tf === id} onClick={() => setTf(id)}
+                title={`Rank the board on ${id === "1Y" ? "12-month" : id} relative strength`}>{id}</button>
             ))}
           </div>
           <span className="minwt-lab">Sort</span>
@@ -172,19 +199,19 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
         </div>
       </div>
 
-      <div className="listmeta"><span className="count"><b>{view.length}</b> leaders{sectorF && <> · <b>{sectorF}</b> <button className="linkbtn" style={{ fontSize: 9, padding: "2px 7px", marginLeft: 4 }} onClick={onClearSector}>clear ✕</button></>} · sorted by {SORT_LABEL[sort] || sort} {dir === "asc" ? "↑" : "↓"}</span>
+      <div className="listmeta"><span className="count"><b>{view.length}</b> leaders{sectorF && <> · <b>{sectorF}</b> <button className="linkbtn" style={{ fontSize: 9, padding: "2px 7px", marginLeft: 4 }} onClick={onClearSector}>clear ✕</button></>} · sorted by {SORT_LABEL[sort] || sort}{TF_SCOPED[sort] ? ` over ${tf === "1Y" ? "12 months" : tf}` : ""} {dir === "asc" ? "↑" : "↓"}</span>
         <span className="count mono" style={{ opacity: .8 }}>click a header to sort · a row for full analysis</span></div>
 
       <div className="cs-table">
         <div className="cs-head" role="row">
           <Th label="Ticker" k="ticker" />
           <Th label={`Price · Δ${tf}`} k="chg" right />
-          <Th label="RS" k="rs" />
+          <Th label={tf === "1Y" ? "RS" : `RS · ${tf}`} k="rs" />
           <span>Trend</span>
           <Th label="Leadership" k="pass" />
           <span>Signals</span>
           <Th label="Buy Status" k="status" right />
-          <Th label="Score" k="score" right />
+          <Th label={tf === "1Y" ? "Score" : `Score · ${tf}`} k="score" right />
         </div>
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}
@@ -192,9 +219,10 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock(r); } }}>
             <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
             <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{(r._ret || 0).toFixed(2)}%</span></div>
-            <div className="cs-rs mono">{r.rs != null ? r.rs : "—"}{r.rs != null && <i style={{ width: r.rs + "%" }} />}</div>
+            <div className="cs-rs mono" title={tf === "1Y" ? "Relative-strength rank over 12 months" : `Relative-strength rank over the selected ${tf} window`}>
+              {r._rs != null ? r._rs : "—"}{r._rs != null && <i style={{ width: r._rs + "%" }} />}</div>
             <div>{r.spark && r.spark.length ? <Spark data={r.spark} /> : <span className="cs-sig-na mono">—</span>}</div>
-            <div className="cs-letters">{r.breakdown && r.breakdown.length ? r.breakdown.map((b, j) => (
+            <div className="cs-letters">{r._breakdown && r._breakdown.length ? r._breakdown.map((b, j) => (
               <span key={j} className="cs-let" data-on={b.pass === true} data-na={b.pass == null || undefined} title={`${b.name}${b.pass == null ? " — needs data" : b.pass ? " ✓" : ""}`}>{b.letter}</span>
             )) : <span className="cs-sig-na mono">—</span>}</div>
             <div className="cs-sig">
@@ -209,7 +237,9 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
               ) : <span className="cs-sig-na mono">—</span>}
             </div>
             <div style={{ textAlign: "right" }}>{r.status ? <StatusPill status={r.status} /> : <span className="cs-sig-na mono">—</span>}</div>
-            <div className="cs-score mono" data-grade={r.grade || (r.score >= 93 ? "a" : "b")}>{(r.sig || r.coverage === "full") ? r.score : "—"}</div>
+            <div className="cs-score mono" data-grade={r._grade || (r._score >= 93 ? "a" : "b")}
+              title={tf === "1Y" ? undefined : `Leadership score over the selected ${tf} window`}>
+              {(r.sig || r.coverage === "full") ? r._score : "—"}</div>
           </div>
         ))}
       </div>
