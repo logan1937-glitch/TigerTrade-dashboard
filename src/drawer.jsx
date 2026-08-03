@@ -12,6 +12,13 @@ function CloseIcon() {
 function PinIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z" /><circle cx="12" cy="10" r="2.4" /></svg>;
 }
+/* briefcase + plus — "put this name in the book" */
+function PortfolioIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7.5" width="18" height="12.5" rx="2" /><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" /><path d="M12 11v5M9.5 13.5h5" /></svg>;
+}
+function BellIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9z" /><path d="M10.4 19a1.9 1.9 0 0 0 3.2 0" /></svg>;
+}
 
 /* ---------------------------- DRAWER SHELL ---------------------------- */
 export function Drawer({ open, onClose, children, label }) {
@@ -297,6 +304,108 @@ export function StockDrawerBody({ stock, onClose }) {
         <ScoreDonut score={s.score} label="Score" />
       </div>
 
+      {/* Actions sit directly under the header — watching a name or putting it in
+          the portfolio is the most common thing to do in this drawer, and it used
+          to require scrolling past the chart, signals and fundamentals to reach.
+          Each expanding form opens in place, immediately below the bar. */}
+      <div className="dr-actionbar">
+        <div className="dr-actions">
+          <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
+          <button className="ed-btn" data-on={positions.has(s.tk) || undefined}
+            onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setAlertOpen(false); setPlanOpen(false); setPosOpen((v) => !v); }}>
+            <PortfolioIcon />{positions.has(s.tk) ? "Edit position" : "Add to portfolio"}
+          </button>
+          <button className="ed-btn" data-on={!!myAlert || undefined}
+            onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setPosOpen(false); setPlanOpen(false); setAlertOpen((v) => !v); }}>
+            <BellIcon />{myAlert ? "Edit alert" : "Set price alert"}
+          </button>
+          {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => { setPosOpen(false); setAlertOpen(false); setPlanOpen((v) => !v); }}>
+            {planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
+        </div>
+
+        {posOpen && (
+          <div className="dr-alert-form">
+            <span className="mono dr-alert-lab">{positions.has(s.tk) ? "Update" : "Add"} {s.tk} position</span>
+            <div className="dr-alert-row">
+              <input className="dr-alert-in mono" type="number" step="any" min="0" value={posSh} placeholder="shares (opt)"
+                onChange={(e) => setPosSh(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Shares" autoFocus />
+              <span className="mono dr-alert-cur">@ $</span>
+              <input className="dr-alert-in mono" type="number" step="any" min="0" value={posCost} placeholder="cost (opt)"
+                onChange={(e) => setPosCost(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Cost per share" />
+              <button className="ed-btn ed-btn-primary" onClick={savePos}>Save</button>
+              {positions.has(s.tk) && <button className="ed-btn" onClick={() => { positions.remove(s.tk); setPosOpen(false); }}>Remove</button>}
+            </div>
+            <span className="mono dr-alert-note">both optional — a tracked name with no size still gets live price and its report date on your calendar · stored on this device</span>
+          </div>
+        )}
+        {!posOpen && held && (
+          <div className="dr-alert">
+            {held.shares != null
+              ? <>Holding <b className="mono">{held.shares.toLocaleString()}</b> share{held.shares === 1 ? "" : "s"}</>
+              : <>Tracked in your portfolio<span className="mono"> · no size entered</span></>}
+            {held.cost != null && <> at <b className="mono">${held.cost}</b></>}
+            {s.px != null && held.shares != null && <> · value <b className="mono">${fmtPx2(held.shares * s.px)}</b>
+              {held.cost != null && <> · P&amp;L <b className="mono">{s.px >= held.cost ? "+" : "−"}${fmtPx2(Math.abs((s.px - held.cost) * held.shares))}</b></>}</>}
+            {s.px != null && held.shares == null && held.cost != null && <> · <b className="mono">
+              {s.px >= held.cost ? "+" : "−"}{Math.abs((s.px / held.cost - 1) * 100).toFixed(1)}%</b> vs cost</>}
+            <button className="linkbtn dr-alert-clear" onClick={() => positions.remove(s.tk)}>remove</button>
+          </div>
+        )}
+
+        {alertOpen && (
+          <div className="dr-alert-form">
+            <span className="mono dr-alert-lab">Alert when {s.tk} crosses</span>
+            <div className="dr-alert-row">
+              <span className="mono dr-alert-cur">$</span>
+              <input className="dr-alert-in mono" type="number" step="0.01" min="0" value={alertVal}
+                onChange={(e) => setAlertVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && armAlert()}
+                aria-label="Alert price level" autoFocus />
+              <button className="ed-btn ed-btn-primary" onClick={armAlert}>Arm alert</button>
+              {myAlert && <button className="ed-btn" onClick={() => { alerts.clear(s.tk); setAlertOpen(false); }}>Remove</button>}
+            </div>
+            <span className="mono dr-alert-note">checked against live quotes on every data refresh · stored on this device{s.pivot != null ? ` · pivot $${s.pivot}` : ""}</span>
+          </div>
+        )}
+        {!alertOpen && myAlert && (
+          <div className="dr-alert" data-hit={!!myAlert.hitAt || undefined}>
+            {myAlert.hitAt ? (
+              <>Alert hit — {s.tk} crossed <b className="mono">${myAlert.level}</b> ({myAlert.dir}) at <b className="mono">${myAlert.hitPx}</b> on {new Date(myAlert.hitAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
+                <button className="linkbtn dr-alert-clear" onClick={() => alerts.clear(s.tk)}>clear</button></>
+            ) : (
+              <>Alert armed at <b className="mono">${myAlert.level}</b> ({myAlert.dir}{s.px != null ? ` · now $${fmtPx2(s.px)}` : ""}).
+                <button className="linkbtn dr-alert-clear" onClick={() => alerts.clear(s.tk)}>remove</button></>
+            )}
+          </div>
+        )}
+
+        {planOpen && hasBase && (
+          <div className="dr-sec dr-plansec">
+            <div className="dr-sec-h"><h3>{s.status === "buy" ? "Staged order plan" : "Pivot watch plan"}</h3><span className="dr-sec-sub mono">planning only — no broker connected</span></div>
+            <div className="dr-buygrid">
+              <div className="dr-bp"><span className="dr-bpk mono">Entry (buy zone)</span><span className="dr-bpv mono">${s.buyLo}–{s.buyHi}</span></div>
+              <div className="dr-bp"><span className="dr-bpk mono">Stop (−8%)</span><span className="dr-bpv mono">${stop}</span></div>
+              <div className="dr-bp"><span className="dr-bpk mono">Target +20%</span><span className="dr-bpv mono">${t1}</span></div>
+              <div className="dr-bp"><span className="dr-bpk mono">Target +25%</span><span className="dr-bpv mono">${t2}</span></div>
+              <div className="dr-bp"><span className="dr-bpk mono">Risk / share</span><span className="dr-bpv mono" data-up={riskPerShare < 0}>${riskPerShare}</span></div>
+              <div className="dr-bp"><span className="dr-bpk mono">Reward : risk</span><span className="dr-bpv mono">{rr}:1</span></div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+              <span className="dr-bpk mono">Shares</span>
+              <input className="search" type="number" min="0" value={qty}
+                onChange={(e) => setQty(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                style={{ width: 110, paddingLeft: 12 }} />
+              <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+                Position <b style={{ color: "var(--text)" }}>${money(posValue)}</b> · Risk to stop <b style={{ color: "var(--sev-extreme)" }}>${money(riskValue)}</b>
+              </span>
+            </div>
+            <div className="dr-verdict neutral" style={{ marginTop: 12 }}>
+              Planning tool only. TigerTrade is not a broker — this does not place, transmit, or execute any order.
+              Enter and manage real orders with your own brokerage.
+            </div>
+          </div>
+        )}
+      </div>
+
       {s.bio && (
         <div className="dr-bioblock">
           <p className="dr-bio">{s.bio}</p>
@@ -373,8 +482,9 @@ export function StockDrawerBody({ stock, onClose }) {
       {s.ern && s.ern.days <= 7 && (
         <div className="dr-ern">
           <span className="dr-ern-tag mono">{s.ern.days === 0 ? "E·TODAY" : `E-${s.ern.days}`}</span>
-          Earnings {new Date(s.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          Earnings {s.ern.est ? "around " : ""}{new Date(s.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           {s.ern.time === "bmo" ? " before the open" : s.ern.time === "amc" ? " after the close" : ""}
+          {s.ern.est ? " (projected — the company hasn't confirmed the date)" : ""}
           {" — "}reports gap through stops. New breakout entries this close to the print carry event risk.
         </div>
       )}
@@ -413,7 +523,11 @@ export function StockDrawerBody({ stock, onClose }) {
           <div className="dr-sec">
             <div className="dr-sec-h">
               <h3>Latest earnings</h3>
-              <span className="dr-sec-sub mono">{when ? `reported ${when} · real · FMP calendar` : "quarterly revenue · FMP filings"}</span>
+              {/* L.qEnd means the source dated the figures to the fiscal period
+                  end rather than the announcement day — say which, don't guess */}
+              <span className="dr-sec-sub mono">{when
+                ? L.qEnd ? `quarter ended ${when} · real · Yahoo` : `reported ${when} · real · FMP calendar`
+                : "quarterly revenue · FMP filings"}</span>
             </div>
             {cells.length > 0 && (
               <div className="dr-ernres">
@@ -498,98 +612,6 @@ export function StockDrawerBody({ stock, onClose }) {
         </div>
       )}
 
-      {planOpen && hasBase && (
-        <div className="dr-sec">
-          <div className="dr-sec-h"><h3>{s.status === "buy" ? "Staged order plan" : "Pivot watch plan"}</h3><span className="dr-sec-sub mono">planning only — no broker connected</span></div>
-          <div className="dr-buygrid">
-            <div className="dr-bp"><span className="dr-bpk mono">Entry (buy zone)</span><span className="dr-bpv mono">${s.buyLo}–{s.buyHi}</span></div>
-            <div className="dr-bp"><span className="dr-bpk mono">Stop (−8%)</span><span className="dr-bpv mono">${stop}</span></div>
-            <div className="dr-bp"><span className="dr-bpk mono">Target +20%</span><span className="dr-bpv mono">${t1}</span></div>
-            <div className="dr-bp"><span className="dr-bpk mono">Target +25%</span><span className="dr-bpv mono">${t2}</span></div>
-            <div className="dr-bp"><span className="dr-bpk mono">Risk / share</span><span className="dr-bpv mono" data-up={riskPerShare < 0}>${riskPerShare}</span></div>
-            <div className="dr-bp"><span className="dr-bpk mono">Reward : risk</span><span className="dr-bpv mono">{rr}:1</span></div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-            <span className="dr-bpk mono">Shares</span>
-            <input className="search" type="number" min="0" value={qty}
-              onChange={(e) => setQty(Math.max(0, parseInt(e.target.value, 10) || 0))}
-              style={{ width: 110, paddingLeft: 12 }} />
-            <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
-              Position <b style={{ color: "var(--text)" }}>${money(posValue)}</b> · Risk to stop <b style={{ color: "var(--sev-extreme)" }}>${money(riskValue)}</b>
-            </span>
-          </div>
-          <div className="dr-verdict neutral" style={{ marginTop: 12 }}>
-            Planning tool only. TigerTrade is not a broker — this does not place, transmit, or execute any order.
-            Enter and manage real orders with your own brokerage.
-          </div>
-        </div>
-      )}
-
-      <div className="dr-actions">
-        <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
-        <button className="ed-btn" onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setAlertOpen((v) => !v); }}>
-          {myAlert ? "Edit alert" : "Set price alert"}
-        </button>
-        <button className="ed-btn" onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosOpen((v) => !v); }}>
-          {positions.has(s.tk) ? "Edit position" : "Add to portfolio"}
-        </button>
-        {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => setPlanOpen((v) => !v)}>{planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
-      </div>
-
-      {posOpen && (
-        <div className="dr-alert-form">
-          <span className="mono dr-alert-lab">{positions.has(s.tk) ? "Update" : "Add"} {s.tk} position</span>
-          <div className="dr-alert-row">
-            <input className="dr-alert-in mono" type="number" step="any" min="0" value={posSh} placeholder="shares (opt)"
-              onChange={(e) => setPosSh(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Shares" autoFocus />
-            <span className="mono dr-alert-cur">@ $</span>
-            <input className="dr-alert-in mono" type="number" step="any" min="0" value={posCost} placeholder="cost (opt)"
-              onChange={(e) => setPosCost(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Cost per share" />
-            <button className="ed-btn ed-btn-primary" onClick={savePos}>Save</button>
-            {positions.has(s.tk) && <button className="ed-btn" onClick={() => { positions.remove(s.tk); setPosOpen(false); }}>Remove</button>}
-          </div>
-          <span className="mono dr-alert-note">both optional — a tracked name with no size still gets live price and its report date on your calendar · stored on this device</span>
-        </div>
-      )}
-      {!posOpen && held && (
-        <div className="dr-alert">
-          {held.shares != null
-            ? <>Holding <b className="mono">{held.shares.toLocaleString()}</b> share{held.shares === 1 ? "" : "s"}</>
-            : <>Tracked in your portfolio<span className="mono"> · no size entered</span></>}
-          {held.cost != null && <> at <b className="mono">${held.cost}</b></>}
-          {s.px != null && held.shares != null && <> · value <b className="mono">${fmtPx2(held.shares * s.px)}</b>
-            {held.cost != null && <> · P&amp;L <b className="mono">{s.px >= held.cost ? "+" : "−"}${fmtPx2(Math.abs((s.px - held.cost) * held.shares))}</b></>}</>}
-          {s.px != null && held.shares == null && held.cost != null && <> · <b className="mono">
-            {s.px >= held.cost ? "+" : "−"}{Math.abs((s.px / held.cost - 1) * 100).toFixed(1)}%</b> vs cost</>}
-          <button className="linkbtn dr-alert-clear" onClick={() => positions.remove(s.tk)}>remove</button>
-        </div>
-      )}
-
-      {alertOpen && (
-        <div className="dr-alert-form">
-          <span className="mono dr-alert-lab">Alert when {s.tk} crosses</span>
-          <div className="dr-alert-row">
-            <span className="mono dr-alert-cur">$</span>
-            <input className="dr-alert-in mono" type="number" step="0.01" min="0" value={alertVal}
-              onChange={(e) => setAlertVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && armAlert()}
-              aria-label="Alert price level" autoFocus />
-            <button className="ed-btn ed-btn-primary" onClick={armAlert}>Arm alert</button>
-            {myAlert && <button className="ed-btn" onClick={() => { alerts.clear(s.tk); setAlertOpen(false); }}>Remove</button>}
-          </div>
-          <span className="mono dr-alert-note">checked against live quotes on every data refresh · stored on this device{s.pivot != null ? ` · pivot $${s.pivot}` : ""}</span>
-        </div>
-      )}
-      {!alertOpen && myAlert && (
-        <div className="dr-alert" data-hit={!!myAlert.hitAt || undefined}>
-          {myAlert.hitAt ? (
-            <>Alert hit — {s.tk} crossed <b className="mono">${myAlert.level}</b> ({myAlert.dir}) at <b className="mono">${myAlert.hitPx}</b> on {new Date(myAlert.hitAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
-              <button className="linkbtn dr-alert-clear" onClick={() => alerts.clear(s.tk)}>clear</button></>
-          ) : (
-            <>Alert armed at <b className="mono">${myAlert.level}</b> ({myAlert.dir}{s.px != null ? ` · now $${fmtPx2(s.px)}` : ""}).
-              <button className="linkbtn dr-alert-clear" onClick={() => alerts.clear(s.tk)}>remove</button></>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -655,7 +677,7 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock }) {
                           {a && (a.hitAt
                             ? <span className="wl-alert mono" data-hit>alert hit ${a.level}</span>
                             : <span className="wl-alert mono">alert ${a.level}</span>)}
-                          {s.ern && s.ern.days <= 7 && <span className="wl-alert mono" data-ern>{s.ern.days === 0 ? "E·today" : `E-${s.ern.days}`}</span>}
+                          {s.ern && s.ern.days <= 7 && <span className="wl-alert mono" data-ern>{s.ern.est ? "~" : ""}{s.ern.days === 0 ? "E·today" : `E-${s.ern.days}`}</span>}
                         </small>
                       </span>
                       <span className="wl-px mono">{s.px != null ? "$" + fmtPx2(s.px) : "—"}

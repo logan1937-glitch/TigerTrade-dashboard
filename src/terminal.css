@@ -759,7 +759,10 @@ body { background: #0a0b0d; }
 .star:active { transform: scale(0.86); }
 .star[data-on] { color: var(--accent); }
 .star[data-on]:hover { color: var(--accent); }
-.star-lbl { width: auto; gap: 7px; padding: 9px 13px; border: 1px solid var(--border-2); color: var(--muted);
+/* inline-flex, not the bare .star grid — otherwise the icon and the label
+   stack in two rows instead of sitting side by side */
+.star-lbl { display: inline-flex; align-items: center; justify-content: center;
+  width: auto; gap: 7px; padding: 9px 13px; border: 1px solid var(--border-2); color: var(--muted);
   font-family: var(--font-mono); font-size: 11px; letter-spacing: var(--track-meta); flex: 1; }
 .star-lbl svg { width: 14px; height: 14px; }
 .star-lbl:hover { color: var(--text); background: var(--panel); }
@@ -1118,7 +1121,21 @@ body { background: #0a0b0d; }
 .dr-tickers .ticker[data-link="true"]:hover { background: color-mix(in oklch, var(--cat-growth) 14%, transparent); }
 
 .dr-actions { display: flex; gap: 8px; padding: 24px 26px 0; }
-.dr-actions .ed-btn { padding: 11px 12px; }
+.dr-actions .ed-btn { padding: 11px 12px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.dr-actions .ed-btn svg { width: 14px; height: 14px; flex: none; }
+/* an action whose state is already set (holding this name, alert armed) reads
+   the same way the watchlist star does when it is on */
+.dr-actions .ed-btn[data-on] { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 42%, transparent);
+  background: color-mix(in oklch, var(--accent) 12%, transparent); }
+.dr-actions .ed-btn[data-on]:hover { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 60%, transparent); }
+
+/* Header action bar: the drawer's primary verbs sit directly under the title
+   block instead of below every analysis section, so adding a name to the
+   watchlist or the portfolio never needs a scroll. Forms expand in place. */
+.dr-actionbar { margin: 18px 26px 2px; padding-top: 16px; border-top: 1px solid var(--border); }
+.dr-actionbar .dr-actions { padding: 0; }
+.dr-actionbar .dr-alert-form, .dr-actionbar .dr-alert { margin-left: 0; margin-right: 0; }
+.dr-actionbar .dr-plansec { padding: 18px 0 0; }
 
 /* stock-specific drawer bits */
 .dr-stockhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
@@ -1568,6 +1585,11 @@ body { background: #0a0b0d; }
   .dr-head, .dr-bioblock { padding-left: 18px; padding-right: 18px; }
   .dr-sec { padding-left: 18px; padding-right: 18px; }
   .dr-tiles, .dr-actions, .dr-ern, .dr-alert, .dr-alert-form { margin-left: 18px; margin-right: 18px; }
+  .dr-actionbar { margin-left: 18px; margin-right: 18px; }
+  .dr-actionbar .dr-actions { margin-left: 0; margin-right: 0; flex-wrap: wrap; }
+  .dr-actionbar .dr-actions > * { flex: 1 1 calc(50% - 4px); }
+  .dr-actionbar .dr-alert, .dr-actionbar .dr-alert-form { margin-left: 0; margin-right: 0; }
+  .dr-actionbar .dr-plansec { padding-left: 0; padding-right: 0; }
   .dr-tiles { grid-template-columns: repeat(2, 1fr); }
   .dr-buygrid { grid-template-columns: repeat(2, 1fr); }
   .pchart-toolbar { gap: 6px; }

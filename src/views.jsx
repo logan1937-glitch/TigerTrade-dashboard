@@ -43,7 +43,7 @@ export function CalendarView({ positions = [] }) {
               ))}
               {(!c.out ? (ernByDay[c.num] || []) : []).map((p) => (
                 <div className="cal-ev cal-ern" key={"e" + p.tk}
-                  title={`${p.tk} reports${p.ern.time === "bmo" ? " before the open" : p.ern.time === "amc" ? " after the close" : ""} — your position`}>
+                  title={`${p.tk} reports${p.ern.time === "bmo" ? " before the open" : p.ern.time === "amc" ? " after the close" : ""}${p.ern.est ? " (projected date — not yet confirmed)" : ""} — your position`}>
                   {p.tk}<span className="cal-ern-d">◆</span>
                 </div>
               ))}

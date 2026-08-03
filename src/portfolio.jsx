@@ -134,7 +134,8 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                     {r.plPct != null && <span className="pf-sub mono" data-up={r.plPct >= 0}>{pctS(r.plPct)}</span>}</div>
                   <div className="pf-num mono">{w == null ? "—" : `${w.toFixed(1)}%`}
                     {w != null && <i className="pf-wbar" style={{ width: `${Math.min(100, w)}%` }} />}</div>
-                  <div className="pf-num mono">{r.ern ? (r.ern.days === 0 ? "today" : `${r.ern.days}d`) : "—"}
+                  <div className="pf-num mono" title={r.ern ? `Reports ${r.ern.date}${r.ern.est ? " (projected date)" : ""}` : undefined}>
+                    {r.ern ? `${r.ern.est ? "~" : ""}${r.ern.days === 0 ? "today" : `${r.ern.days}d`}` : "—"}
                     {r.ern && r.ern.days <= 7 && <span className="pf-ernflag mono">event risk</span>}</div>
                   <div style={{ textAlign: "right" }}>
                     <button className="pf-x" aria-label={`Remove ${r.tk}`} title="Remove position"
@@ -160,7 +161,8 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                       {ernAhead.slice(0, 6).map((r) => (
                         <div className="pf-pitem" key={r.tk} data-soon={r.ern.days <= 7 || undefined}>
                           <span className="pf-pi-tk mono">{r.tk}</span>
-                          <span className="pf-pi-d mono">{new Date(r.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          <span className="pf-pi-d mono" title={r.ern.est ? "Projected date — not yet confirmed by the company" : undefined}>
+                            {r.ern.est ? "~" : ""}{new Date(r.ern.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                             {r.ern.time === "bmo" ? " · pre" : r.ern.time === "amc" ? " · post" : ""}</span>
                           <span className="pf-pi-t mono">{r.ern.days === 0 ? "today" : `T−${r.ern.days}d`}</span>
                         </div>

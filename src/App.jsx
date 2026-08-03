@@ -195,7 +195,9 @@ export default function App() {
       const ern = earnings?.[s.tk] || extraErn[s.tk];
       if (ern?.d) {
         const days = Math.round((new Date(ern.d + "T00:00:00") - new Date(new Date().toDateString())) / 86400000);
-        if (days >= 0) r = { ...r, ern: { date: ern.d, time: ern.t, days } };
+        // est = the source projected the date rather than confirming it (Yahoo
+        // flags these); the UI marks them "~" instead of stating them flatly
+        if (days >= 0) r = { ...r, ern: { date: ern.d, time: ern.t, days, est: !!ern.est } };
       }
       // most recent reported quarter (actual vs estimate) — drives the drawer's
       // earnings-results card. Real calendar data or absent; never inferred.
