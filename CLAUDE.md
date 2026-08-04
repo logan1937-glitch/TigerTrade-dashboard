@@ -207,8 +207,11 @@ shot ids disambiguate them — don't "fix" that mismatch by renaming one.
 By default every `/api/*` call is served from a deterministic fixture in
 `scripts/shots.mjs`, so shots need no keys, no network, and the same commit
 always yields the same pixels. **If you change a snapshot field's shape, update
-that fixture** — it mirrors `api/snapshot.js`'s real output, and a mismatch
-shows up as a page error next to the shot.
+that fixture** — it mirrors `api/snapshot.js`'s real output. A mismatch usually
+shows up as a page error next to the shot, but not always: `vix.series` is
+`[{d, v}]` and a fixture of bare numbers made every point `undefined`, NaN'd the
+path and rendered an **empty chart with no error at all**. When a panel looks
+blank in a shot, suspect the fixture's shape before the component.
 
 For measuring rather than looking (element sizes, computed styles), drive
 Playwright directly — `scripts/shots.mjs` is a working reference for launching

@@ -31,7 +31,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 2;
+const SCHEMA = 3;
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -274,13 +274,27 @@ async function fmpMacro() {
   // CLUSD WTI. Each falls back to the generic quote route, and a gated one is
   // simply omitted rather than rendered empty.
   const comm = [];
-  for (const [k, syms] of [["Gold", ["GCUSD"]], ["Silver", ["SIUSD"]], ["WTI", ["CLUSD", "WTIUSD"]]]) {
+  for (const [k, syms] of [["Gold", ["GCUSD"]], ["Silver", ["SIUSD"]]]) {
     const q = await jget(syms.flatMap((s) => [
       `https://financialmodelingprep.com/stable/commodities-quote?symbol=${s}&apikey=${key}`,
       `https://financialmodelingprep.com/stable/quote?symbol=${s}&apikey=${key}`,
     ]));
     const o = Array.isArray(q) ? q[0] : q;
     if (o && o.price != null) comm.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null });
+  }
+
+  // Crude oil, first contract that this plan will actually serve. CLUSD (WTI) is
+  // ACCESS DENIED on Starter — verified against the live API, which is why the
+  // old "WTI" row silently never appeared — while BZUSD (Brent) answers. Each
+  // candidate carries its OWN label, so the row can never say WTI while showing
+  // Brent; if the plan later opens CLUSD, WTI wins and relabels itself.
+  for (const [k, sym] of [["WTI crude", "CLUSD"], ["Brent crude", "BZUSD"]]) {
+    const q = await jget([
+      `https://financialmodelingprep.com/stable/commodities-quote?symbol=${sym}&apikey=${key}`,
+      `https://financialmodelingprep.com/stable/quote?symbol=${sym}&apikey=${key}`,
+    ]);
+    const o = Array.isArray(q) ? q[0] : q;
+    if (o && o.price != null) { comm.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null }); break; }
   }
   if (comm.length) out.comm = comm;
 

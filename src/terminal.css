@@ -236,7 +236,7 @@ body { background: #0a0b0d; }
    gets symmetric margins instead of a dead gap (screener hero keeps left-aligned) */
 .hero-cover .hero-row { justify-content: center; align-items: stretch; gap: clamp(20px, 2.6vw, 34px); }
 /* the left column is now a card (matches the two data panels); its sub-blocks nest inside */
-.hero-cover .hero-left { flex: 0 1 452px; align-items: stretch; gap: 16px; padding: 20px; }
+.hero-cover .hero-left { flex: 1 1 420px; max-width: 560px; align-items: stretch; gap: 16px; padding: 20px; }
 .hero-cover .hero-eyebrow { margin-bottom: -4px; }
 .hero-cover .hero-title { margin-bottom: 2px; }
 .hero-cover .hero-meta { margin-top: auto; padding-top: 4px; }   /* anchored to the card's bottom padding */
@@ -277,7 +277,8 @@ body { background: #0a0b0d; }
   border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: inset 0 1px 0 var(--edge-hi), 0 18px 46px -30px rgba(0,0,0,0.7);
 }
-.macroboard { display: flex; flex-direction: column; justify-content: space-between; gap: 12px; flex: 0 0 246px; width: 246px; padding: 18px 20px; }
+.macroboard { display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+  flex: 0 1 268px; width: auto; min-width: 246px; padding: 18px 20px; }
 .mb-sec { display: flex; flex-direction: column; gap: 7px; }
 .mb-sec + .mb-sec { padding-top: 12px; border-top: 1px solid var(--border); }
 .mb-h { font-size: 9px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
@@ -290,10 +291,23 @@ body { background: #0a0b0d; }
 .mb-spark { width: 100%; height: 20px; margin-top: 6px; display: block; opacity: 0.9; }
 @media (max-width: 680px) { .macroboard { width: 100%; } .hero-right { width: 100%; } }
 
+/* On a wide monitor the row was pinned to the 1320px .wrap and centred, leaving
+   ~700px of empty margin either side while the VIX chart stayed squat. The cover
+   gets its own wider cap there and the chart gets real height; every narrower
+   breakpoint is untouched. */
+@media (min-width: 1500px) {
+  .hero-cover .hero-row { width: min(1600px, 100% - 72px); }
+  .hero-cover .vix-chartwrap { min-height: 210px; }
+}
+@media (min-width: 1900px) {
+  .hero-cover .hero-row { width: min(1780px, 100% - 96px); }
+  .hero-cover .vix-chartwrap { min-height: 250px; }
+}
+
 /* ===================== VIX PANEL (cover centerpiece) ===================== */
 /* same width as the left identity card (452px) — the chart gets real
    horizontal room; three equal cards now sit as direct siblings of the row */
-.vixpanel { flex: 0 1 452px; min-width: 360px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 9px; }
+.vixpanel { flex: 1.6 1 452px; min-width: 360px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 9px; }
 /* chart absorbs any extra height so the panel matches the macro board exactly */
 .vix-chartwrap { flex: 1 1 auto; min-height: 148px; }
 .vix-head { display: flex; align-items: center; justify-content: space-between; }

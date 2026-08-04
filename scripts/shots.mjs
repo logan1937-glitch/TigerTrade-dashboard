@@ -130,7 +130,14 @@ function fixture() {
       })(),
     };
   });
-  const series = Array.from({ length: 60 }, (_, k) => 15 + 4 * Math.sin(k / 6) + (k % 5) / 3);
+  // VIX history is [{d, v}] — the chart reads p.v, so an array of bare numbers
+  // makes every point undefined, NaN the path and render an EMPTY chart with no
+  // error. That is exactly what happened here and it went unnoticed across
+  // several screenshot runs, because the panel's chrome still draws fine.
+  const series = Array.from({ length: 66 }, (_, k) => ({
+    d: new Date(Date.UTC(2026, 4, 1) + k * 864e5).toISOString().slice(0, 10),
+    v: +(15 + 4 * Math.sin(k / 6) + (k % 5) / 3).toFixed(2),
+  }));
   return {
     generatedAt: new Date(1767225600000).toISOString(), source: "fixture", count: TK.length,
     total: TK.length, asOf: 1767225600000, quotes, sig, meta, earnings, changes: null,
@@ -148,7 +155,7 @@ function fixture() {
               { k: "US 30Y", v: 4.61, bp: 1 }, { k: "Fed funds", v: 4.75, bp: 0 }],
       fx: [{ k: "DXY", v: 104.2, chg: 0.18, idx: true }, { k: "EUR/USD", v: 1.0842, chg: -0.11 },
            { k: "USD/JPY", v: 151.9, chg: 0.24 }],
-      comm: [{ k: "Gold", v: 2412.4, chg: 0.42 }, { k: "Silver", v: 60.15, chg: 3.96 }, { k: "WTI", v: 78.1, chg: -1.1 }],
+      comm: [{ k: "Gold", v: 2412.4, chg: 0.42 }, { k: "Silver", v: 60.15, chg: 3.96 }, { k: "Brent crude", v: 78.86, chg: -0.63 }],
       crypto: [{ k: "Bitcoin", v: 63999.34, chg: 0.84 }, { k: "Ethereum", v: 1869.64, chg: 0.6 }],
       cpi: { v: 3.1, chg: -0.1, asOf: day(-20) },
     },
