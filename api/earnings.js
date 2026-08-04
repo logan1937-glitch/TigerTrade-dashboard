@@ -51,6 +51,7 @@
 // rather than presenting a guess as confirmed.
 
 import { put, list } from "@vercel/blob";
+import { uFetch, hasProxy } from "./_upstream.js";
 
 const SAFE = /^[A-Za-z0-9_,.\-^]+$/;
 const num = (v) => (v != null && Number.isFinite(+v) ? +v : null);
@@ -127,7 +128,7 @@ async function handshake(diag) {
     let cookie = "";
     try {
       // fc.yahoo.com answers 404 but still sets the A1/A3 cookies we need
-      const r = await fetch(seed, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "manual" });
+      const r = await uFetch(seed, { headers: { "User-Agent": UA, Accept: "*/*" }, redirect: "manual" });
       const set = typeof r.headers.getSetCookie === "function" ? r.headers.getSetCookie()
         : (r.headers.get("set-cookie") ? String(r.headers.get("set-cookie")).split(/,(?=\s*\w+=)/) : []);
       const picked = set.map((c) => String(c).split(";")[0].trim()).filter((c) => /^(A1|A3|A1S|B)=/.test(c));
@@ -137,7 +138,7 @@ async function handshake(diag) {
     if (!cookie) continue;
 
     try {
-      const c = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb",
+      const c = await uFetch("https://query1.finance.yahoo.com/v1/test/getcrumb",
         { headers: { "User-Agent": UA, Accept: "*/*", Cookie: cookie } });
       const text = c.ok ? (await c.text()).trim() : "";
       const ok = !!text && text.length <= 32 && !/[<>\s]/.test(text);   // an HTML error page is not a crumb
@@ -202,7 +203,7 @@ async function yahooQuoteSummary(sym, today, diag) {
     if (withCrumb && !yCred) continue;                                   // crumb went stale mid-ladder
     const url = `https://${host}.finance.yahoo.com${path}${withCrumb ? `&crumb=${encodeURIComponent(cred.crumb)}` : ""}`;
     try {
-      const r = await fetch(url, {
+      const r = await uFetch(url, {
         headers: { "User-Agent": UA, Accept: "application/json", ...(withCrumb ? { Cookie: cred.cookie } : {}) },
       });
       diag?.push({ step: "yahoo:quoteSummary", sym, host, crumb: withCrumb, status: r.status });
@@ -297,7 +298,7 @@ async function yahooChart(sym, today, diag) {
   const path = `/v8/finance/chart/${encodeURIComponent(sym)}?period1=${p1}&period2=${p2}&interval=1d&events=earn%2Cdiv%2Csplit`;
   for (const host of ["query1", "query2"]) {
     try {
-      const r = await fetch(`https://${host}.finance.yahoo.com${path}`, { headers: { "User-Agent": UA, Accept: "application/json" } });
+      const r = await uFetch(`https://${host}.finance.yahoo.com${path}`, { headers: { "User-Agent": UA, Accept: "application/json" } });
       diag?.push({ step: "yahoo:chart", sym, host, status: r.status });
       if (!r.ok) continue;
       const rec = parseChart(await r.json(), today, sym, diag);
@@ -343,7 +344,7 @@ export default async function handler(req, res) {
   const refresh = req.query.refresh === "1" || req.query.refresh === "true";
   const diag = debug ? [] : null;
   const today = iso(Date.now());
-  diag?.push({ step: "start", today, symbols: want, blob: hasBlob, finnhubKey: !!process.env.FINNHUB_API_KEY, refresh, node: process.version });
+  diag?.push({ step: "start", today, symbols: want, blob: hasBlob, finnhubKey: !!process.env.FINNHUB_API_KEY, proxy: hasProxy, refresh, node: process.version });
 
   // Pass 0: anything the cache still vouches for is answered without touching
   // an upstream at all.

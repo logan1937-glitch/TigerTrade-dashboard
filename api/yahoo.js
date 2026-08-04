@@ -10,6 +10,8 @@
 // market hours. Yahoo's ToS restricts commercial redistribution — fine for
 // personal use, revisit before shipping as a product.
 
+import { bulkFetch } from "./_upstream.js";
+
 const SAFE_SYM = /^[A-Z0-9.\-^=]+$/;
 const SAFE_OPT = /^[0-9a-z]+$/;
 
@@ -25,7 +27,7 @@ export default async function handler(req, res) {
 
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}`;
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; TigerTrade/1.0)", "Accept": "application/json" } });
+    const r = await bulkFetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; TigerTrade/1.0)", "Accept": "application/json" } });
     if (!r.ok) return res.status(r.status).json({ error: "Upstream Yahoo error.", code: "UPSTREAM", status: r.status });
     const j = await r.json();
     const result = j && j.chart && j.chart.result && j.chart.result[0];

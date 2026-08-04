@@ -11,6 +11,7 @@ import { TT } from "../src/tt.js";
 import { computeSignals, computeMarketHealth, compactSig } from "../src/signals.js";
 import { SP500 } from "../src/sp500.js";
 import { put, list } from "@vercel/blob";
+import { bulkFetch } from "./_upstream.js";
 
 // index set for market health; ETF proxies cover any index symbol Yahoo denies
 const INDICES = [
@@ -59,7 +60,7 @@ async function writeBlob(obj) {
 async function yahooBars(symbol) {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; TigerTrade/1.0)", "Accept": "application/json" } });
+    const r = await bulkFetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; TigerTrade/1.0)", "Accept": "application/json" } });
     if (!r.ok) return null;
     const j = await r.json();
     const res = j && j.chart && j.chart.result && j.chart.result[0];

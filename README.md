@@ -93,8 +93,13 @@ and serves them in one request, so the browser doesn't fetch every name. A daily
 By default the snapshot is edge-cached. To make it **durable** (the cron writes it
 once; user requests only *read* it, never recompute — needed as the universe grows
 to hundreds), connect a **Vercel Blob** store:
-1. Vercel → your project → **Storage → Create → Blob** → connect it.
-2. Vercel auto-adds the `BLOB_READ_WRITE_TOKEN` env var. Redeploy.
+1. Vercel dashboard → **the `Storage` tab in the top nav** (it's alongside
+   Overview / Integrations / Activity — *not* inside the project's Settings,
+   which is where people look first and don't find it) → **Create Database** →
+   pick **Blob** → name it → **Create**. Then open it, go to **Projects**, and
+   **Connect** it to this project.
+2. Vercel auto-adds the `BLOB_READ_WRITE_TOKEN` env var. Redeploy — env vars
+   only apply to new builds.
 3. The snapshot now reads/writes Blob automatically; without it, it falls back to
    compute-on-demand + edge cache (zero setup, still works).
 
@@ -133,6 +138,25 @@ fills that gap, trying each source in turn and stopping at the first real answer
 
 The free tier allows 60 calls/minute, and the Blob cache means a symbol is asked
 at most twice a day, so a normal portfolio uses a handful of calls per day.
+
+### Residential proxy for the Yahoo calls (optional)
+Yahoo's endpoints are unkeyed, so they're defended by IP reputation instead —
+datacenter ranges get rate-limited, and Vercel's are heavily used. That's the
+likeliest reason the cookie/crumb handshake fails in production while the same
+code works from a laptop. Setting `MASSIVE_PROXY_URL` to the full proxy URL
+*including credentials*, exactly as [Massive](https://massive.com) gives it
+(`http://user:pass@host:port`), routes those calls through a residential IP.
+
+**Only the small, IP-blocked calls go through it by default** — the crumb
+handshake, `quoteSummary` and chart-events lookups in `/api/earnings`, a few KB
+each. Keyed APIs (Finnhub, FMP) authenticate by token and don't care about your
+IP, so proxying them would spend bandwidth for nothing and they're left alone.
+
+`MASSIVE_PROXY_BULK=1` additionally routes `/api/yahoo` and the snapshot's ~500
+one-year history pulls through the proxy. **That's tens of megabytes per full
+compute**, and a residential proxy bills by the gigabyte — turn it on only if
+Yahoo starts refusing the snapshot, and only with a Blob store connected so that
+compute runs once a weekday instead of on every request.
 
 **FMP is deliberately not in this list.** Verified twice against the live API:
 per-symbol `earnings`, `income-statement` and `financial-estimates` all answer
