@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
+import { PlaybookView } from "./playbook.jsx";
 import { SearchIcon, StarBtn, InfoDot } from "./components.jsx";
 import { RSLine, BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
@@ -422,7 +423,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
       <div className="wrap">
         <div className="subnav">
-          {[["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"], ["portfolio", "Portfolio"]].map(([id, l]) => (
+          {[["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"], ["playbook", "Playbook"], ["portfolio", "Portfolio"]].map(([id, l]) => (
             <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>{l}
               {id === "portfolio" && posRows.length > 0 && <span className="subtab-n mono">{posRows.length}</span>}</button>
           ))}
@@ -435,6 +436,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         {tab === "map" && <MarketMap rows={rows} live={live} onOpenStock={onOpenStock}
           onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} />}
         {tab === "health" && <MarketHealth market={market} />}
+        {tab === "playbook" && <PlaybookView rows={rows} onOpenStock={onOpenStock} />}
         {tab === "portfolio" && <PortfolioView rows={posRows} onOpenStock={onOpenStock} events={events} vix={vix} />}
       </div>
     </>

@@ -48,6 +48,125 @@ const smaAt = (arr, period, end) => {
 
 const STAGE_LABEL = { 1: "Basing", 2: "Advancing", 3: "Topping", 4: "Declining" };
 
+/* ── swing-setup math: ATR, EMAs, range contraction ───────────────────────
+   Every figure here comes from the SAME adjusted daily bars the momentum
+   signals above already use, so the whole Playbook costs no extra vendor
+   calls — it rides in the nightly snapshot. Each returns null when there is
+   not enough history to compute it honestly; nothing is estimated. */
+
+// Wilder's ATR: seed with the mean of the first `p` true ranges, then smooth
+// at 1/p. (A plain SMA of TR is the common shortcut and reads ~10% different
+// on trending names — this is the definition charting packages actually use.)
+function wilderATR(highs, lows, closes, p = 14) {
+  const n = closes.length;
+  if (n < p + 1) return null;
+  const tr = [];
+  for (let i = 1; i < n; i++) {
+    tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
+  }
+  if (tr.length < p) return null;
+  let atr = mean(tr.slice(0, p));
+  for (let i = p; i < tr.length; i++) atr = (atr * (p - 1) + tr[i]) / p;
+  return atr;
+}
+
+// standard EMA, seeded with the SMA of the first `p` closes
+function emaLast(closes, p) {
+  const n = closes.length;
+  if (n < p) return null;
+  const k = 2 / (p + 1);
+  let e = mean(closes.slice(0, p));
+  for (let i = p; i < n; i++) e = closes[i] * k + e * (1 - k);
+  return e;
+}
+
+// high-low range over the trailing `w` bars, as a % of the last close
+const rangePct = (highs, lows, last, w) => {
+  const n = highs.length;
+  if (n < w || !last) return null;
+  const hi = Math.max(...highs.slice(n - w));
+  const lo = Math.min(...lows.slice(n - w));
+  return ((hi - lo) / last) * 100;
+};
+
+const r2 = (v, d = 2) => (v == null || !Number.isFinite(v) ? null : +v.toFixed(d));
+
+export function swingMetrics(highs, lows, closes, last) {
+  const n = closes.length;
+  const atr = wilderATR(highs, lows, closes, 14);
+  const e21 = emaLast(closes, 21), e50 = emaLast(closes, 50), e65 = emaLast(closes, 65);
+
+  // EMA Launchpad: how tightly the three EMAs are bunched, as a % of the
+  // lowest of them. Small = coiled; the screener filters on this.
+  let emaSpread = null;
+  if (e21 != null && e50 != null && e65 != null) {
+    const hi = Math.max(e21, e50, e65), lo = Math.min(e21, e50, e65);
+    if (lo > 0) emaSpread = ((hi - lo) / lo) * 100;
+  }
+
+  // Volatility contraction: the recent range measured against the prior one.
+  // < 1 means the last 10 sessions are tighter than the last 40 — price
+  // compressing. Paired with `imp` (the move that preceded it) because a
+  // contraction only means something after an advance.
+  const rng10 = rangePct(highs, lows, last, 10);
+  const rng40 = rangePct(highs, lows, last, 40);
+  const cx = rng10 != null && rng40 > 0 ? rng10 / rng40 : null;
+  const imp = n >= 21 && closes[n - 21] > 0 ? (last / closes[n - 21] - 1) * 100 : null;
+
+  // Chandelier Exit (long): the 22-day highest high less 3 ATRs — the standard
+  // ATR trailing stop. Labelled with its inputs in the UI so it is never
+  // mistaken for a broker-side order.
+  let stop = null;
+  if (atr != null && n >= 22) stop = Math.max(...highs.slice(n - 22)) - 3 * atr;
+
+  return {
+    atr: r2(atr, 3),
+    atrPct: atr != null && last ? r2((atr / last) * 100) : null,
+    stop: r2(stop),
+    e21: r2(e21), e50: r2(e50), e65: r2(e65),
+    emaSpread: r2(emaSpread),
+    cx: r2(cx, 3),
+    imp: r2(imp, 1),
+  };
+}
+
+/* ── EMA Launchpad filter ─────────────────────────────────────────────────
+   Keeps only names whose 21/50/65-day EMAs sit within `maxSpread` percent of
+   each other — the three moving averages coiled together, which is the setup
+   the Playbook screens for. A name missing any of the three is DROPPED, never
+   assumed: the filter asserts a measured condition, so an unmeasurable name
+   cannot satisfy it.
+
+   Tolerant about shape on purpose — it accepts a csData row (`r.sig.swing`), a
+   bare signal bundle (`r.swing`), or an object carrying e21/e50/e65 directly,
+   so it works against live rows and plain data alike. */
+export const LAUNCHPAD_MAX_SPREAD = 2;      // percent
+
+const emasOf = (r) => {
+  const s = (r && r.sig && r.sig.swing) || (r && r.swing) || r;
+  if (!s) return null;
+  const { e21, e50, e65 } = s;
+  return e21 != null && e50 != null && e65 != null ? [+e21, +e50, +e65] : null;
+};
+
+// the spread as a percentage of the lowest EMA, or null when it can't be measured
+export function emaSpreadOf(row) {
+  const e = emasOf(row);
+  if (!e) return null;
+  const lo = Math.min(...e), hi = Math.max(...e);
+  if (!(lo > 0)) return null;
+  // rounded before comparing so a boundary case (exactly 2%) is decided by the
+  // number a user sees, not by float representation error
+  return +(((hi - lo) / lo) * 100).toFixed(4);
+}
+
+export function launchpad(rows, maxSpread = LAUNCHPAD_MAX_SPREAD) {
+  return (rows || []).filter((r) => {
+    const spread = emaSpreadOf(r);
+    return spread != null && spread <= maxSpread;
+  });
+}
+
 // compute the signal bundle for one symbol; spyRows optional (for RS line)
 export function computeSignals(rows, spyRows) {
   if (!rows || rows.length < 30) return null;
@@ -148,6 +267,7 @@ export function computeSignals(rows, spyRows) {
     adrPct, dollarVol,
     distDays, pocketPivot, udVol,
     above50, atLow,
+    swing: swingMetrics(highs, lows, closes, last),
     asOf: dates[n - 1],
   };
 }
@@ -363,6 +483,7 @@ export function compactSig(sig, chgPct, px) {
     rsNewHigh: sig.rsNewHigh, rsLeads: sig.rsLeads,
     adrPct: sig.adrPct, dollarVol: sig.dollarVol, distDays: sig.distDays,
     pocketPivot: sig.pocketPivot, udVol: sig.udVol, above50: sig.above50, atLow: sig.atLow, asOf: sig.asOf,
+    swing: sig.swing,
     ret: periodReturns(sig.closes, chgPct),
     rrg: rrgTail(sig.rsLine),
     spark: sampleSpark(sig.closes),

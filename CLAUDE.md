@@ -5,17 +5,19 @@ from the top bar. React 18 + Vite, no framework beyond that, deployed on Vercel
 with serverless functions under `api/`.
 
 1. **Volatility & Momentum Radar** — macro-catalyst surveillance. Views: Radar,
-   Full Timeline, Calendar, Playbook.
+   Full Timeline, Calendar, Catalysts (internal tab id: `playbook`).
 2. **Leadership Screener** — a relative-strength growth screener built on the
    TigerTrade Leadership Model (LEADERS). Views: Screener, Market Map, Market
-   Health, Portfolio.
+   Health, Playbook, Portfolio.
 
 ## Commands
 
 ```bash
 npm run dev            # vite dev server
 npm run build          # production build → dist/
+npm test               # both suites
 npm run test:earnings  # 55 assertions against a stubbed Yahoo/Finnhub
+npm run test:swing     # 20 assertions on the ATR/EMA/Launchpad math
 npm run shots          # screenshot every view headlessly → shots/
 ```
 
@@ -59,6 +61,22 @@ presentational.
   snapshot success branch. If the snapshot answers without them, nothing else
   ever fills them in. This is why a failing FMP quota blanks the macro board,
   the VIX panel *and* the S&P earnings dates simultaneously.
+
+**Swing math** (`signals.js` → `sig.swing`, shipped via `compactSig`). Computed
+from the *same* adjusted daily bars the momentum signals already use, so the
+Playbook costs **no extra vendor calls** — it rides in the nightly snapshot:
+
+| Field | Definition |
+|---|---|
+| `atr` / `atrPct` | Wilder's ATR(14) — seeded on the mean of the first 14 true ranges, then smoothed at 1/14. Not an SMA of TR; that reads ~10% different on trending names. |
+| `stop` | Chandelier Exit (long): 22-day highest high − 3 × ATR(14). An arithmetic level, never an order. It can sit *above* price — that means the trail is already breached, and the UI says so. |
+| `e21` `e50` `e65` | Standard EMAs, each seeded with the SMA of its first `p` closes. |
+| `emaSpread` | `(max − min) / min × 100` across the three. The **EMA Launchpad** keeps names ≤ 2% (`LAUNCHPAD_MAX_SPREAD`). Rounded to 4dp before comparing so an exact-2% boundary is decided by the number a user sees, not float error. |
+| `cx` | 10-day high-low range ÷ 40-day range. Below 1 = compressing; the Playbook's three-bar marker tiers at 0.35 / 0.55 / 0.80. |
+| `imp` | 20-day return — the impulse a contraction is only meaningful after. |
+
+Any of these is `null` when there isn't enough history. `launchpad()` **drops**
+a name it can't measure rather than assuming it passes.
 
 **Serverless endpoints** (`api/`):
 
@@ -112,8 +130,8 @@ Use tokens. Never hard-code a hex — it will be wrong in three of four themes.
 **Components** live in `src/`: `components.jsx` (shell, hero, tapes, macro board,
 VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 (screener + market health), `charts.jsx`, `marketMap.jsx`, `portfolio.jsx`,
-`views.jsx` (calendar/timeline), `radarScope.jsx`, `catalystTimeline.jsx`,
-`commandPalette.jsx`, `disclaimer.jsx`.
+`views.jsx` (calendar/timeline), `playbook.jsx` (swing-setup split pane),
+`radarScope.jsx`, `catalystTimeline.jsx`, `commandPalette.jsx`, `disclaimer.jsx`.
 
 ### CSS traps that have already bitten
 
@@ -146,8 +164,12 @@ npm run shots -- --views radar --live                   # against real APIs
 ```
 
 Output lands in `shots/` (gitignored). Views: `radar`, `timeline`, `calendar`,
-`playbook`, `screener`, `map`, `health`, `portfolio`, `drawer`. Read the PNGs —
-page errors are reported inline next to each shot.
+`catalysts`, `screener`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+Read the PNGs — page errors are reported inline next to each shot.
+
+Note the radar product's 4th tab has the internal id `playbook` but renders (and
+is labelled) **Catalysts**; the screener's Playbook is the swing-setup view. The
+shot ids disambiguate them — don't "fix" that mismatch by renaming one.
 
 By default every `/api/*` call is served from a deterministic fixture in
 `scripts/shots.mjs`, so shots need no keys, no network, and the same commit

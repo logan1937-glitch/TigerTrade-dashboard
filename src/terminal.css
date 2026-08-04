@@ -1670,3 +1670,100 @@ body { background: #0a0b0d; }
 .mb-out, .vix-out { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
 .mb-outmsg { font-size: 10.5px; line-height: 1.6; color: var(--dim); margin: 0; max-width: 46ch; }
 .mb-outmsg b { color: var(--muted); font-weight: 600; }
+
+/* ============================ PLAYBOOK ============================
+   Split-pane swing-setup scan. 35/65 on desktop, stacked below 880px where
+   a two-pane layout stops being readable. */
+.pb-wrap { padding-bottom: 64px; }
+.pb-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+.pb-kicker { font-size: 9.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
+.pb-sub { font-size: 11.5px; line-height: 1.55; color: var(--dim); margin: 6px 0 0; max-width: 62ch; }
+.pb-sub b { color: var(--text); font-weight: 700; }
+.pb-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pb-toggle { display: inline-flex; align-items: center; gap: 7px; }
+.pb-toggle-n { font-size: 9px; padding: 1px 5px; border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--text) 12%, transparent); }
+
+.pb-split { display: grid; grid-template-columns: 35% 65%; gap: 14px; align-items: start; }
+.pb-scan, .pb-detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
+.pb-detail { padding: 16px 18px 18px; }
+.pb-rows { max-height: 62vh; overflow-y: auto; }
+
+.pb-row { display: grid; grid-template-columns: 1.45fr 0.9fr 1fr 0.75fr 0.9fr; gap: 10px;
+  align-items: center; padding: 9px 12px; }
+.pb-hrow { font-size: 8.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase;
+  color: var(--dim); border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.pb-drow { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .13s ease; }
+.pb-drow:last-child { border-bottom: 0; }
+.pb-drow:hover { background: var(--surface-2); }
+.pb-drow[data-on] { background: color-mix(in oklch, var(--accent) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent); }
+.pb-tk { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pb-num { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: 12px; color: var(--text); }
+.pb-sub2 { font-size: 9.5px; color: var(--dim); }
+.pb-sub2[data-up="true"] { color: var(--cat-growth); }
+.pb-sub2[data-up="false"] { color: var(--sev-extreme); }
+
+/* contraction marker: three bars that fill as the coil tightens */
+.pb-cx { display: inline-flex; align-items: center; gap: 6px; }
+.pb-cx i { width: 4px; border-radius: 1px; background: var(--border-2); display: block; }
+.pb-cx i:nth-child(1) { height: 7px; }
+.pb-cx i:nth-child(2) { height: 11px; }
+.pb-cx i:nth-child(3) { height: 15px; }
+.pb-cx[data-tier="1"] i:nth-child(1),
+.pb-cx[data-tier="2"] i:nth-child(1), .pb-cx[data-tier="2"] i:nth-child(2),
+.pb-cx[data-tier="3"] i { background: var(--accent); }
+.pb-cx[data-tier="3"] i { box-shadow: 0 0 6px color-mix(in oklch, var(--accent) 55%, transparent); }
+.pb-cx-l { font-size: 9px; font-weight: 600; letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--dim); }
+.pb-cx[data-tier="3"] .pb-cx-l { color: var(--accent); }
+
+.pb-dhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.pb-dsym { display: flex; align-items: center; gap: 9px; }
+.pb-dname { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--muted); margin: 5px 0 0; }
+.pb-dpx { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+
+.pb-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin: 16px 0 0; }
+.pb-tile { background: var(--panel); padding: 11px 12px; display: flex; flex-direction: column; gap: 3px; }
+.pb-tk2 { font-size: 8.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
+.pb-tv { font-family: var(--font-display); font-weight: 700; font-size: 17px; color: var(--text); }
+.pb-ts { font-size: 9.5px; color: var(--dim); }
+
+.pb-emas { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.pb-ema-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
+.pb-ema-sp { font-size: 10px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--dim); }
+.pb-ema-sp[data-on] { color: var(--accent); }
+/* the three EMAs on one axis — what the spread number describes */
+.pb-emabar { position: relative; height: 26px; margin: 12px 0 10px; border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-2), var(--panel)); border: 1px solid var(--border); }
+.pb-emabar i { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%; background: var(--accent); border: 1px solid var(--bg); }
+.pb-emabar i[data-k="50"] { opacity: .72; }
+.pb-emabar i[data-k="65"] { opacity: .48; }
+.pb-emabar b { position: absolute; top: 3px; bottom: 3px; width: 2px; margin-left: -1px;
+  background: var(--text); border-radius: 1px; }
+.pb-ema-rows { display: flex; flex-direction: column; gap: 5px; }
+.pb-ema-row { display: flex; align-items: baseline; justify-content: space-between; font-size: 11.5px; }
+.pb-ema-k { color: var(--muted); }
+.pb-ema-v { color: var(--text); font-weight: 600; }
+.pb-note { font-size: 10.5px; line-height: 1.55; color: var(--dim); margin: 10px 0 0; }
+
+.pb-chart { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.pb-spark { width: 100%; height: 92px; display: block; }
+.pb-chart-l { display: block; font-size: 9.5px; color: var(--dim); margin-top: 7px; }
+.pb-empty { font-size: 11.5px; line-height: 1.6; color: var(--dim); margin: 0; padding: 18px; }
+.pb-disc { font-size: 10px; line-height: 1.6; color: var(--dim); margin: 18px 2px 0; max-width: 82ch; }
+
+@media (max-width: 880px) {
+  /* two panes stop being readable here — the scan goes full width and the
+     detail follows it rather than being squeezed into a column */
+  .pb-split { grid-template-columns: 1fr; }
+  .pb-rows { max-height: none; }
+  .pb-tiles { grid-template-columns: repeat(2, 1fr); }
+  .pb-row { grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr; }
+  .pb-row > *:nth-child(4) { display: none; }   /* ATR — the stop matters more on a phone */
+}
+/* .ed-btn carries flex:1 for the drawer's equal-width action row; in the
+   Playbook header it sits beside a title block and must size to its label */
+.pb-dhead .ed-btn { flex: 0 0 auto; white-space: nowrap; }

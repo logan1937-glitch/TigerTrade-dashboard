@@ -51,11 +51,13 @@ const VIEWS = [
   { id: "radar",     state: { tt_product: "radar",   tt_tab: "radar" } },
   { id: "timeline",  state: { tt_product: "radar",   tt_tab: "timeline" } },
   { id: "calendar",  state: { tt_product: "radar",   tt_tab: "calendar" } },
-  { id: "playbook",  state: { tt_product: "radar",   tt_tab: "playbook" } },
+  // radar tab id is still "playbook" internally, but it renders (and is labelled) Catalysts
+  { id: "catalysts", state: { tt_product: "radar",   tt_tab: "playbook" } },
   { id: "screener",  state: { tt_product: "canslim" } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
   { id: "portfolio", state: { tt_product: "canslim" }, act: (p) => click(p, "Portfolio") },
+  { id: "playbook",  state: { tt_product: "canslim" }, act: (p) => click(p, "Playbook") },
   // the stock drawer is where most of the component surface lives
   { id: "drawer",    state: { tt_product: "canslim" }, act: async (p) => {
       await p.locator(".cs-row").first().click();
@@ -87,6 +89,21 @@ function fixture() {
       spark: Array.from({ length: 8 }, (_, k) => px * (0.9 + 0.03 * ((k + i) % 5))),
       pivot: px * 0.96, buyLo: px * 0.96, buyHi: px * 1.01, pctExt: 1.8,
       baseType: "Cup-with-handle", baseWeeks: 11, baseDepth: 24, status: "buy",
+      // swing block (Playbook): spread widens across the set so some names sit
+      // inside the 2% Launchpad threshold and some clearly don't
+      swing: (() => {
+        const spread = 0.4 + i * 0.55;                    // 0.4% … ~6.5%
+        const e21 = px * 0.995, e65 = e21 * (1 + spread / 100), e50 = (e21 + e65) / 2;
+        const atr = px * (0.012 + (i % 4) * 0.004);
+        return {
+          atr: +atr.toFixed(3), atrPct: +((atr / px) * 100).toFixed(2),
+          stop: +(px * 1.04 - 3 * atr).toFixed(2),
+          e21: +e21.toFixed(2), e50: +e50.toFixed(2), e65: +e65.toFixed(2),
+          emaSpread: +spread.toFixed(2),
+          cx: +(0.22 + (i % 6) * 0.13).toFixed(3),
+          imp: +(4 + i * 2.5).toFixed(1),
+        };
+      })(),
     };
   });
   const series = Array.from({ length: 60 }, (_, k) => 15 + 4 * Math.sin(k / 6) + (k % 5) / 3);

@@ -7,7 +7,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:earnings": "node test/earnings.test.mjs",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "test:swing": "node test/swing.test.mjs",
+    "test": "node test/earnings.test.mjs && node test/swing.test.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.5.0",
