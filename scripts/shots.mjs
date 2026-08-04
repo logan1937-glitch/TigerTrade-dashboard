@@ -47,16 +47,25 @@ const ONLY = (arg("views", "") || "").split(",").map((s) => s.trim()).filter(Boo
 /* ── the views worth looking at ─────────────────────────────────────────
    `state` seeds localStorage before first paint; `act` runs after load for
    anything that isn't persisted (the screener's sub-tab is local state). */
+// one in-universe holding, one OFF-universe holding with a date the user typed
+const HOLDINGS = [
+  { tk: "NVDA", shares: 100, cost: 62, ern: null, at: 1767225600000 },
+  { tk: "NBIS", shares: null, cost: null, ern: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10), at: 1767225600000 },
+];
+
 const VIEWS = [
   { id: "radar",     state: { tt_product: "radar",   tt_tab: "radar" } },
   { id: "timeline",  state: { tt_product: "radar",   tt_tab: "timeline" } },
-  { id: "calendar",  state: { tt_product: "radar",   tt_tab: "calendar" } },
+  // seeded with a HELD off-universe name (NBIS, not in the S&P snapshot) carrying
+  // a user-set report date — that combination is the one that has broken before,
+  // so the calendar and portfolio shots both exercise it every run
+  { id: "calendar",  state: { tt_product: "radar", tt_tab: "calendar", tt_positions: HOLDINGS } },
   // radar tab id is still "playbook" internally, but it renders (and is labelled) Catalysts
   { id: "catalysts", state: { tt_product: "radar",   tt_tab: "playbook" } },
   { id: "screener",  state: { tt_product: "canslim" } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
-  { id: "portfolio", state: { tt_product: "canslim" }, act: (p) => click(p, "Portfolio") },
+  { id: "portfolio", state: { tt_product: "canslim", tt_positions: HOLDINGS }, act: (p) => click(p, "Portfolio") },
   { id: "playbook",  state: { tt_product: "canslim" }, act: (p) => click(p, "Playbook") },
   // the stock drawer is where most of the component surface lives
   { id: "drawer",    state: { tt_product: "canslim" }, act: async (p) => {

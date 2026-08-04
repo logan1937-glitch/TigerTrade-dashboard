@@ -119,7 +119,12 @@ function CxMark({ cx, imp }) {
 export function PlaybookView({ rows = [], onOpenStock }) {
   const [on, setOn] = useStored("tt_pb_filters", { coiled: false, tight: false, stacked: false, liquid: false, noern: false });
   const [sort, setSort] = useStored("tt_pb_sort", "cx");
-  const [help, setHelp] = useStored("tt_pb_help", true);   // the method leads on first visit
+  // The method leads on the FIRST visit, then gets out of the way. A tool that
+  // reopens its own manual every time is a tool you stop reading — and at 1500px
+  // the panel pushed the scan itself below the fold.
+  const [seen, setSeen] = useStored("tt_pb_seen", false);
+  const [help, setHelp] = useState(!seen);
+  useEffect(() => { if (!seen) setSeen(true); }, [seen, setSeen]);
   const [sel, setSel] = useState(null);
 
   // only names with the swing block computed — a row we cannot measure has no

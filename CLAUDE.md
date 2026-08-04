@@ -105,7 +105,8 @@ each feature degrades to a stated-unavailable state without its key.
 **Client state** is `localStorage`, on-device only, never sent anywhere:
 `tt_product`, `tt_tab`, `tt_mode`, `tt_watch`, `tt_alerts`, `tt_positions`,
 `tt_custom`, `tt_disclaimer_ack_v1`, and the Playbook's `tt_pb_filters`,
-`tt_pb_sort`, `tt_pb_help`, `tt_pb_risk` (account size + risk % for sizing).
+`tt_pb_sort`, `tt_pb_seen` (the explainer auto-opens on the first visit only),
+and `tt_pb_risk` (account size + risk % for sizing).
 
 ## Design system
 
