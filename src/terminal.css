@@ -253,6 +253,18 @@ body { background: #0a0b0d; }
 .risk-s { font-size: 8.5px; letter-spacing: var(--track-meta); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero-cover .hero-kpis { width: 100%; margin: 0; }
 .hero-cover .hero-next { width: 100%; margin-top: 0; }
+/* the queue behind the headline catalyst */
+.hero-queue { display: flex; flex-direction: column; gap: 1px; width: 100%; }
+.hero-queue-k { font-size: 9px; letter-spacing: var(--track-label); text-transform: uppercase;
+  color: var(--dim); font-weight: 600; margin-bottom: 3px; }
+.hero-q { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 9px;
+  width: 100%; background: none; border: 0; border-radius: var(--radius-sm); padding: 6px 8px;
+  cursor: pointer; text-align: left; transition: background .13s ease; }
+.hero-q:hover { background: color-mix(in oklch, var(--panel) 62%, transparent); }
+.hero-q-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.hero-q-n { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-q:hover .hero-q-n { color: var(--text); }
+.hero-q-t { font-size: 10.5px; font-weight: 600; letter-spacing: var(--track-meta); color: var(--dim); }
 /* screener hero live-signal badges — pinned to the top-right, not vertically centered */
 .hero-signals { display: flex; gap: 10px; align-items: center; align-self: flex-start; flex-wrap: wrap; margin-top: 6px; }
 /* value-prop line under the title */
@@ -295,12 +307,15 @@ body { background: #0a0b0d; }
    ~700px of empty margin either side while the VIX chart stayed squat. The cover
    gets its own wider cap there and the chart gets real height; every narrower
    breakpoint is untouched. */
+/* The cover used to widen on its own, which left every section BELOW it visibly
+   narrower — the page read as two different documents. `.wrap` is the shared
+   container, so it scales instead and the whole page stays one width. */
 @media (min-width: 1500px) {
-  .hero-cover .hero-row { width: min(1600px, 100% - 72px); }
+  .wrap { width: min(1600px, 100% - 72px); }
   .hero-cover .vix-chartwrap { min-height: 210px; }
 }
 @media (min-width: 1900px) {
-  .hero-cover .hero-row { width: min(1780px, 100% - 96px); }
+  .wrap { width: min(1780px, 100% - 96px); }
   .hero-cover .vix-chartwrap { min-height: 250px; }
 }
 
@@ -533,13 +548,18 @@ body { background: #0a0b0d; }
 .eventlist { display: flex; flex-direction: column; gap: var(--list-gap); padding-bottom: 64px; }
 .event {
   position: relative;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  /* same surface gradient, edge highlight and depth as the cover's cards — these
+     rows used to be a flat fill with a hairline border, which is why they read
+     as unfinished directly under the hero */
+  background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 92%, transparent), color-mix(in oklch, var(--surface) 68%, transparent));
+  border: 1px solid var(--border-2); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 10px 26px -22px rgba(0,0,0,0.55);
   cursor: pointer; transition: transform .14s ease, border-color .14s ease, background .14s ease, box-shadow .2s ease;
   overflow: hidden;
 }
 .event-head {
-  display: grid; grid-template-columns: 22px 84px 1fr auto 16px; align-items: center; gap: 16px;
-  padding: var(--row-pad) 18px var(--row-pad) 20px;
+  display: grid; grid-template-columns: 22px 92px minmax(0, 1fr) auto 16px; align-items: center; gap: 18px;
+  padding: var(--row-pad) 20px var(--row-pad) 22px;
 }
 .event::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
@@ -593,7 +613,7 @@ body { background: #0a0b0d; }
 .event-title { font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
 .app[data-dir="quant"] .event-title { font-weight: 700; }
 .event-title .range { font-family: var(--font-mono); font-size: 11px; color: var(--dim); font-weight: 400; letter-spacing: var(--track-data); }
-.event-desc { font-family: var(--font-mono); font-size: 12px; line-height: 1.42; color: var(--muted); margin-top: 3px; max-width: 80ch; text-wrap: pretty; }
+.event-desc { font-family: var(--font-mono); font-size: 12px; line-height: 1.42; color: var(--muted); margin-top: 3px; max-width: 108ch; text-wrap: pretty; }
 
 .event-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
 .badge {
@@ -665,20 +685,37 @@ body { background: #0a0b0d; }
 
 /* ============================ CANSLIM TABLE ============================ */
 .cs-table { padding-bottom: 64px; }
+/* The rows sit in one bordered surface rather than floating on the page — a bare
+   list of hairlines under the hero's cards reads as an unfinished draft. One
+   panel, not 500 cards: per-row shadows would be noise at this row count.
+   Not clipped with overflow, which would kill the sticky header; the head and
+   the last row round their own corners instead. */
+.cs-panel {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 55%, transparent), transparent 220px);
+  border: 1px solid var(--border-2); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 14px 34px -28px rgba(0,0,0,0.5);
+}
 .cs-head, .cs-row {
   display: grid;
-  grid-template-columns: 1.9fr 1.05fr 0.7fr 60px 1.5fr 1fr 1fr 0.65fr;
+  /* Sized to what each cell actually holds; the slack goes to the two columns
+     that get *more informative* with width — the trend spark and the RS bar —
+     instead of pooling as a void between the ticker and the price. */
+  grid-template-columns: minmax(150px, 0.55fr) 96px 112px minmax(90px, 1.45fr) 178px minmax(100px, 0.5fr) 116px 58px;
   align-items: center; gap: 14px;
 }
 /* sticky below the 58px topbar — with a 500-row list the column labels
    otherwise scroll away immediately; solid bg so rows don't ghost through */
-.cs-head { padding: 12px 18px; border-bottom: 1px solid var(--border);
-  position: sticky; top: 58px; z-index: 30; background: var(--bg); }
-.cs-head span { font-family: var(--font-mono); font-size: 10px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.cs-head { padding: 13px 20px; border-bottom: 1px solid var(--border-2);
+  border-radius: var(--radius) var(--radius) 0 0;
+  position: sticky; top: 58px; z-index: 30;
+  background: linear-gradient(180deg, color-mix(in oklch, var(--surface-2) 96%, transparent), color-mix(in oklch, var(--surface) 92%, var(--bg)));
+  backdrop-filter: blur(6px); }
+/* 600, not a darker token: small tracked all-caps ghosts at 400 even at 7.8:1 */
+.cs-head span { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
 /* sortable column header — reads as a label, behaves as a button */
 .cs-th { display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; padding: 0; cursor: pointer;
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: var(--track-label); text-transform: uppercase;
-  color: var(--dim); transition: color .13s ease; }
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase;
+  color: var(--muted); transition: color .13s ease; }
 .cs-th[data-right] { justify-self: end; }
 .cs-th:hover { color: var(--muted); }
 .cs-th[data-active] { color: var(--text); }
@@ -687,22 +724,37 @@ body { background: #0a0b0d; }
 .cs-th[data-active] .cs-th-ar { opacity: 1; color: var(--accent); }
 .cs-th:focus-visible { outline: none; color: var(--text); }
 .cs-th:focus-visible .cs-th-ar { opacity: 1; }
-.cs-row { padding: 13px 18px; border-bottom: 1px solid var(--border); transition: background .14s ease, box-shadow .14s ease; cursor: pointer;
-  content-visibility: auto; contain-intrinsic-size: 0 48px; }
-.cs-row:hover { background: var(--surface); box-shadow: inset 2px 0 0 var(--accent); }
+.cs-row { padding: 13px 20px; border-bottom: 1px solid var(--border); transition: background .14s ease, box-shadow .14s ease; cursor: pointer;
+  content-visibility: auto; contain-intrinsic-size: 0 52px; }
+/* banding, not borders alone — at 1700px a hairline is the only thing tying a
+   ticker to its score eight columns away, and it isn't enough */
+.cs-row:nth-child(2n) { background: color-mix(in oklch, var(--surface) 55%, transparent); }
+.cs-row:last-child { border-bottom: 0; border-radius: 0 0 var(--radius) var(--radius); }
+.cs-row:hover, .cs-row:nth-child(2n):hover { background: var(--surface); box-shadow: inset 2px 0 0 var(--accent); }
 .cs-row:focus-visible { outline: none; background: var(--surface); box-shadow: inset 2px 0 0 var(--accent), inset 0 0 0 1px color-mix(in oklch, var(--accent) 45%, transparent); }
 .cs-tk { display: flex; align-items: center; gap: 5px; }
 .cs-tk-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cs-sym { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); letter-spacing: var(--track-data); }
 .app[data-dir="signal"] .cs-sym { color: var(--accent); }
-.cs-name { font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
+.cs-name { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cs-px { text-align: right; display: flex; flex-direction: column; gap: 2px; }
 .cs-price { font-size: 14px; font-weight: 600; color: var(--text); }
 .cs-chg { font-size: 11.5px; }
 .cs-chg[data-up="true"] { color: var(--cat-growth); }
 .cs-chg[data-up="false"] { color: var(--sev-extreme); }
-.cs-rs { position: relative; font-size: 13px; font-weight: 600; color: var(--text); padding-bottom: 7px; }
-.cs-rs i { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--cat-growth); border-radius: 2px; max-width: 70px; }
+.cs-rs { position: relative; font-size: 13.5px; font-weight: 600; color: var(--text); padding-bottom: 9px; }
+/* The track is drawn only when there IS a rank (`:has(i)`) — an empty track next
+   to a `—` would read as RS 0, which is a measurement we don't have. */
+.cs-rs:has(i)::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  border-radius: 3px; background: color-mix(in oklch, var(--border-2) 80%, transparent); }
+.cs-rs i { position: absolute; left: 0; bottom: 0; height: 3px; z-index: 1; max-width: 100%;
+  background: var(--cat-growth); border-radius: 3px; }
+/* Takes the row's slack: it is the one cell that gets more informative with
+   width — at 600px the 1-year line is a chart you can read the shape of, where
+   the ticker and status columns would only have gained padding. */
+.cs-spark { width: 100%; }
+.mh-ispark .cs-spark { width: 64px; }
 .cs-letters { display: flex; gap: 4px; }
 .cs-let { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; font-family: var(--font-mono);
   font-size: 11px; font-weight: 700; color: var(--dim); background: var(--panel); border: 1px solid var(--border); }
@@ -1272,6 +1324,9 @@ body { background: #0a0b0d; }
    about what it is for next to three labelled inputs */
 .pf-inlab { font-size: 10px; color: var(--dim); margin-right: -3px; }
 .pf-head, .pf-row { grid-template-columns: 1.5fr 0.7fr 0.9fr 0.8fr 0.9fr 0.6fr 0.95fr 0.7fr 34px; }
+/* the book's table is a panel, not the screener's page-length list — it needs a
+   gap to the summary panels below it, not `.cs-table`'s 64px of scroll runway */
+.pf-table { margin-bottom: 22px; }
 .pf-num { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
   font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; position: relative; }
 .pf-num[data-up="true"] { color: var(--cat-growth); }
@@ -1620,7 +1675,7 @@ body { background: #0a0b0d; }
   }
   .tt-disclaimer-bar { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }
   .disc-extra { display: none; }
-  .eventlist, .cs-table, .mh, .pb, .tl, .cal-grid, .mm, .ctl { padding-bottom: 124px !important; }
+  .eventlist, .cs-table, .mh, .pb, .tl, .cal-grid, .mm, .ctl, .pf-panels { padding-bottom: 124px !important; }
   .mm-tiles { grid-template-columns: repeat(2, 1fr); }
   .seg-btn { padding: 8px 12px; }
   .star { width: 32px; height: 32px; }
@@ -1693,7 +1748,9 @@ body { background: #0a0b0d; }
 .pb-wrap { padding-bottom: 64px; }
 .pb-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
 .pb-kicker { font-size: 9.5px; font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
-.pb-sub { font-size: 11.5px; line-height: 1.55; color: var(--dim); margin: 6px 0 0; max-width: 62ch; }
+/* 100ch, not 62 — the lede sits alone on a row with a button 1000px away, so the
+   narrow measure that helps a paragraph in a column just makes the header lopsided */
+.pb-sub { font-size: 12px; line-height: 1.55; color: var(--muted); margin: 6px 0 0; max-width: 100ch; }
 .pb-sub b { color: var(--text); font-weight: 700; }
 .pb-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pb-toggle { display: inline-flex; align-items: center; gap: 7px; }

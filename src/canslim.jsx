@@ -15,7 +15,7 @@ const fmtAsOf = (ms) => {
 };
 
 function Spark({ data }) {
-  const w = 64, h = 26, max = Math.max(...data), min = Math.min(...data);
+  const w = 64, h = 32, max = Math.max(...data), min = Math.min(...data);
   const pts = data.map((v, i) => {
     const x = (i / (data.length - 1)) * w;
     const y = h - ((v - min) / (max - min || 1)) * (h - 4) - 2;
@@ -24,10 +24,14 @@ function Spark({ data }) {
   const area = `0,${h} ${pts} ${w},${h}`;
   // polarity follows the window's net direction — a downtrend must not read green
   const c = data[data.length - 1] >= data[0] ? "var(--cat-growth)" : "var(--sev-extreme)";
+  // Stretches to fill its column so the wide-screen slack becomes a readable
+  // chart instead of dead space. preserveAspectRatio="none" would also scale the
+  // stroke non-uniformly, so the line pins its own width in device pixels.
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} style={{ display: "block" }}>
+    <svg viewBox={`0 0 ${w} ${h}`} height={h} className="cs-spark" preserveAspectRatio="none" style={{ display: "block" }}>
       <polygon points={area} fill={`color-mix(in oklch, ${c} 14%, transparent)`} />
-      <polyline points={pts} fill="none" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={pts} fill="none" stroke={c} strokeWidth="1.6" vectorEffect="non-scaling-stroke"
+        strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -204,6 +208,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
         <span className="count mono" style={{ opacity: .8 }}>click a header to sort · a row for full analysis</span></div>
 
       <div className="cs-table">
+       <div className="cs-panel">
         <div className="cs-head" role="row">
           <Th label="Ticker" k="ticker" />
           <Th label={`Price · Δ${tf}`} k="chg" right />
@@ -243,6 +248,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
               {(r.sig || r.coverage === "full") ? r._score : "—"}</div>
           </div>
         ))}
+       </div>
       </div>
       <p className="mono" style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "-46px 2px 64px", maxWidth: "70ch" }}>
         The <b style={{ color: "var(--muted)", fontWeight: 600 }}>TigerTrade Leadership Model (LEADERS)</b> is our own 7-factor

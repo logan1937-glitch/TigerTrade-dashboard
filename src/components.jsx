@@ -270,6 +270,26 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
             </button>
           )}
           <RiskSpectrum vix={vix} macro={macro} />
+          {/* The queue behind the headline catalyst. The card is one column of a
+              stretched row, so it was ending on 130px of dead space under the risk
+              tiles — this fills it with the three dates you'd have scrolled to the
+              event list to find anyway. */}
+          {up.length > 1 && (
+            <div className="hero-queue">
+              <span className="hero-queue-k mono">Then</span>
+              {up.slice(1, 4).map((e) => {
+                const c = TT.CAT_MAP[e.cat];
+                return (
+                  <button className="hero-q" key={e.id || e.title + e.date} style={{ "--c": c ? c.color : "var(--muted)" }}
+                    onClick={() => onSelectEvent(e)} title={`${e.title} · ${c ? c.label : ""} · ${e.approx ? "~" : ""}${e.date}`}>
+                    <span className="hero-q-dot" />
+                    <span className="hero-q-n">{e.title}</span>
+                    <span className="hero-q-t mono">T–{Math.abs(e.t)}d</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <span className="hero-meta">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} catalysts tracked · updated {TT.todayISO}</span>
         </div>
         {showScope && (

@@ -5,6 +5,7 @@
 //   npm run shots -- --theme both      dark + light
 //   npm run shots -- --views screener,portfolio
 //   npm run shots -- --width 420       mobile widths (the layout has real breakpoints)
+//   npm run shots -- --scroll 700      shoot a section below the fold
 //   npm run shots -- --live            hit the real /api/* instead of the fixture
 //
 // WHY THIS EXISTS. Most of this UI only tells the truth when it renders: CSS
@@ -43,6 +44,7 @@ const HEIGHT = +arg("height", 1000);
 const THEME = arg("theme", "dark");           // dark | light | both
 const LIVE = flag("live");
 const ONLY = (arg("views", "") || "").split(",").map((s) => s.trim()).filter(Boolean);
+const SCROLL = +arg("scroll", 0);            // inspect a below-the-fold section
 
 /* ── the views worth looking at ─────────────────────────────────────────
    `state` seeds localStorage before first paint; `act` runs after load for
@@ -272,6 +274,7 @@ for (const theme of themes) {
       await page.waitForTimeout(1600);                        // let the feed settle
       if (v.act) await v.act(page);
       await page.waitForTimeout(400);
+      if (SCROLL) { await page.evaluate((y) => window.scrollTo(0, y), SCROLL); await page.waitForTimeout(350); }
       const file = path.join(OUT, `${v.id}-${theme}-${WIDTH}w.png`);
       await page.screenshot({ path: file, fullPage: flag("full") });
       shot++;

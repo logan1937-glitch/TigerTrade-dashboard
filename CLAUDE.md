@@ -192,6 +192,7 @@ Reading a diff cannot tell you whether a CSS change worked. Screenshot it:
 ```bash
 npm run build && npm run shots -- --theme both
 npm run shots -- --views drawer,portfolio --width 420   # check the breakpoints
+npm run shots -- --views radar --scroll 640             # a section below the fold
 npm run shots -- --views radar --live                   # against real APIs
 ```
 

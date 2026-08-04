@@ -188,7 +188,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
         </div>
       ) : (
         <>
-          <div className="cs-table pf-table">
+          <div className="cs-panel pf-table">
             <div className="cs-head pf-head">
               <span>Position</span><span style={{ textAlign: "right" }}>Shares</span><span style={{ textAlign: "right" }}>Price · Δ</span>
               <span style={{ textAlign: "right" }}>Value</span><span style={{ textAlign: "right" }}>P&amp;L</span>
