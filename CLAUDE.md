@@ -78,6 +78,15 @@ Playbook costs **no extra vendor calls** — it rides in the nightly snapshot:
 Any of these is `null` when there isn't enough history. `launchpad()` **drops**
 a name it can't measure rather than assuming it passes.
 
+**The Playbook explains itself from its own source.** `FILTERS` and `SORTS` in
+`playbook.jsx` each carry their `test`/`val` function *and* the `desc`/`why`
+text the "How to read this" panel prints. They're one object, so the explainer
+cannot drift from the code that runs — adding a filter adds its documentation by
+construction. Thresholds are named exports (`LAUNCHPAD_MAX_SPREAD` 2%,
+`TIGHT_MAX_CX` 0.55, `LIQUID_MIN_DV` $20M, `ERN_BLACKOUT_DAYS` 7). Filters stack
+with AND; the chip counts are measured against the **full** measurable set, not
+the post-filter one, so they don't move as you stack.
+
 **Serverless endpoints** (`api/`):
 
 | File | Does |
@@ -95,7 +104,8 @@ each feature degrades to a stated-unavailable state without its key.
 
 **Client state** is `localStorage`, on-device only, never sent anywhere:
 `tt_product`, `tt_tab`, `tt_mode`, `tt_watch`, `tt_alerts`, `tt_positions`,
-`tt_custom`, `tt_disclaimer_ack_v1`.
+`tt_custom`, `tt_disclaimer_ack_v1`, and the Playbook's `tt_pb_filters`,
+`tt_pb_sort`, `tt_pb_help`, `tt_pb_risk` (account size + risk % for sizing).
 
 ## Design system
 

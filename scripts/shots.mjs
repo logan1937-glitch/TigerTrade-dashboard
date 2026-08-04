@@ -92,12 +92,22 @@ function fixture() {
       // swing block (Playbook): spread widens across the set so some names sit
       // inside the 2% Launchpad threshold and some clearly don't
       swing: (() => {
+        // EMAs stacked the way an uptrend actually stacks them — 21 above 50
+        // above 65, price above all three — so the "Trend stacked" filter has
+        // something to keep. Spread widens across the set, so some names fall
+        // inside the 2% Launchpad threshold and some clearly don't.
         const spread = 0.4 + i * 0.55;                    // 0.4% … ~6.5%
-        const e21 = px * 0.995, e65 = e21 * (1 + spread / 100), e50 = (e21 + e65) / 2;
+        const e21 = px * 0.995;
+        const e65 = e21 * (1 - spread / 100);
+        const e50 = (e21 + e65) / 2;
         const atr = px * (0.012 + (i % 4) * 0.004);
+        // Chandelier off a 22-day high just above price lands the stop BELOW
+        // price for most names; one is left breached on purpose so the sizing
+        // box's "already breached" branch is exercised in the shots too.
+        const stop = i === 5 ? px * 1.01 : px * 1.02 - 3 * atr;
         return {
           atr: +atr.toFixed(3), atrPct: +((atr / px) * 100).toFixed(2),
-          stop: +(px * 1.04 - 3 * atr).toFixed(2),
+          stop: +stop.toFixed(2),
           e21: +e21.toFixed(2), e50: +e50.toFixed(2), e65: +e65.toFixed(2),
           emaSpread: +spread.toFixed(2),
           cx: +(0.22 + (i % 6) * 0.13).toFixed(3),
