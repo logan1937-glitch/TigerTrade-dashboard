@@ -15,19 +15,12 @@
 // with no computable metric shows "—" rather than a filled-in guess.
 import { useEffect, useMemo, useState } from "react";
 import { launchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf } from "./signals.js";
+import { useStored } from "./store.js";
 
 const px2 = (v) => (v == null ? "—" : `$${(+v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const pct = (v, dp = 2) => (v == null ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(dp)}%`);
 const num = (v, dp = 2) => (v == null ? "—" : (+v).toFixed(dp));
 const usd = (v) => (v == null ? "—" : `$${Math.round(v).toLocaleString()}`);
-
-function useStored(key, init) {
-  const [v, setV] = useState(() => {
-    try { const s = localStorage.getItem(key); return s === null ? init : JSON.parse(s); } catch { return init; }
-  });
-  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(v)); } catch {} }, [key, v]);
-  return [v, setV];
-}
 
 /* ── thresholds, named once ───────────────────────────────────────────────── */
 export const TIGHT_MAX_CX = 0.55;        // "coiling or tighter"
@@ -92,14 +85,10 @@ export const FILTERS = [
 export const SORTS = [
   { id: "cx", label: "Contraction", desc: "tightest coil first — lowest 10-day ÷ 40-day range ratio",
     val: (r) => (r.sig.swing.cx == null ? Infinity : r.sig.swing.cx) },
-  { id: "spread", label: "EMA spread", desc: "most tightly bunched averages first",
-    val: (r) => emaSpreadOf(r) ?? Infinity },
   { id: "risk", label: "Risk to stop", desc: "smallest distance from price down to the trailing stop first",
     val: (r) => { const s = r.sig.swing; return s.stop != null && r.px ? (r.px - s.stop) / r.px : Infinity; } },
   { id: "atr", label: "ATR%", desc: "widest average daily range first, as a % of price",
     val: (r) => -(r.sig.swing.atrPct ?? -Infinity) },
-  { id: "imp", label: "Impulse", desc: "largest prior 20-day advance first",
-    val: (r) => -(r.sig.swing.imp ?? -Infinity) },
   { id: "score", label: "Score", desc: "highest leadership score first",
     val: (r) => -(r.score ?? 0) },
 ];

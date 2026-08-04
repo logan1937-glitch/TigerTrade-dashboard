@@ -5,6 +5,8 @@
 // (no price yet, no cost basis entered) renders as "—" rather than an estimate.
 import { useMemo, useState } from "react";
 import { usePositions } from "./components.jsx";
+import { atrTrail, ATR_TRAIL_MULT } from "./signals.js";
+import { useStored } from "./store.js";
 
 const money = (v, dp = 2) => (v == null ? "—"
   : `${v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}`);
@@ -27,7 +29,22 @@ const ernTitle = (e) => {
     + (e.stale ? " · from the last successful feed read, not re-confirmed today" : "");
 };
 
+const atrTitle = (t, r) => {
+  if (t.dist == null) return "No ATR for this name yet — it comes from daily history in the nightly snapshot.";
+  const head = `${t.mult} × ATR(14) = ${money(t.dist)} per share, trailing ${money(t.trail)}`;
+  if (t.fromEntry == null) return `${head}. Add a cost basis to see where that sits against your entry.`;
+  return `${head}. Against your ${money(r.cost)} entry that is ${pctS(t.fromEntry, 1)} — `
+    + (t.locked ? "the trail has ratcheted above your entry, so a stop-out closes at a gain."
+                : "a stop-out at this level would still cost you that much from entry.");
+};
+
 export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null }) {
+  // the ATR multiple for the trailing stop. 1.5 is the default; it is a
+  // portfolio-wide setting rather than per-position because it is a rule you
+  // apply, not a property of any one name.
+  const [atrMult, setAtrMult] = useStored("tt_pf_atr", ATR_TRAIL_MULT);
+  // ATR rides in with the snapshot's signal bundle, so this costs no fetch
+  const trail = (r) => atrTrail({ px: r.px, cost: r.cost, atr: (r.row && r.row.sig && r.row.sig.swing) ? r.row.sig.swing.atr : null, mult: atrMult });
   const pos = usePositions();
   const [tk, setTk] = useState("");
   const [sh, setSh] = useState("");
@@ -125,6 +142,20 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
         <span className="pf-note mono">ticker alone is enough · stored on this device only</span>
       </form>
 
+      {/* One rule applied across the book, not a per-position field — so it sits
+          with the table rather than in the add form. */}
+      <div className="pf-atrbar">
+        <label className="pf-atrlab mono">ATR stop
+          <input className="pf-atrf mono" type="number" min="0.25" max="10" step="0.25" value={atrMult}
+            onChange={(e) => setAtrMult(e.target.value)} aria-label="ATR multiple for the trailing stop" />
+          <span>× ATR(14)</span>
+        </label>
+        <span className="pf-note mono" style={{ marginLeft: 0 }}>
+          trailing stop distance per position — the column shows the level, and how far it sits
+          from the entry you paid
+        </span>
+      </div>
+
       {rows.length === 0 ? (
         <div className="empty" style={{ marginTop: 18 }}>
           No positions yet — a ticker on its own is enough to track a name's price, sector and report date.
@@ -136,10 +167,13 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             <div className="cs-head pf-head">
               <span>Position</span><span style={{ textAlign: "right" }}>Shares</span><span style={{ textAlign: "right" }}>Price · Δ</span>
               <span style={{ textAlign: "right" }}>Value</span><span style={{ textAlign: "right" }}>P&amp;L</span>
-              <span style={{ textAlign: "right" }}>Weight</span><span style={{ textAlign: "right" }}>Next ern</span><span />
+              <span style={{ textAlign: "right" }}>Weight</span>
+              <span style={{ textAlign: "right" }}>ATR stop</span>
+              <span style={{ textAlign: "right" }}>Next ern</span><span />
             </div>
             {sorted.map((r) => {
               const w = tot.value && r.value != null ? (r.value / tot.value) * 100 : null;
+              const t = trail(r);
               return (
                 <div className="cs-row pf-row" key={r.tk} role="button" tabIndex={0}
                   aria-label={`${r.tk} — open full analysis`}
@@ -156,6 +190,13 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                     {r.plPct != null && <span className="pf-sub mono" data-up={r.plPct >= 0}>{pctS(r.plPct)}</span>}</div>
                   <div className="pf-num mono">{w == null ? "—" : `${w.toFixed(1)}%`}
                     {w != null && <i className="pf-wbar" style={{ width: `${Math.min(100, w)}%` }} />}</div>
+                  <div className="pf-num mono" title={atrTitle(t, r)} data-locked={t.locked || undefined}>
+                    {t.trail == null ? "—" : money(t.trail)}
+                    {t.fromEntry != null
+                      ? <span className="pf-sub mono" data-up={t.fromEntry >= 0}>{pctS(t.fromEntry, 1)} vs entry</span>
+                      : t.belowPx != null
+                        ? <span className="pf-sub mono">−{t.belowPx.toFixed(1)}% vs price</span> : null}
+                  </div>
                   <div className="pf-num mono pf-erncell" onClick={(e) => e.stopPropagation()}>
                     {ernEdit === r.tk ? (
                       <div className="pf-ernedit">

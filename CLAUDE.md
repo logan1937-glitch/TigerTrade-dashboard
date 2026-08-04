@@ -75,6 +75,13 @@ Playbook costs **no extra vendor calls** — it rides in the nightly snapshot:
 | `cx` | 10-day high-low range ÷ 40-day range. Below 1 = compressing; the Playbook's three-bar marker tiers at 0.35 / 0.55 / 0.80. |
 | `imp` | 20-day return — the impulse a contraction is only meaningful after. |
 
+`atrTrail({px, cost, atr, mult})` (also `signals.js`) is the portfolio's stop:
+`mult × ATR(14)` under the current price, reported as **`fromEntry`** — the move
+from the price you actually paid. Negative means a stop-out still costs you that
+much; positive means the trail has ratcheted past your cost and `locked` is true.
+Default `ATR_TRAIL_MULT` is 1.5, overridable per book via `tt_pf_atr`. No cost
+basis → `fromEntry` is null, never substituted with the current price.
+
 Any of these is `null` when there isn't enough history. `launchpad()` **drops**
 a name it can't measure rather than assuming it passes.
 
@@ -106,7 +113,8 @@ each feature degrades to a stated-unavailable state without its key.
 `tt_product`, `tt_tab`, `tt_mode`, `tt_watch`, `tt_alerts`, `tt_positions`,
 `tt_custom`, `tt_disclaimer_ack_v1`, and the Playbook's `tt_pb_filters`,
 `tt_pb_sort`, `tt_pb_seen` (the explainer auto-opens on the first visit only),
-and `tt_pb_risk` (account size + risk % for sizing).
+and `tt_pb_risk` (account size + risk % for sizing), plus the portfolio's
+`tt_pf_atr` (ATR multiple for the trailing stop).
 
 ## Design system
 

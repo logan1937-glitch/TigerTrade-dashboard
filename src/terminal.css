@@ -1257,7 +1257,7 @@ body { background: #0a0b0d; }
 /* a native date field shows only "mm/dd/yyyy" when empty, which says nothing
    about what it is for next to three labelled inputs */
 .pf-inlab { font-size: 10px; color: var(--dim); margin-right: -3px; }
-.pf-head, .pf-row { grid-template-columns: 1.7fr 0.9fr 1fr 0.9fr 1fr 0.8fr 0.8fr 34px; }
+.pf-head, .pf-row { grid-template-columns: 1.5fr 0.7fr 0.9fr 0.8fr 0.9fr 0.6fr 0.95fr 0.7fr 34px; }
 .pf-num { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
   font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; position: relative; }
 .pf-num[data-up="true"] { color: var(--cat-growth); }
@@ -1342,10 +1342,12 @@ body { background: #0a0b0d; }
   .pf-head { display: none; }
   /* the report date used to be hidden here along with weight, which left no way
      at all to reach it on a phone — it stays, book weight goes */
-  .pf-row { grid-template-columns: 1.35fr 0.9fr 0.9fr 0.85fr 34px; row-gap: 8px; }
-  .pf-row > div:nth-child(4), .pf-row > div:nth-child(5), .pf-row > div:nth-child(7) { display: flex; }
+  /* on a phone the actionable trio is P&L, where the stop sits, and when it
+     reports — shares/price/value/weight all drop */
+  .pf-row { grid-template-columns: 1.25fr 0.85fr 1fr 0.7fr 30px; row-gap: 8px; }
+  .pf-row > div:nth-child(5), .pf-row > div:nth-child(7), .pf-row > div:nth-child(8) { display: flex; }
   .pf-row > div:nth-child(2), .pf-row > div:nth-child(3),
-  .pf-row > div:nth-child(6) { display: none; }
+  .pf-row > div:nth-child(4), .pf-row > div:nth-child(6) { display: none; }
 }
 @media (max-width: 640px) { .pf-add .search { width: 100% !important; } .pf-note { margin-left: 0; } }
 
@@ -1816,3 +1818,12 @@ body { background: #0a0b0d; }
   .pb-filters { gap: 5px; }
   .pb-filters .minwt-lab[style] { margin-left: 0 !important; }
 }
+
+/* portfolio: the ATR trailing-stop rule bar + its column */
+.pf-atrbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: -4px 0 12px; }
+.pf-atrlab { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; color: var(--muted); }
+.pf-atrf { width: 62px; padding: 4px 7px; font-family: var(--font-mono); font-size: 12px; color: var(--text);
+  background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-sm); }
+.pf-atrf:focus { outline: none; border-color: var(--accent); }
+/* a trail that has ratcheted above entry can only close at a gain — worth seeing */
+.pf-row .pf-num[data-locked] .pf-sub { color: var(--cat-growth); font-weight: 600; }

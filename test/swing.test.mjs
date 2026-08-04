@@ -5,7 +5,7 @@
 //
 //   npm run test:swing
 
-import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD } from "../src/signals.js";
+import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT } from "../src/signals.js";
 
 let pass = 0, fail = 0;
 const eq = (label, got, want) => {
@@ -90,6 +90,36 @@ console.log("\n— EMA Launchpad filter —");
   eq("drops a name with no signals at all", got.includes("NOSIG"), false);
   eq("returns only the survivors", got.length, 2);
   eq("a custom threshold is honoured", launchpad(rows, 1.5).map((r) => r.tk).join(","), "COILED");
+}
+
+/* ── 6. the ATR trailing stop, measured from entry ──────────────────────── */
+console.log("\n— ATR trailing stop from entry —");
+{
+  eq("default multiplier is 1.5", ATR_TRAIL_MULT, 1.5);
+  // price 100, ATR 4 → 1.5 ATRs = 6 → trail 94, i.e. 6% under price
+  const a = atrTrail({ px: 100, cost: 90, atr: 4 });
+  near("distance is mult x ATR", a.dist, 6);
+  near("trail sits that far under price", a.trail, 94);
+  near("and that is 6% of price", a.belowPx, 6);
+  // entry 90, trail 94 → stopping out LOCKS IN +4.44%
+  near("from entry is measured against cost, not price", a.fromEntry, 4.44);
+  eq("flagged as locked in when the trail clears entry", a.locked, true);
+
+  // same stock bought higher: entry 100, trail 94 → a stop-out costs 6%
+  const b = atrTrail({ px: 100, cost: 100, atr: 4 });
+  near("a stop-out below entry reads negative", b.fromEntry, -6);
+  eq("and is not flagged as locked", b.locked, false);
+
+  const c = atrTrail({ px: 100, cost: 90, atr: 4, mult: 3 });
+  near("a custom multiplier widens the stop", c.dist, 12);
+  near("which pushes the trail below entry", c.fromEntry, -2.22);
+
+  // missing inputs must yield nulls, never substitutes
+  eq("no ATR means no distance", atrTrail({ px: 100, cost: 90, atr: null }).dist, null);
+  eq("no cost basis means no from-entry figure", atrTrail({ px: 100, cost: null, atr: 4 }).fromEntry, null);
+  eq("but the trail still computes without a cost basis", atrTrail({ px: 100, cost: null, atr: 4 }).trail, 94);
+  eq("a zero/absent price yields no trail", atrTrail({ px: null, cost: 90, atr: 4 }).trail, null);
+  eq("a non-positive multiplier is rejected", atrTrail({ px: 100, cost: 90, atr: 4, mult: 0 }).dist, null);
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);

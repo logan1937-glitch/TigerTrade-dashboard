@@ -10,6 +10,7 @@ import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
 import { CatalystTimeline } from "./catalystTimeline.jsx";
 import { CommandPalette } from "./commandPalette.jsx";
+import { useStored } from "./store.js";
 
 // the windows the screener can rank on — RS and score are precomputed for each
 export const RANK_TFS = ["1D", "1W", "1M", "3M", "1Y"];
@@ -18,14 +19,6 @@ import { CanslimView } from "./canslim.jsx";
 
 /* fixed presentation settings (the prototype's design-tool tweaks, pinned for production) */
 const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grotesk", GLOW = "on", SHOW_SCOPE = true;
-
-function useStored(key, init) {
-  const [v, setV] = useState(() => {
-    try { const s = localStorage.getItem(key); return s === null ? init : JSON.parse(s); } catch { return init; }
-  });
-  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(v)); } catch {} }, [key, v]);
-  return [v, setV];
-}
 
 export default function App() {
   const [product, setProduct] = useStored("tt_product", "radar");

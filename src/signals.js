@@ -130,6 +130,37 @@ export function swingMetrics(highs, lows, closes, last) {
   };
 }
 
+/* ── ATR trailing stop, measured from YOUR entry ──────────────────────────
+   A trailing stop set `mult` ATRs under the current price, reported as a move
+   from the price you actually paid — which is the number that tells you whether
+   a stop-out is a loss or a locked-in gain.
+
+     dist      1.5 × ATR(14), in dollars
+     trail     current price − dist   (it ratchets up as price rises)
+     belowPx   dist as a % of the current price
+     fromEntry (trail ÷ cost − 1) × 100 — NEGATIVE means a stop-out still costs
+               you that much from entry; POSITIVE means the trail has climbed
+               above your cost and the position can only close at a profit.
+
+   Every field is null when its input is missing — no cost basis means no
+   from-entry figure, and we do not substitute the current price for it. */
+export const ATR_TRAIL_MULT = 1.5;
+
+export function atrTrail({ px, cost, atr, mult = ATR_TRAIL_MULT }) {
+  const m = +mult;
+  const out = { mult: m, dist: null, trail: null, belowPx: null, fromEntry: null, locked: null };
+  if (atr == null || !Number.isFinite(atr) || atr <= 0 || !Number.isFinite(m) || m <= 0) return out;
+  out.dist = +(atr * m).toFixed(4);
+  if (px == null || !(px > 0)) return out;
+  out.trail = +(px - out.dist).toFixed(2);
+  out.belowPx = +((out.dist / px) * 100).toFixed(2);
+  if (cost != null && cost > 0) {
+    out.fromEntry = +((out.trail / cost - 1) * 100).toFixed(2);
+    out.locked = out.trail > cost;      // the trail has ratcheted past your entry
+  }
+  return out;
+}
+
 /* ── EMA Launchpad filter ─────────────────────────────────────────────────
    Keeps only names whose 21/50/65-day EMAs sit within `maxSpread` percent of
    each other — the three moving averages coiled together, which is the setup

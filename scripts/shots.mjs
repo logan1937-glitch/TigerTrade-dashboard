@@ -74,9 +74,14 @@ const VIEWS = [
     } },
 ];
 
+// Prefix match, not exact: sub-tabs append a count badge when they have one
+// ("Portfolio" becomes "Portfolio2" once positions exist), and an anchored
+// exact match silently fell through to whatever view was already open.
 const click = async (p, label) => {
-  const b = p.locator("button", { hasText: new RegExp(`^${label}$`) }).first();
-  if (await b.count()) { await b.click(); await p.waitForTimeout(500); }
+  const b = p.locator("button", { hasText: new RegExp(`^${label}`) }).first();
+  if (!(await b.count())) throw new Error(`no button matching "${label}"`);
+  await b.click();
+  await p.waitForTimeout(500);
 };
 
 /* ── deterministic fixture ───────────────────────────────────────────────
