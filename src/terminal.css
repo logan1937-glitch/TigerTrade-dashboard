@@ -1825,5 +1825,6 @@ body { background: #0a0b0d; }
 .pf-atrf { width: 62px; padding: 4px 7px; font-family: var(--font-mono); font-size: 12px; color: var(--text);
   background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-sm); }
 .pf-atrf:focus { outline: none; border-color: var(--accent); }
-/* a trail that has ratcheted above entry can only close at a gain — worth seeing */
-.pf-row .pf-num[data-locked] .pf-sub { color: var(--cat-growth); font-weight: 600; }
+/* NB: no colour rule on this cell. It shows the trail WIDTH (percent + points),
+   which is directionless — tinting it green for a locked-in gain would attach
+   the meaning to the wrong number. That state lives in the cell's tooltip. */

@@ -29,13 +29,16 @@ const ernTitle = (e) => {
     + (e.stale ? " · from the last successful feed read, not re-confirmed today" : "");
 };
 
+// The cell shows the trail WIDTH — the percent and the points you'd set on a
+// broker trailing stop. Everything else about the position goes in the tooltip.
 const atrTitle = (t, r) => {
   if (t.dist == null) return "No ATR for this name yet — it comes from daily history in the nightly snapshot.";
-  const head = `${t.mult} × ATR(14) = ${money(t.dist)} per share, trailing ${money(t.trail)}`;
-  if (t.fromEntry == null) return `${head}. Add a cost basis to see where that sits against your entry.`;
-  return `${head}. Against your ${money(r.cost)} entry that is ${pctS(t.fromEntry, 1)} — `
-    + (t.locked ? "the trail has ratcheted above your entry, so a stop-out closes at a gain."
-                : "a stop-out at this level would still cost you that much from entry.");
+  const head = `${t.mult} × ATR(14) = ${money(t.dist)} per share = ${t.belowPx}% of the ${money(r.px)} price. `
+    + `A trailing stop set that wide follows the peak of your holding period, so at today's price it sits at ${money(t.trail)}.`;
+  if (t.fromEntry == null) return `${head} Add a cost basis to see where that sits against your entry.`;
+  return `${head} Against your ${money(r.cost)} entry that is ${pctS(t.fromEntry, 1)} — `
+    + (t.locked ? "the trail has already ratcheted above your entry, so a stop-out closes at a gain."
+                : "a stop-out at today's level would still cost you that much from entry.");
 };
 
 export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null }) {
@@ -151,8 +154,8 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
           <span>× ATR(14)</span>
         </label>
         <span className="pf-note mono" style={{ marginLeft: 0 }}>
-          trailing stop distance per position — the column shows the level, and how far it sits
-          from the entry you paid
+          the trail width to set per position — as a percent and in points. A broker trailing stop
+          applies it to the running peak of your holding period, so it follows the position up
         </span>
       </div>
 
@@ -168,7 +171,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
               <span>Position</span><span style={{ textAlign: "right" }}>Shares</span><span style={{ textAlign: "right" }}>Price · Δ</span>
               <span style={{ textAlign: "right" }}>Value</span><span style={{ textAlign: "right" }}>P&amp;L</span>
               <span style={{ textAlign: "right" }}>Weight</span>
-              <span style={{ textAlign: "right" }}>ATR stop</span>
+              <span style={{ textAlign: "right" }}>ATR trail</span>
               <span style={{ textAlign: "right" }}>Next ern</span><span />
             </div>
             {sorted.map((r) => {
@@ -190,12 +193,9 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                     {r.plPct != null && <span className="pf-sub mono" data-up={r.plPct >= 0}>{pctS(r.plPct)}</span>}</div>
                   <div className="pf-num mono">{w == null ? "—" : `${w.toFixed(1)}%`}
                     {w != null && <i className="pf-wbar" style={{ width: `${Math.min(100, w)}%` }} />}</div>
-                  <div className="pf-num mono" title={atrTitle(t, r)} data-locked={t.locked || undefined}>
-                    {t.trail == null ? "—" : money(t.trail)}
-                    {t.fromEntry != null
-                      ? <span className="pf-sub mono" data-up={t.fromEntry >= 0}>{pctS(t.fromEntry, 1)} vs entry</span>
-                      : t.belowPx != null
-                        ? <span className="pf-sub mono">−{t.belowPx.toFixed(1)}% vs price</span> : null}
+                  <div className="pf-num mono" title={atrTitle(t, r)}>
+                    {t.belowPx == null ? "—" : `${t.belowPx.toFixed(2)}%`}
+                    {t.dist != null && <span className="pf-sub mono">{money(t.dist)} pts</span>}
                   </div>
                   <div className="pf-num mono pf-erncell" onClick={(e) => e.stopPropagation()}>
                     {ernEdit === r.tk ? (

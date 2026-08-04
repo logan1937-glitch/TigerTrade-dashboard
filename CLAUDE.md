@@ -75,12 +75,14 @@ Playbook costs **no extra vendor calls** — it rides in the nightly snapshot:
 | `cx` | 10-day high-low range ÷ 40-day range. Below 1 = compressing; the Playbook's three-bar marker tiers at 0.35 / 0.55 / 0.80. |
 | `imp` | 20-day return — the impulse a contraction is only meaningful after. |
 
-`atrTrail({px, cost, atr, mult})` (also `signals.js`) is the portfolio's stop:
-`mult × ATR(14)` under the current price, reported as **`fromEntry`** — the move
-from the price you actually paid. Negative means a stop-out still costs you that
-much; positive means the trail has ratcheted past your cost and `locked` is true.
-Default `ATR_TRAIL_MULT` is 1.5, overridable per book via `tt_pf_atr`. No cost
-basis → `fromEntry` is null, never substituted with the current price.
+`atrTrail({px, cost, atr, mult})` (also `signals.js`) is the portfolio's stop.
+The portfolio column shows the **trail width** — `belowPx` (percent of price) over
+`dist` (points) — because those are the two numbers you set on a broker trailing
+stop, which then applies them to the running peak of the holding period. The
+level (`trail`), the move from your cost (`fromEntry`) and whether the trail has
+ratcheted past entry (`locked`) are all computed too, and surface in the cell's
+tooltip. Default `ATR_TRAIL_MULT` is 1.5, overridable per book via `tt_pf_atr`.
+No cost basis → `fromEntry` is null, never substituted with the current price.
 
 Any of these is `null` when there isn't enough history. `launchpad()` **drops**
 a name it can't measure rather than assuming it passes.

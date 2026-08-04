@@ -120,6 +120,13 @@ console.log("\n— ATR trailing stop from entry —");
   eq("but the trail still computes without a cost basis", atrTrail({ px: 100, cost: null, atr: 4 }).trail, 94);
   eq("a zero/absent price yields no trail", atrTrail({ px: null, cost: 90, atr: 4 }).trail, null);
   eq("a non-positive multiplier is rejected", atrTrail({ px: 100, cost: 90, atr: 4, mult: 0 }).dist, null);
+
+  // the number you actually set on a broker trailing stop: the WIDTH, as a
+  // percent of price and in points. ATR 10 on a $100 stock → 1.5 × 10 = $15 = 15%
+  const w = atrTrail({ px: 100, cost: 80, atr: 10 });
+  near("trail width in points", w.dist, 15);
+  near("trail width as a percent — what you'd set the stop to", w.belowPx, 15);
+  near("the level it implies at today's price", w.trail, 85);
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);
