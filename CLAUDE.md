@@ -111,7 +111,7 @@ the post-filter one, so they don't move as you stack.
 
 | File | Does |
 |---|---|
-| `snapshot.js` | Nightly precompute of the whole universe. Cron: weekdays 22:00 UTC. Serves from Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set — **without it every request recomputes**, which burns the FMP quota fast. Check `"blob"` / `"served"` in its response. |
+| `snapshot.js` | Nightly precompute of the whole universe. Cron: weekdays 22:00 UTC. Serves from Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set — **without it every request recomputes**, which burns the FMP quota fast. Check `"blob"` / `"served"` in its response. **Adding a field to the payload means bumping `SCHEMA`** — Blob serves the stored copy verbatim, so without a bump the new field is simply absent until the next cron, with nothing on screen to explain why. A mismatch recomputes on the first request after deploy. `?refresh=1` forces it by hand. |
 | `earnings.js` | Report dates for names outside the S&P 500. Finnhub (keyed) → Yahoo chart (crumb-free) → Yahoo quoteSummary (crumb) → stale cache. FMP is deliberately absent — verified incapable for these names. |
 | `yahoo.js` | Yahoo chart proxy — quotes + adjusted daily history. |
 | `fmp.js` | Allow-listed FMP proxy; keeps the key server-side. |

@@ -24,6 +24,14 @@ const INDICES = [
 export const maxDuration = 60;
 
 const BLOB_KEY = "snapshot.json";
+/* Payload shape version. A stored snapshot is only useful while it has the
+   fields the current client reads, and Blob serves it verbatim — so after a
+   deploy that ADDS a field (silver, crypto, the swing block…) the old snapshot
+   would be served unchanged until the next cron, and the new section would just
+   be missing with nothing to explain why. Bump this whenever compute() gains or
+   renames a field: a mismatch makes the stored copy stale by definition and the
+   first request after deploy recomputes and rewrites it. */
+const SCHEMA = 2;
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -435,7 +443,7 @@ async function compute() {
   const macro = await fmpMacro();
   const vix = await fmpVix();
 
-  return { generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix };
+  return { schema: SCHEMA, generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix };
 }
 
 export default async function handler(req, res) {
@@ -444,12 +452,16 @@ export default async function handler(req, res) {
 
   const refresh = req.query.refresh != null || !!req.headers["x-vercel-cron"];
 
-  // normal read: serve the stored snapshot instantly (no recompute)
+  // normal read: serve the stored snapshot instantly (no recompute) — but only
+  // while its shape still matches what this build emits
   if (!refresh) {
     const stored = await readBlob();
-    if (stored && stored.count > 0) {
+    if (stored && stored.count > 0 && stored.schema === SCHEMA) {
       res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
       return res.status(200).json({ ...stored, blob: hasBlob, served: "blob" });
+    }
+    if (stored && stored.count > 0) {
+      console.log(`snapshot: stored schema ${stored.schema ?? "none"} != ${SCHEMA} — recomputing`);
     }
     // no Blob store connected: serve this lambda's own last compute rather than
     // buying a fresh one — the alternative is spending upstream quota per request
