@@ -148,7 +148,8 @@ function fixture() {
               { k: "US 30Y", v: 4.61, bp: 1 }, { k: "Fed funds", v: 4.75, bp: 0 }],
       fx: [{ k: "DXY", v: 104.2, chg: 0.18, idx: true }, { k: "EUR/USD", v: 1.0842, chg: -0.11 },
            { k: "USD/JPY", v: 151.9, chg: 0.24 }],
-      comm: [{ k: "Gold", v: 2412.4, chg: 0.42 }, { k: "WTI", v: 78.1, chg: -1.1 }],
+      comm: [{ k: "Gold", v: 2412.4, chg: 0.42 }, { k: "Silver", v: 60.15, chg: 3.96 }, { k: "WTI", v: 78.1, chg: -1.1 }],
+      crypto: [{ k: "Bitcoin", v: 63999.34, chg: 0.84 }, { k: "Ethereum", v: 1869.64, chg: 0.6 }],
       cpi: { v: 3.1, chg: -0.1, asOf: day(-20) },
     },
     vix: { level: 16.4, chg: -2.1, avg50: 15.2, hi52: 34.8, lo52: 11.9, series },
@@ -218,7 +219,10 @@ const views = ONLY.length ? VIEWS.filter((v) => ONLY.includes(v.id)) : VIEWS;
 if (!views.length) { console.error(`no matching views. known: ${VIEWS.map((v) => v.id).join(", ")}`); process.exit(1); }
 const themes = THEME === "both" ? ["dark", "light"] : [THEME];
 
-fs.rmSync(OUT, { recursive: true, force: true });
+// Deliberately NOT wiped: filenames encode view/theme/width, so a re-run always
+// overwrites exactly what it re-shoots. Clearing the directory meant two scoped
+// runs in a row (`--views radar --theme light`, then `--width 420`) silently
+// deleted the first one's output.
 fs.mkdirSync(OUT, { recursive: true });
 
 const chromium = await loadChromium();

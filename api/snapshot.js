@@ -262,9 +262,11 @@ async function fmpMacro() {
   }
   if (fx.length) out.fx = fx;
 
-  // Commodities — Gold (available) + WTI (needs a higher tier; hidden if gated)
+  // Commodities. Symbols verified against the live API: GCUSD gold, SIUSD silver,
+  // CLUSD WTI. Each falls back to the generic quote route, and a gated one is
+  // simply omitted rather than rendered empty.
   const comm = [];
-  for (const [k, syms] of [["Gold", ["GCUSD"]], ["WTI", ["CLUSD", "WTIUSD"]]]) {
+  for (const [k, syms] of [["Gold", ["GCUSD"]], ["Silver", ["SIUSD"]], ["WTI", ["CLUSD", "WTIUSD"]]]) {
     const q = await jget(syms.flatMap((s) => [
       `https://financialmodelingprep.com/stable/commodities-quote?symbol=${s}&apikey=${key}`,
       `https://financialmodelingprep.com/stable/quote?symbol=${s}&apikey=${key}`,
@@ -273,6 +275,20 @@ async function fmpMacro() {
     if (o && o.price != null) comm.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null });
   }
   if (comm.length) out.comm = comm;
+
+  // Crypto — its own section rather than folded into commodities, because BTC
+  // and ETH are not commodities and this board is read as a factual reference.
+  // Two more calls per compute; with Blob connected that is two a weekday.
+  const crypto = [];
+  for (const [k, sym] of [["Bitcoin", "BTCUSD"], ["Ethereum", "ETHUSD"]]) {
+    const q = await jget([
+      `https://financialmodelingprep.com/stable/cryptocurrency-quote?symbol=${sym}&apikey=${key}`,
+      `https://financialmodelingprep.com/stable/quote?symbol=${sym}&apikey=${key}`,
+    ]);
+    const o = Array.isArray(q) ? q[0] : q;
+    if (o && o.price != null) crypto.push({ k, v: +o.price, chg: o.changePercentage != null ? +(+o.changePercentage).toFixed(2) : null });
+  }
+  if (crypto.length) out.crypto = crypto;
 
   // CPI YoY nowcast — daily series; value + ~1-month change + downsampled spark
   const iFrom = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
@@ -291,7 +307,7 @@ async function fmpMacro() {
     }
   }
 
-  return (out.rates || out.fx || out.comm || out.cpi) ? out : null;
+  return (out.rates || out.fx || out.comm || out.crypto || out.cpi) ? out : null;
 }
 
 // CBOE VIX — the volatility gauge that anchors the cover. Quote (level, change,

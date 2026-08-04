@@ -353,12 +353,12 @@ const dir = (x) => (x == null || x === 0 ? undefined : x > 0);   // neutral when
 
 // live macro instrument panel beside the radar — rates, FX, commodities, inflation
 export function MacroBoard({ macro, settled }) {
-  const { rates, fx, comm, cpi } = macro || {};
+  const { rates, fx, comm, crypto, cpi } = macro || {};
   // The board is fed only by the nightly snapshot's FMP calls. When those don't
   // answer — no key, a plan that denies the endpoints, an exhausted quota — the
   // data is not late, it is not coming, and a skeleton that pulses forever
   // claims otherwise. Say so instead.
-  if (!rates && !fx && !comm && !cpi) {
+  if (!rates && !fx && !comm && !crypto && !cpi) {
     if (settled) {
       return (
         <div className="macroboard mb-out">
@@ -370,7 +370,7 @@ export function MacroBoard({ macro, settled }) {
     }
     return (
       <div className="macroboard" aria-busy="true">
-        {[["Rates", 4], ["FX", 3], ["Commodities", 1], ["Inflation", 1]].map(([h, n]) => (
+        {[["Rates", 4], ["FX", 3], ["Commodities", 3], ["Crypto", 2], ["Inflation", 1]].map(([h, n]) => (
           <div className="mb-sec" key={h}>
             <div className="mb-h mono">{h}</div>
             {Array.from({ length: n }).map((_, j) => (
@@ -406,6 +406,12 @@ export function MacroBoard({ macro, settled }) {
         <div className="mb-sec">
           <div className="mb-h mono">Commodities</div>
           {comm.map((m) => <Row key={m.k} k={m.k} v={fmtComm(m.v)} c={pctTxt(m.chg)} up={dir(m.chg)} />)}
+        </div>
+      )}
+      {crypto && crypto.length > 0 && (
+        <div className="mb-sec">
+          <div className="mb-h mono">Crypto</div>
+          {crypto.map((m) => <Row key={m.k} k={m.k} v={fmtComm(m.v)} c={pctTxt(m.chg)} up={dir(m.chg)} />)}
         </div>
       )}
       {cpi && (

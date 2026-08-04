@@ -195,7 +195,8 @@ npm run shots -- --views drawer,portfolio --width 420   # check the breakpoints
 npm run shots -- --views radar --live                   # against real APIs
 ```
 
-Output lands in `shots/` (gitignored). Views: `radar`, `timeline`, `calendar`,
+Output lands in `shots/` (gitignored, and never wiped — filenames encode
+view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
 `catalysts`, `screener`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
 Read the PNGs — page errors are reported inline next to each shot.
 
