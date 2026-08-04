@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
-import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth } from "./signals.js";
+import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth, peakSince } from "./signals.js";
 import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
 import { fetchProfile } from "./profile.js";
@@ -114,10 +114,16 @@ export default function App() {
     count: positions.length,
     has: (tk) => positions.some((p) => p.tk === tk),
     get: (tk) => positions.find((p) => p.tk === tk) || null,
-    add: (tk, shares, cost, ern) => setPositions((prev) => {
+    // `entry` is the date you took the trade — a trailing stop follows the peak
+    // since then, so the high-water mark is meaningless without it. `at` is
+    // preserved across edits: it records when the row was created, and resetting
+    // it on every save would quietly rewrite that history.
+    add: (tk, shares, cost, ern, entry) => setPositions((prev) => {
       const t = String(tk || "").toUpperCase().trim().replace(/[^A-Z0-9.\-]/g, "");
       if (!t) return prev;
-      return [...prev.filter((p) => p.tk !== t), { tk: t, shares: posNum(shares), cost: posNum(cost), ern: posDate(ern), at: Date.now() }];
+      const was = prev.find((p) => p.tk === t);
+      return [...prev.filter((p) => p.tk !== t),
+        { tk: t, shares: posNum(shares), cost: posNum(cost), ern: posDate(ern), entry: posDate(entry), at: (was && was.at) || Date.now() }];
     }),
     remove: (tk) => setPositions((prev) => prev.filter((p) => p.tk !== tk)),
   }), [positions]);
@@ -127,6 +133,31 @@ export default function App() {
     const m = {};
     for (const p of positions) { const d = posDate(p.ern); if (d) m[p.tk] = d; }
     return m;
+  }, [positions]);
+
+  // Daily bars for held names that carry an entry date, so the peak since entry
+  // can be measured. One /api/yahoo call per such position, cached for the
+  // session and keyed by ticker — changing the entry date recomputes the peak
+  // from the bars already in hand rather than fetching again. Yahoo, so this
+  // spends no FMP quota.
+  const [posBars, setPosBars] = useState({});      // { TK: bars[] | null }
+  const barsAsked = useRef(new Set());
+  useEffect(() => {
+    const need = positions
+      .filter((p) => p.tk && posDate(p.entry) && !barsAsked.current.has(p.tk))
+      .map((p) => p.tk);
+    if (!need.length) return;
+    need.forEach((t) => barsAsked.current.add(t));
+    let alive = true;
+    (async () => {
+      const got = await Promise.all(need.map(async (t) => {
+        try { const r = await fetchMarket([t]); return [t, (r.rows && r.rows[t]) || null]; }
+        catch { return [t, null]; }
+      }));
+      if (!alive) return;
+      setPosBars((prev) => { const n = { ...prev }; for (const [t, b] of got) n[t] = b; return n; });
+    })();
+    return () => { alive = false; };
   }, [positions]);
 
   // real company name / sector / industry for names the snapshot doesn't
@@ -322,8 +353,10 @@ export default function App() {
       plPct: px != null && p.cost ? (px / p.cost - 1) * 100 : null,
       dayPl: px != null && prevPx != null && sh != null ? (px - prevPx) * sh : null,
       ern: (r && r.ern) || null,
+      // null until the bars land, or when there is no entry date to measure from
+      peak: posBars[p.tk] ? peakSince(posBars[p.tk], p.entry) : null,
     };
-  }), [positions, csData]);
+  }), [positions, csData, posBars]);
 
   // Every tracked name with a real report date, for the radar product's month
   // calendar. In-universe names get theirs from the shared snapshot, so they

@@ -84,6 +84,17 @@ ratcheted past entry (`locked`) are all computed too, and surface in the cell's
 tooltip. Default `ATR_TRAIL_MULT` is 1.5, overridable per book via `tt_pf_atr`.
 No cost basis → `fromEntry` is null, never substituted with the current price.
 
+`peakSince(bars, entryDate)` gives the high-water mark a trail actually follows.
+A position carries an optional **`entry`** date; when set, `App.jsx` fetches that
+holding's daily bars once per session (`/api/yahoo`, so no FMP quota) and the
+portfolio shows how much room is left before the trail triggers, or `stop hit`.
+An entry date later than every bar returns null rather than falling back to the
+whole history's peak — that would understate the stop. Note off-universe
+holdings already get a full signal bundle from `App.jsx`'s custom-ticker effect,
+so ATR works for any holding; the bars fetch is separate because the peak needs
+real `high` values, and mixing highs with closes would make the peak mean
+different things for different rows.
+
 Any of these is `null` when there isn't enough history. `launchpad()` **drops**
 a name it can't measure rather than assuming it passes.
 

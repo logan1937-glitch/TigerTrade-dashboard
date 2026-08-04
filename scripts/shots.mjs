@@ -49,7 +49,7 @@ const ONLY = (arg("views", "") || "").split(",").map((s) => s.trim()).filter(Boo
    anything that isn't persisted (the screener's sub-tab is local state). */
 // one in-universe holding, one OFF-universe holding with a date the user typed
 const HOLDINGS = [
-  { tk: "NVDA", shares: 100, cost: 62, ern: null, at: 1767225600000 },
+  { tk: "NVDA", shares: 100, cost: 62, ern: null, entry: new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10), at: 1767225600000 },
   { tk: "NBIS", shares: null, cost: null, ern: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10), at: 1767225600000 },
 ];
 
@@ -155,6 +155,24 @@ function fixture() {
   };
 }
 
+// Deterministic daily bars for the /api/yahoo proxy shape. The series peaks
+// mid-window so the peak-since-entry lookup has something real to find.
+function yahooBars(sym) {
+  const n = 120, bars = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    const close = 60 + 40 * Math.sin(t * Math.PI);            // rises, peaks, eases
+    bars.push({
+      date: new Date(Date.UTC(2026, 3, 1) + i * 864e5).toISOString().slice(0, 10),
+      open: +close.toFixed(2), high: +(close * 1.012).toFixed(2),
+      low: +(close * 0.988).toFixed(2), close: +close.toFixed(2), volume: 1e6,
+    });
+  }
+  const last = bars[bars.length - 1];
+  return { symbol: sym, price: last.close, previousClose: bars[n - 2].close,
+    changePercentage: 0.4, timestamp: 1767225600, currency: "USD", bars };
+}
+
 /* ── static server for ./dist with SPA fallback ─────────────────────────── */
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
   ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json" };
@@ -221,7 +239,14 @@ for (const theme of themes) {
       // catch-all registered after `**/api/snapshot*` silently swallows the
       // fixture and every panel renders its feed-unavailable state instead.
       await page.route("**/api/**", (r) => {
-        const body = r.request().url().includes("/api/snapshot") ? SNAP : "{}";
+        const u = r.request().url();
+        let body = "{}";
+        if (u.includes("/api/snapshot")) body = SNAP;
+        // /api/yahoo backs the peak-since-entry lookup for held positions
+        else if (u.includes("/api/yahoo")) {
+          const sym = (u.match(/symbol=([^&]+)/) || [])[1] || "X";
+          body = JSON.stringify(yahooBars(decodeURIComponent(sym)));
+        }
         return r.fulfill({ status: 200, contentType: "application/json", body });
       });
     }

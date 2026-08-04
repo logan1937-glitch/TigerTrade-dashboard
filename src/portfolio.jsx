@@ -29,15 +29,32 @@ const ernTitle = (e) => {
     + (e.stale ? " · from the last successful feed read, not re-confirmed today" : "");
 };
 
+/* A trail follows the high-water mark, so once we know the peak since entry we
+   can say where the stop actually sits and how much room is left before it
+   triggers. Null until the bars land or without an entry date — never guessed. */
+const stopFromPeak = (r, t) => {
+  if (!r.peak || t.dist == null || r.px == null) return null;
+  const level = +(r.peak.peak - t.dist).toFixed(2);
+  const room = ((r.px - level) / r.px) * 100;
+  return { level, room, hit: r.px <= level, peak: r.peak.peak, peakDate: r.peak.peakDate, since: r.entry };
+};
+
 // The cell shows the trail WIDTH — the percent and the points you'd set on a
 // broker trailing stop. Everything else about the position goes in the tooltip.
 const atrTitle = (t, r) => {
   if (t.dist == null) return "No ATR for this name yet — it comes from daily history in the nightly snapshot.";
   const head = `${t.mult} × ATR(14) = ${money(t.dist)} per share = ${t.belowPx}% of the ${money(r.px)} price. `
     + `A trailing stop set that wide follows the peak of your holding period, so at today's price it sits at ${money(t.trail)}.`;
-  if (t.fromEntry == null) return `${head} Add a cost basis to see where that sits against your entry.`;
-  return `${head} Against your ${money(r.cost)} entry that is ${pctS(t.fromEntry, 1)} — `
-    + (t.locked ? "the trail has already ratcheted above your entry, so a stop-out closes at a gain."
+  const sp = stopFromPeak(r, t);
+  const peakPart = sp
+    ? ` Peak since ${sp.since} is ${money(sp.peak)} (${sp.peakDate}), so the trail actually sits at `
+      + `${money(sp.level)} — ${sp.hit ? "at or above today's price, so it has already triggered."
+                                        : `${sp.room.toFixed(1)}% below today's price.`}`
+    : r.entry ? " Loading this holding's bars to find the peak since entry…"
+              : " Set an entry date on this position to track the peak it trails from.";
+  if (t.fromEntry == null) return `${head}${peakPart} Add a cost basis to see where that sits against your entry.`;
+  return `${head}${peakPart} Against your ${money(r.cost)} entry the trail is ${pctS(t.fromEntry, 1)} — `
+    + (t.locked ? "already above your entry, so a stop-out closes at a gain."
                 : "a stop-out at today's level would still cost you that much from entry.");
 };
 
@@ -53,6 +70,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
   const [sh, setSh] = useState("");
   const [cost, setCost] = useState("");
   const [ern, setErn] = useState("");
+  const [entry, setEntry] = useState("");
   const [err, setErr] = useState("");
   // per-row report-date editor. The add form can only set a date at the moment a
   // position is created, which is no help for one already in the book — this
@@ -60,14 +78,14 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
   const [ernEdit, setErnEdit] = useState(null);
   const [ernDraft, setErnDraft] = useState("");
   const openErn = (r) => { setErnDraft(r.ern && r.ern.mine ? r.ern.date : ""); setErnEdit(r.tk); };
-  const saveErn = (r, v) => { pos.add(r.tk, r.shares, r.cost, v); setErnEdit(null); };
+  const saveErn = (r, v) => { pos.add(r.tk, r.shares, r.cost, v, r.entry); setErnEdit(null); };
 
   const submit = (e) => {
     e.preventDefault();
     const t = tk.trim().toUpperCase();
     if (!t) { setErr("Enter a ticker"); return; }
-    setErr(""); pos.add(t, sh, cost, ern);   // shares, cost and report date are all optional
-    setTk(""); setSh(""); setCost(""); setErn("");
+    setErr(""); pos.add(t, sh, cost, ern, entry);   // everything but the ticker is optional
+    setTk(""); setSh(""); setCost(""); setErn(""); setEntry("");
   };
 
   // ── totals. Only sized positions can carry a dollar value, and dollar P&L
@@ -136,6 +154,10 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
           onChange={(e) => setSh(e.target.value)} aria-label="Shares" />
         <input className="search" style={{ width: 150 }} placeholder="cost / share (opt)" value={cost} inputMode="decimal"
           onChange={(e) => setCost(e.target.value)} aria-label="Cost per share" />
+        <span className="pf-inlab mono">entered</span>
+        <input className="search pf-date" style={{ width: 150 }} type="date" value={entry}
+          onChange={(e) => setEntry(e.target.value)} aria-label="Entry date"
+          title="The day you took the trade. A trailing stop follows the peak since then, so this is what makes the stop level real rather than theoretical." />
         <span className="pf-inlab mono">reports</span>
         <input className="search pf-date" style={{ width: 158 }} type="date" value={ern}
           onChange={(e) => setErn(e.target.value)} aria-label="Next report date"
@@ -196,6 +218,10 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                   <div className="pf-num mono" title={atrTitle(t, r)}>
                     {t.belowPx == null ? "—" : `${t.belowPx.toFixed(2)}%`}
                     {t.dist != null && <span className="pf-sub mono">{money(t.dist)} pts</span>}
+                    {(() => { const sp = stopFromPeak(r, t); return sp
+                      ? <span className="pf-stopflag mono" data-hit={sp.hit || undefined}>
+                          {sp.hit ? "stop hit" : `${sp.room.toFixed(1)}% room`}</span>
+                      : null; })()}
                   </div>
                   <div className="pf-num mono pf-erncell" onClick={(e) => e.stopPropagation()}>
                     {ernEdit === r.tk ? (

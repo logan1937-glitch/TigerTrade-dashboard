@@ -5,7 +5,7 @@
 //
 //   npm run test:swing
 
-import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT } from "../src/signals.js";
+import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT, peakSince } from "../src/signals.js";
 
 let pass = 0, fail = 0;
 const eq = (label, got, want) => {
@@ -127,6 +127,36 @@ console.log("\n— ATR trailing stop from entry —");
   near("trail width in points", w.dist, 15);
   near("trail width as a percent — what you'd set the stop to", w.belowPx, 15);
   near("the level it implies at today's price", w.trail, 85);
+}
+
+/* ── 7. the peak since entry, which is what a trail actually follows ────── */
+console.log("\n— peak since entry —");
+{
+  const bars = [
+    { date: "2026-06-01", high: 50, close: 49 },
+    { date: "2026-06-15", high: 120, close: 119 },   // pre-entry spike — must NOT count
+    { date: "2026-07-01", high: 80, close: 79 },     // entry day
+    { date: "2026-07-15", high: 95, close: 94 },     // the real peak
+    { date: "2026-08-01", high: 88, close: 86 },
+  ];
+  const p1 = peakSince(bars, "2026-07-01");
+  near("peak is the highest high on or after entry", p1.peak, 95);
+  eq("and it reports which day that was", p1.peakDate, "2026-07-15");
+  eq("counting only bars from entry onward", p1.bars, 3);
+  eq("a pre-entry spike is excluded", p1.peak < 120, true);
+
+  eq("entering on the peak day still includes it", peakSince(bars, "2026-07-15").peak, 95);
+  eq("an entry after every bar yields null, not the all-time peak",
+    peakSince(bars, "2027-01-01"), null);
+  eq("no entry date yields null", peakSince(bars, null), null);
+  eq("a malformed date yields null", peakSince(bars, "last tuesday"), null);
+  eq("no bars yields null", peakSince([], "2026-07-01"), null);
+
+  // the trail follows that peak, not today's price
+  const t = atrTrail({ px: 88, cost: 80, atr: 4 });
+  near("a 1.5x ATR trail is 6 points wide", t.dist, 6);
+  near("against the 95 peak that puts the stop at 89", 95 - t.dist, 89);
+  eq("which is ABOVE the 88 last price — already breached", 95 - t.dist > 88, true);
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);

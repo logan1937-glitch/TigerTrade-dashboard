@@ -253,11 +253,12 @@ export function StockDrawerBody({ stock, onClose }) {
   const [posSh, setPosSh] = useState("");
   const [posCost, setPosCost] = useState("");
   const [posErn, setPosErn] = useState("");
+  const [posEntry, setPosEntry] = useState("");
   // shares and cost are both optional — saving with neither still tracks the
   // name in the portfolio (price, sector, report date), just without a size.
   // The report date is optional too: it only earns its keep for a listing no
   // feed covers, and it is labelled as yours wherever it then appears.
-  const savePos = () => { positions.add(s.tk, posSh, posCost, posErn); setPosOpen(false); };
+  const savePos = () => { positions.add(s.tk, posSh, posCost, posErn, posEntry); setPosOpen(false); };
 
   // price alert: armed here, persisted, evaluated on every data refresh
   const alerts = useAlerts();
@@ -315,7 +316,7 @@ export function StockDrawerBody({ stock, onClose }) {
         <div className="dr-actions">
           <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
           <button className="ed-btn" data-on={positions.has(s.tk) || undefined}
-            onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosErn((h && h.ern) || ""); setAlertOpen(false); setPlanOpen(false); setPosOpen((v) => !v); }}>
+            onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosErn((h && h.ern) || ""); setPosEntry((h && h.entry) || ""); setAlertOpen(false); setPlanOpen(false); setPosOpen((v) => !v); }}>
             <PortfolioIcon />{positions.has(s.tk) ? "Edit position" : "Add position"}
           </button>
           <button className="ed-btn" data-on={!!myAlert || undefined}
@@ -337,6 +338,14 @@ export function StockDrawerBody({ stock, onClose }) {
                 onChange={(e) => setPosCost(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()} aria-label="Cost per share" />
               <button className="ed-btn ed-btn-primary" onClick={savePos}>Save</button>
               {positions.has(s.tk) && <button className="ed-btn" onClick={() => { positions.remove(s.tk); setPosOpen(false); }}>Remove</button>}
+            </div>
+            <div className="dr-alert-row">
+              <span className="mono dr-alert-cur">Entered</span>
+              <input className="dr-alert-in mono dr-date-in" type="date" value={posEntry}
+                onChange={(e) => setPosEntry(e.target.value)} onKeyDown={(e) => e.key === "Enter" && savePos()}
+                aria-label="Entry date" style={{ flex: "0 0 auto" }}
+                title="The day you took the trade — the ATR trailing stop follows the peak since then." />
+              {posEntry && <button className="ed-btn" onClick={() => setPosEntry("")}>Clear</button>}
             </div>
             <div className="dr-alert-row">
               <span className="mono dr-alert-cur">Reports</span>

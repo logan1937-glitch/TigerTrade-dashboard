@@ -161,6 +161,30 @@ export function atrTrail({ px, cost, atr, mult = ATR_TRAIL_MULT }) {
   return out;
 }
 
+/* ── highest high since a date ────────────────────────────────────────────
+   A trailing stop follows the PEAK of the holding period, not the current
+   price, so knowing where the trail actually sits needs the high-water mark
+   since you entered. Bars are the same {date, high, low, close} rows the rest
+   of signals.js consumes, oldest → newest.
+
+   Returns null when the entry date is missing, unparseable, or later than every
+   bar we have — an entry we cannot locate in the series must not silently fall
+   back to the whole history's peak, which would overstate the trail. */
+export function peakSince(bars, entryDate) {
+  if (!Array.isArray(bars) || !bars.length || !entryDate) return null;
+  const from = String(entryDate).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) return null;
+  let peak = null, peakDate = null, n = 0;
+  for (const b of bars) {
+    if (!b || !b.date || String(b.date).slice(0, 10) < from) continue;
+    const h = b.high != null ? +b.high : (b.close != null ? +b.close : null);
+    if (h == null || !Number.isFinite(h)) continue;
+    n++;
+    if (peak == null || h > peak) { peak = h; peakDate = String(b.date).slice(0, 10); }
+  }
+  return peak == null ? null : { peak: +peak.toFixed(2), peakDate, bars: n };
+}
+
 /* ── EMA Launchpad filter ─────────────────────────────────────────────────
    Keeps only names whose 21/50/65-day EMAs sit within `maxSpread` percent of
    each other — the three moving averages coiled together, which is the setup

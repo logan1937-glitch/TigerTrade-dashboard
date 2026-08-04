@@ -1828,3 +1828,7 @@ body { background: #0a0b0d; }
 /* NB: no colour rule on this cell. It shows the trail WIDTH (percent + points),
    which is directionless — tinting it green for a locked-in gain would attach
    the meaning to the wrong number. That state lives in the cell's tooltip. */
+/* how much room is left before a peak-trailing stop triggers */
+.pf-stopflag { font-size: 8.5px; font-weight: 600; letter-spacing: var(--track-meta);
+  text-transform: uppercase; color: var(--dim); }
+.pf-stopflag[data-hit] { color: var(--sev-extreme); }
