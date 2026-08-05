@@ -1215,7 +1215,10 @@ body { background: #0a0b0d; }
 .dr-tickers .ticker[data-link="true"] { cursor: pointer; color: var(--cat-growth); border-color: color-mix(in oklch, var(--cat-growth) 40%, var(--border)); }
 .dr-tickers .ticker[data-link="true"]:hover { background: color-mix(in oklch, var(--cat-growth) 14%, transparent); }
 
-.dr-actions { display: flex; gap: 8px; padding: 24px 26px 0; }
+/* wraps because the bar is content-sized and grew a fifth button ("Open in
+   Playbook") — without this the last one runs off the drawer's right edge, and
+   the drawer does not scroll horizontally, so it simply becomes unreachable */
+.dr-actions { display: flex; gap: 8px; padding: 24px 26px 0; flex-wrap: wrap; }
 /* size to the label, then share the slack: four equal columns forced "Add to
    portfolio" onto a second line, which made every button in the row 50px tall
    to accommodate the one that wrapped */
@@ -2001,3 +2004,6 @@ body { background: #0a0b0d; }
 @media (max-width: 640px) {
   .vol-tiles { grid-template-columns: 1fr; }
 }
+
+/* Playbook: search + ticker-add, above the filter chips */
+.pb-find { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }

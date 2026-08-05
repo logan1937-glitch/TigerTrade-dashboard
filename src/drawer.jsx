@@ -16,6 +16,10 @@ function PinIcon() {
 function PortfolioIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7.5" width="18" height="12.5" rx="2" /><path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5" /><path d="M12 11v5M9.5 13.5h5" /></svg>;
 }
+/* a price line with a level under it — the Playbook is a setup and its stop */
+function PlaybookIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 14.5l4.5-5 3.5 3 4-6L21 4" /><path d="M3 19.5h18" strokeDasharray="3 3" /></svg>;
+}
 function BellIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9z" /><path d="M10.4 19a1.9 1.9 0 0 0 3.2 0" /></svg>;
 }
@@ -190,7 +194,7 @@ const briefDesc = (t) => {
   return out || t.slice(0, 280);
 };
 
-export function StockDrawerBody({ stock, onClose }) {
+export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
   const s = stock;
   const statusMap = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
   const [stLabel, stColor] = statusMap[s.status] || [null, null];
@@ -323,6 +327,15 @@ export function StockDrawerBody({ stock, onClose }) {
             onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setPosOpen(false); setPlanOpen(false); setAlertOpen((v) => !v); }}>
             <BellIcon />{myAlert ? "Edit alert" : "Set price alert"}
           </button>
+          {/* Offered only when the swing block exists: the Playbook drops a name it
+              cannot measure, so a link to a scan that will not contain this ticker
+              is a link to a shrug. */}
+          {onOpenPlaybook && s.sig && s.sig.swing && s.sig.swing.atr != null && (
+            <button className="ed-btn" onClick={() => onOpenPlaybook(s.tk)}
+              title="Show this name's ATR, contraction and trailing stop in the Playbook">
+              <PlaybookIcon />Open in Playbook
+            </button>
+          )}
           {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => { setPosOpen(false); setAlertOpen(false); setPlanOpen((v) => !v); }}>
             {planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
         </div>

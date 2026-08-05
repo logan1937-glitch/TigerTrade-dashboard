@@ -85,8 +85,20 @@ export function MiniReaction({ data }) {
 }
 
 /* company logo (FMP image CDN → clean monogram fallback), dark-theme friendly */
+/* FMP has moved this asset host once already; the legacy path still answers for
+   some names and 404s for others, so both are tried before the monogram. */
+const LOGO_SRC = [
+  (t) => `https://images.financialmodelingprep.com/symbol/${t}.png`,
+  (t) => `https://financialmodelingprep.com/image-stock/${t}.png`,
+];
 export function Logo({ ticker, size = 34, radius = "var(--radius-sm)" }) {
-  const [err, setErr] = useState(false);
+  // Indexes LOGO_SRC; past the end means every source failed. This is keyed on
+  // `ticker` because the drawer reuses one Logo instance as you move between
+  // names — without the reset, the first symbol whose image 404s left every name
+  // opened afterwards showing a monogram, which is what "no company image" was.
+  const [srcIdx, setSrcIdx] = useState(0);
+  useEffect(() => { setSrcIdx(0); }, [ticker]);
+  const err = srcIdx >= LOGO_SRC.length;
   const box = { width: size, height: size, borderRadius: radius, flex: "none" };
   if (err) {
     return (
@@ -98,8 +110,8 @@ export function Logo({ ticker, size = 34, radius = "var(--radius-sm)" }) {
     );
   }
   return (
-    <img src={`https://financialmodelingprep.com/image-stock/${ticker}.png`} alt={ticker} loading="lazy"
-      onError={() => setErr(true)}
+    <img key={srcIdx} src={LOGO_SRC[srcIdx](ticker)} alt={ticker} loading="lazy"
+      onError={() => setSrcIdx((i) => i + 1)}
       style={{ ...box, objectFit: "contain", background: "#fff", border: "1px solid var(--border-2)", padding: Math.max(2, Math.round(size * 0.09)) }} />
   );
 }

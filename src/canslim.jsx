@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
 import { PlaybookView } from "./playbook.jsx";
@@ -266,8 +266,9 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{(r._ret || 0).toFixed(2)}%</span></div>
             <div className="cs-rs mono" title={tf === "1Y" ? "Relative-strength rank over 12 months" : `Relative-strength rank over the selected ${tf} window`}>
               {r._rs != null ? r._rs : "—"}{r._rs != null && <i style={{ width: r._rs + "%" }} />}</div>
-            {/* `_synthetic` = the editorial seeded curve, not this company's price */}
-            <div>{r.spark && r.spark.length > 1 && !r._synthetic ? <Spark data={r.spark} />
+            {/* `_sparkReal` = the snapshot answered for this name; without it the
+                row still holds tt.js's editorial curve, which is not its price */}
+            <div>{r.spark && r.spark.length > 1 && r._sparkReal ? <Spark data={r.spark} />
               : <span className="cs-sig-na mono" title="No daily history for this name in the latest snapshot">—</span>}</div>
             <OffHigh off={r.sig ? r.sig.off52 : null} />
             <div className="cs-letters">{r._breakdown && r._breakdown.length ? r._breakdown.map((b, j) => (
@@ -410,8 +411,11 @@ function StageBreadth({ stages }) {
 
 /* ------------------------------ SHELL ------------------------------ */
 export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr,
-  posRows = [], events = [], vix = null }) {
+  posRows = [], events = [], vix = null, pbFocus = null, onPbFocused }) {
   const [tab, setTab] = useState("screener");
+  // the drawer's "Open in Playbook" lands here: switch tabs, then let the view
+  // consume the ticker and clear it so a later tab visit doesn't re-select it
+  useEffect(() => { if (pbFocus) setTab("playbook"); }, [pbFocus]);
   const [sectorF, setSectorF] = useState(null);   // sector filter set from the Market Map
 
   const buyCount = rows.filter((s) => s.status === "buy").length;
@@ -484,7 +488,9 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         {tab === "map" && <MarketMap rows={rows} live={live} onOpenStock={onOpenStock}
           onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} />}
         {tab === "health" && <MarketHealth market={market} />}
-        {tab === "playbook" && <PlaybookView rows={rows} onOpenStock={onOpenStock} />}
+        {tab === "playbook" && <PlaybookView rows={rows} onOpenStock={onOpenStock}
+          onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr}
+          focusTk={pbFocus} onFocused={onPbFocused} />}
         {tab === "portfolio" && <PortfolioView rows={posRows} onOpenStock={onOpenStock} events={events} vix={vix} />}
       </div>
     </>

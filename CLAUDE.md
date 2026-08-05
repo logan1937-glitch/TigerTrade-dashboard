@@ -57,6 +57,16 @@ presentational.
 
 - `csData` (`App.jsx`) merges the editorial base, live quotes, EOD signals,
   earnings dates and user-set dates into one row per name. Views never fetch.
+- **Two flags mark editorial price data, and they are not interchangeable.**
+  `tt.js`'s `_buildFull` seeds every curated row with a seeded curve from
+  `_series()`, which draws one of three canned shapes off `status` — so an
+  uncovered name would render a chart that is not its own, identical to every
+  other name with the same status. `_synthetic` governs the **`closes`/`volume`
+  arrays** (the drawer's chart) and is cleared only where real bars are
+  attached; `_sparkReal` governs the **spark** (the screener's Trend column and
+  the Playbook's chart). Compact snapshot records carry a spark but *no* closes,
+  so clearing `_synthetic` off the spark silently put the editorial curve back
+  on the drawer's chart for every covered name.
 - **`macro`, `vix`, `vol` and `earnings` are set in exactly one place** — inside
   the snapshot success branch. If the snapshot answers without them, nothing else
   ever fills them in. This is why a failing FMP quota blanks the macro board,

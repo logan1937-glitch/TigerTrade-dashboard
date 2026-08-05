@@ -14,6 +14,7 @@
 // its inputs stated (Chandelier: 22-day high − 3·ATR), not advice, and a name
 // with no computable metric shows "—" rather than a filled-in guess.
 import { useEffect, useMemo, useState } from "react";
+import { SearchIcon } from "./components.jsx";
 import { launchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf } from "./signals.js";
 import { useStored } from "./store.js";
 
@@ -105,7 +106,9 @@ function CxMark({ cx, imp }) {
   );
 }
 
-export function PlaybookView({ rows = [], onOpenStock }) {
+export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, lookupErr, focusTk, onFocused }) {
+  const [q, setQ] = useState("");
+  const [addSym, setAddSym] = useState("");
   const [on, setOn] = useStored("tt_pb_filters", { coiled: false, tight: false, stacked: false, liquid: false, noern: false });
   const [sort, setSort] = useStored("tt_pb_sort", "cx");
   // The method leads on the FIRST visit, then gets out of the way. A tool that
@@ -122,14 +125,31 @@ export function PlaybookView({ rows = [], onOpenStock }) {
   const activeFilters = FILTERS.filter((f) => on[f.id]);
 
   const list = useMemo(() => {
-    const kept = base.filter((r) => activeFilters.every((f) => f.test(r)));
+    const needle = q.trim().toLowerCase();
+    const kept = base.filter((r) => activeFilters.every((f) => f.test(r)))
+      .filter((r) => !needle || `${r.tk} ${r.name || ""} ${r.group || ""}`.toLowerCase().includes(needle));
     const s = SORTS.find((x) => x.id === sort) || SORTS[0];
     return [...kept].sort((a, b) => s.val(a) - s.val(b));
-  }, [base, on, sort]);
+  }, [base, on, sort, q]);
 
   // per-filter counts, each measured on the FULL set so a chip always shows how
   // many names that one condition would keep — not how many survive the others
   const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.id, base.filter(f.test).length])), [base]);
+
+  // Arriving from the drawer's "Open in Playbook". The name is only measurable if
+  // it carries a swing block, and it will usually fail at least one active filter
+  // — landing on a scan that does not contain the ticker you asked for reads as a
+  // broken link, so the filters and the search box are cleared to make room for it.
+  useEffect(() => {
+    if (!focusTk) return;
+    if (base.some((r) => r.tk === focusTk)) {
+      setSel(focusTk);
+      setQ("");
+      setOn({ coiled: false, tight: false, stacked: false, liquid: false, noern: false });
+    }
+    if (onFocused) onFocused();
+  }, [focusTk, base]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const active = useMemo(() => list.find((r) => r.tk === sel) || list[0] || null, [list, sel]);
   const sortDef = SORTS.find((x) => x.id === sort) || SORTS[0];
 
@@ -148,6 +168,25 @@ export function PlaybookView({ rows = [], onOpenStock }) {
       </div>
 
       {help && <HowToRead counts={counts} total={base.length} onClose={() => setHelp(false)} />}
+
+      <div className="pb-find">
+        <div className="search-wrap"><SearchIcon /><input className="search" placeholder="search ticker / group…"
+          value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the scan" /></div>
+        {onLookup && (
+          /* Same lookup the screener uses. A name off the S&P 500 gets a full
+             signal bundle from App's custom-ticker path, and the swing block
+             rides along in it — so an added ticker is measurable here on the
+             same arithmetic as everything else, not a second-class row. */
+          <form className="cs-lookup" onSubmit={(e) => { e.preventDefault(); onLookup(addSym); setAddSym(""); }}
+            title="Add any ticker, in the universe or not">
+            <input className="search" style={{ width: 150, paddingLeft: 12 }} placeholder="add any ticker…"
+              value={addSym} onChange={(e) => setAddSym(e.target.value)} aria-label="Add any ticker" />
+            <button type="submit" className="seg-btn" data-active="true" disabled={lookupBusy}
+              style={{ padding: "8px 12px" }}>{lookupBusy ? "…" : "＋ Add"}</button>
+            {lookupErr && <span className="cs-lookup-err mono">{lookupErr}</span>}
+          </form>
+        )}
+      </div>
 
       <div className="pb-filters">
         <span className="minwt-lab">Filter</span>
@@ -177,8 +216,21 @@ export function PlaybookView({ rows = [], onOpenStock }) {
         {activeFilters.length > 0
           ? <> · filtered by <b>{activeFilters.map((f) => f.label).join(" + ")}</b></>
           : <> · no filters applied</>}
+        {q.trim() && <> · matching <b>{q.trim()}</b></>}
         {" · "}sorted by <b>{sortDef.label}</b> ({sortDef.desc})
       </p>
+
+      {/* A search that eliminates everything is a different situation from a
+          snapshot with no swing metrics, and it needs the ticker-add prompt —
+          "not in the scan" is usually "not in the universe". */}
+      {base.length > 0 && list.length === 0 && (
+        <div className="empty" style={{ marginTop: 14 }}>
+          Nothing matches{q.trim() ? <> <b>{q.trim()}</b></> : null}
+          {activeFilters.length > 0 ? <> with {activeFilters.map((f) => f.label).join(" + ")} on</> : null}.
+          {onLookup ? <> If the name isn't in the universe, add it with <b>＋ Add</b> above and it will be
+            measured on the same arithmetic as everything else.</> : null}
+        </div>
+      )}
 
       {base.length === 0 ? (
         <div className="empty" style={{ marginTop: 18 }}>
@@ -358,7 +410,7 @@ function Detail({ row, onOpenStock }) {
       <Sizing px={row.px} stop={s.stop} />
 
       <div className="pb-chart">
-        {row.spark && row.spark.length > 1 && !row._synthetic
+        {row.spark && row.spark.length > 1 && row._sparkReal
           ? <><Sparkline data={row.spark} stop={s.stop} />
               <span className="pb-chart-l mono">Daily closes · dotted line is the window's open, dashed red the
                 Chandelier stop · full interactive chart in the stock drawer</span></>

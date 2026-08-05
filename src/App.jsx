@@ -38,6 +38,7 @@ export default function App() {
   const [evDrawer, setEvDrawer] = useState(null);
   const [stockDrawer, setStockDrawer] = useState(null);
   const [watchOpen, setWatchOpen] = useState(false);
+  const [pbFocus, setPbFocus] = useState(null);   // "open this name in the Playbook"
 
   const [live, setLive] = useState({ status: "loading" });
   const [hist, setHist] = useState({ rows: {}, sig: {} });
@@ -238,7 +239,12 @@ export default function App() {
         r = { ...r, off52: sg.off52 != null ? sg.off52 : r.off52, sig: sg, _eod: true };
         // full-array signals (custom / live-fallback names) power the drawer chart;
         // compact snapshot records carry none — the drawer fetches those on demand
-        if (sg.closes && sg.closes.length) r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine };
+        // `_synthetic` is about THESE arrays — tt.js seeds every curated row with an
+        // editorial price curve, and the drawer refetches rather than chart it. It
+        // is cleared here and nowhere else; the spark's provenance is a separate
+        // question with a separate flag, and conflating the two put the editorial
+        // curve back on the drawer's chart for every snapshot-covered name.
+        if (sg.closes && sg.closes.length) r = { ...r, closes: sg.closes, volume: sg.volume, dates: sg.dates, rsLine: sg.rsLine || r.rsLine, _synthetic: false };
       }
       // earnings-risk overlay: days until the next confirmed report. A date you
       // entered yourself wins over the feed — you asked for that name to be
@@ -283,10 +289,12 @@ export default function App() {
       const rs = rsBy["1Y"];
       const score = scoreBy["1Y"];
       const grade = score >= 80 ? "a" : score >= 60 ? "b" : "c";
-      // `_buildFull` seeds every curated row with an editorial price curve, and
-      // `_series` draws one of three canned shapes off `status` — so an uncovered
-      // name renders a trend line that is not this company's. Clearing the flag
-      // only when real bars arrived lets the Trend column fall back to `—`.
+      // `_buildFull` seeds every curated row with an editorial spark too, drawn by
+      // the same `_series` that produces one of three canned shapes off `status` —
+      // so an uncovered name renders a trend line that is not this company's.
+      // `_sparkReal` says the snapshot answered, and the Trend column shows `—`
+      // when it didn't. Deliberately NOT `_synthetic`: that flag governs the
+      // drawer's chart arrays, which the snapshot's compact records never carry.
       const realSpark = r.sig.spark || sampleSpark(r.sig.closes);
       const spark = realSpark || r.spark;
       // technical buy point: precomputed on compact snapshot records; derived
@@ -338,7 +346,7 @@ export default function App() {
         ];
         passCount = breakdown.filter((b) => b.pass === true).length;
       }
-      return { ...r, rs, score, rsBy, scoreBy, grade, spark, _synthetic: realSpark ? false : r._synthetic,
+      return { ...r, rs, score, rsBy, scoreBy, grade, spark, _sparkReal: !!realSpark,
         status, breakdown, pass: passCount, ...pivotFields };
     });
 
@@ -759,7 +767,8 @@ export default function App() {
         ) : (
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr}
-            posRows={posRows} events={upcoming} vix={vix} />
+            posRows={posRows} events={upcoming} vix={vix}
+            pbFocus={pbFocus} onPbFocused={() => setPbFocus(null)} />
         )}
 
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} commands={commands} />
@@ -768,7 +777,8 @@ export default function App() {
           {evDrawer && <EventDrawerBody ev={evDrawer} onClose={() => setEvDrawer(null)} onPick={openStock} vix={vix} />}
         </Drawer>
         <Drawer open={!!stockDrawer} onClose={() => setStockDrawer(null)} label="Stock analysis">
-          {stockDrawer && <StockDrawerBody stock={stockDrawer} onClose={() => setStockDrawer(null)} />}
+          {stockDrawer && <StockDrawerBody stock={stockDrawer} onClose={() => setStockDrawer(null)}
+            onOpenPlaybook={(tk) => { setStockDrawer(null); setProduct("canslim"); setPbFocus(tk); }} />}
         </Drawer>
         <Drawer open={watchOpen} onClose={() => setWatchOpen(false)} label="Watchlist">
           {watchOpen && <WatchlistBody onClose={() => setWatchOpen(false)} onPickEvent={openEvent} onPickStock={openStock} />}
