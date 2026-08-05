@@ -1011,6 +1011,8 @@ body { background: #0a0b0d; }
 .tick-date { color: var(--dim); }
 .tick-chg[data-up="true"] { color: var(--cat-growth); }
 .tick-chg[data-up="false"] { color: var(--sev-extreme); }
+/* no change figure from the feed — quiet, and never mistakable for a flat print */
+.tick-chg[data-na="true"] { color: var(--dim); }
 @media (prefers-reduced-motion: reduce) {
   .tape-track { animation: none !important; }
   .tape { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }

@@ -329,23 +329,42 @@ export function CatalystTape({ events, onSelect }) {
   );
 }
 
-export function StockTape({ rows, onPick }) {
+// The tape's membership, exported so App can fetch quotes for exactly the names
+// it draws without the view fetching anything itself.
+export const TAPE_N = 14;
+export function tapePicks(rows) {
+  return (rows || []).filter((r) => r.px != null && r.score).sort((a, b) => b.score - a.score).slice(0, TAPE_N);
+}
+
+export function StockTape({ rows, quotes, asOf, onPick }) {
   // top of the leaderboard, live prices — the screener's answer to the catalyst tape
-  const items = useMemo(() =>
-    (rows || []).filter((r) => r.px != null && r.score).sort((a, b) => b.score - a.score).slice(0, 14),
-    [rows]);
+  const items = useMemo(() => tapePicks(rows), [rows]);
   if (items.length < 2) return null;
   const fmt = (n) => (n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2));
+  let stamp = null;
+  try { if (asOf) stamp = new Date(asOf).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); } catch {}
   return (
     <Tape label="Top leaders — live prices">
       {[0, 1].map((copy) => items.map((r) => {
-        const up = (r.chg || 0) >= 0;
+        // the intraday refresh, when it has answered for this name; otherwise the
+        // snapshot's own figures
+        const q = quotes && quotes[r.tk];
+        const px = q && q.price != null ? q.price : r.px;
+        const chg = q && q.changePercentage != null ? q.changePercentage : r.chg;
+        // A missing change is not a flat one. `(+chg || 0).toFixed(2)` printed an
+        // unknown as a green +0.00%, which is why the whole tape read as dead.
+        const known = chg != null && !Number.isNaN(+chg);
+        const up = known ? +chg >= 0 : null;
         return (
-          <button key={copy + "-" + r.tk} className="tick-item mono" style={{ "--c": up ? "var(--cat-growth)" : "var(--sev-extreme)" }}
+          <button key={copy + "-" + r.tk} className="tick-item mono"
+            style={{ "--c": up == null ? "var(--muted)" : up ? "var(--cat-growth)" : "var(--sev-extreme)" }}
             onClick={() => onPick(r)} tabIndex={copy ? -1 : 0} aria-hidden={copy ? true : undefined}
-            title={`${r.name} · score ${r.score}`}>
-            <i className="tick-dot" /><b>{r.tk}</b><span className="tick-name">${fmt(r.px)}</span>
-            <span className="tick-chg" data-up={up}>{up ? "+" : ""}{(+r.chg || 0).toFixed(2)}%</span>
+            title={`${r.name} · score ${r.score}`
+              + (known ? (q ? `\nQuote ${stamp || "just now"} — refreshed live` : "\nFrom the nightly snapshot") : "\nNo change figure from the feed for this name")}>
+            <i className="tick-dot" /><b>{r.tk}</b><span className="tick-name">${fmt(px)}</span>
+            {known
+              ? <span className="tick-chg" data-up={up}>{up ? "+" : ""}{(+chg).toFixed(2)}%</span>
+              : <span className="tick-chg" data-na="true">—</span>}
           </button>
         );
       }))}

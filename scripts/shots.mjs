@@ -198,8 +198,12 @@ function yahooBars(sym) {
     });
   }
   const last = bars[bars.length - 1];
+  // varies by symbol: this also backs the tape's intraday refresh, and a constant
+  // would make 14 refreshed names print the same number — which is exactly the
+  // "the tape isn't live" symptom the refresh exists to fix
+  const seed = [...sym].reduce((a, c) => a + c.charCodeAt(0), 0);
   return { symbol: sym, price: last.close, previousClose: bars[n - 2].close,
-    changePercentage: 0.4, timestamp: 1767225600, currency: "USD", bars };
+    changePercentage: +(((seed % 17) - 8) * 0.37).toFixed(2), timestamp: 1767225600, currency: "USD", bars };
 }
 
 /* ── static server for ./dist with SPA fallback ─────────────────────────── */
