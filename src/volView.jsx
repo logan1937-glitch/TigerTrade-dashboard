@@ -10,17 +10,21 @@
 // terminal uses. That is stated on the page too — a flow panel with invented
 // options data would be the worst thing this app could ship.
 //
-// The sort is not a display preference — it changes which ranking you are
-// looking at, and they answer different questions. Dollar volume is "who moved
-// the index" and will always be the mega-caps. Relative volume is "where
-// something happened": a mid-cap at 4× its own normal is news in a way that a
-// mega-cap's ordinary billion shares is not.
+// Two panels side by side, because they answer different questions and the
+// comparison between them IS the read. Dollar volume is "who moved the index"
+// and will always be the mega-caps. Relative volume is "where something
+// happened": a mid-cap at 4× its own normal is news in a way that a mega-cap's
+// ordinary billion shares is not.
 //
-// So each sort switches to a list the SERVER ranked on that metric, rather than
-// re-ordering one fixed set of rows. Re-sorting a top-30-by-dollar-volume slice
-// by relative volume would show "the most unusual of the biggest", quietly
-// dropping every genuinely unusual mid-cap — a plausible list that is not the
-// one the column header claims.
+// They are two separate server-side rankings rather than one set sorted two
+// ways, and that matters. Re-ranking a top-30-by-dollar-volume slice on relative
+// volume would show "the most unusual of the biggest", quietly dropping every
+// genuinely unusual mid-cap — a plausible list that is not the one its column
+// header claims.
+//
+// Each panel filters by direction independently, so you can hold "heaviest, but
+// only what was sold" next to "most unusual, but only what was bought" — which
+// is the comparison a single shared filter would take away.
 import { useMemo, useState } from "react";
 
 const n2 = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : (+v).toFixed(dp));
@@ -72,14 +76,15 @@ function FlowBar({ upShare }) {
   );
 }
 
-/* Each sort names the list it selects and says what that list is for; the panel
-   prints this, so the explanation cannot drift from the ranking that runs. */
-const SORTS = [
-  { id: "dv", label: "Dollar volume", key: "heavy", col: "Dollar volume", alt: "× normal",
-    desc: "who moved the index",
+/* Each panel carries its own heading, columns and explanation on the same object
+   as the ranking it draws, so the prose under a table cannot drift from the list
+   above it. */
+const PANELS = [
+  { id: "dv", key: "heavy", title: "Heaviest dollar volume", desc: "who moved the index",
+    col: "Dollar volume", alt: "× normal",
     why: "Price × shares, this session — the names the index's move is actually made of. Expect the mega-caps: that is the point, not a flaw. When the top of this list is red, the index was sold no matter how many small names rose." },
-  { id: "rvol", label: "× normal volume", key: "unusual", col: "× normal volume", alt: "Shares",
-    desc: "where something happened",
+  { id: "rvol", key: "unusual", title: "Unusual volume", desc: "where something happened",
+    col: "× normal volume", alt: "Shares",
     why: "Session volume as a multiple of the name's own 50-day average, so a mid-cap and a mega-cap can be read on one screen. Volume this far above normal is news, an index rebalance, or a report — the drawer says which." },
 ];
 const DIRS = [
@@ -88,11 +93,44 @@ const DIRS = [
   { id: "dn", label: "Declining", test: (r) => r.chg != null && r.chg < 0 },
 ];
 
-function FlowTable({ rows, mode, sortDef, onOpenStock }) {
-  if (!rows || !rows.length) return <p className="vol-empty mono">No names left — every one in this ranking closed the other way.</p>;
-  // scaled against the top of the UNFILTERED ranking, so switching direction
-  // re-ranks the list without silently rescaling every bar under it
-  const max = Math.max(...rows.map((r) => (mode === "rvol" ? (r.rvol || 0) : r.dv)));
+/* One ranking, with its own direction filter. Panel-local state on purpose: a
+   shared filter would forbid the most useful comparison this view offers —
+   heaviest-but-sold beside most-unusual-but-bought. */
+function FlowPanel({ def, rows, flow, onOpenStock }) {
+  const [dir, setDir] = useState("all");
+  const dirDef = DIRS.find((d) => d.id === dir) || DIRS[0];
+  const shown = useMemo(() => (rows || []).filter(dirDef.test), [rows, dirDef]);
+  return (
+    <section className="vol-panel" data-panel={def.id}>
+      <div className="vol-ph">
+        <span className="vol-phk mono">{def.title}</span>
+        <span className="vol-phv mono">{def.desc}</span>
+      </div>
+      <div className="flow-ctl">
+        {DIRS.map((o) => (
+          <button key={o.id} className="seg-btn" data-active={dir === o.id} onClick={() => setDir(o.id)}
+            title={o.id === "all" ? "Every name in this ranking"
+              : `Only names that closed ${o.id === "up" ? "up" : "down"} — where the money on this list actually went`}>
+            {o.label}</button>
+        ))}
+        <span className="flow-ct mono">{shown.length} of {rows ? rows.length : 0}</span>
+      </div>
+      <FlowTable rows={shown} all={rows} mode={def.id} sortDef={def} onOpenStock={onOpenStock} />
+      <p className="vol-note mono">
+        {def.why}
+        {def.id === "rvol" && flow && <> Filtered to names averaging at least {money(flow.liquidFloor)} a day —
+          a thin name doubling its volume is a rounding error dressed as a signal.</>}
+      </p>
+    </section>
+  );
+}
+
+function FlowTable({ rows, all, mode, sortDef, onOpenStock }) {
+  if (!rows || !rows.length) return <p className="vol-empty mono">Every name in this ranking closed the other way.</p>;
+  // scaled against the top of the UNFILTERED ranking, so filtering by direction
+  // shortens the list without silently rescaling every bar left in it
+  const scale = all && all.length ? all : rows;
+  const max = Math.max(...scale.map((r) => (mode === "rvol" ? (r.rvol || 0) : r.dv)));
   return (
     <div className="flow-tbl">
       <div className="flow-row flow-hrow mono">
@@ -157,15 +195,6 @@ function VixYear({ hist, level }) {
 }
 
 export function VolView({ flow, vol, vix, asOf, onOpenStock }) {
-  const [sort, setSort] = useState("dv");
-  const [dir, setDir] = useState("all");
-  const sortDef = SORTS.find((x) => x.id === sort) || SORTS[0];
-  const dirDef = DIRS.find((x) => x.id === dir) || DIRS[0];
-  // the server ranked each list on its own metric; the direction chip filters
-  // within it. `ranked` stays whole so the bars keep a stable scale.
-  const ranked = (flow && flow[sortDef.key]) || [];
-  const shown = useMemo(() => ranked.filter(dirDef.test), [ranked, dirDef]);
-
   const level = vol && vol.level != null ? vol.level : (vix && vix.level != null ? vix.level : null);
   const dayChg = vol && vol.chg != null ? vol.chg : (vix && vix.chg != null ? vix.chg : null);
   const band = bandOf(level);
@@ -239,41 +268,9 @@ export function VolView({ flow, vol, vix, asOf, onOpenStock }) {
           </p>
         </section>
 
-        <section className="vol-panel vol-panel-wide">
-          <div className="vol-ph">
-            <span className="vol-phk mono">Where the money traded · {sortDef.desc}</span>
-            <span className="vol-phv mono">{shown.length} of {ranked.length}{dir !== "all" ? ` ${dirDef.label.toLowerCase()}` : ""}</span>
-          </div>
-
-          <div className="flow-ctl">
-            <span className="minwt-lab">Rank by</span>
-            <div className="seg">
-              {SORTS.map((o) => (
-                <button key={o.id} className="seg-btn" data-active={sort === o.id} onClick={() => setSort(o.id)}
-                  title={`${o.desc} — ${o.why}`}>{o.label}</button>
-              ))}
-            </div>
-            <span className="minwt-lab" style={{ marginLeft: 6 }}>Show</span>
-            <div className="seg">
-              {DIRS.map((o) => (
-                <button key={o.id} className="seg-btn" data-active={dir === o.id} onClick={() => setDir(o.id)}
-                  title={o.id === "all" ? "Every name in this ranking"
-                    : `Only names that closed ${o.id === "up" ? "up" : "down"} — where the money on this list actually went`}>
-                  {o.label}</button>
-              ))}
-            </div>
-          </div>
-
-          <FlowTable rows={shown} mode={sort} sortDef={sortDef} onOpenStock={onOpenStock} />
-
-          <p className="vol-note mono">
-            {sortDef.why}
-            {sort === "rvol" && <> Filtered to names averaging at least {money(flow.liquidFloor)} a day — a thin
-              name doubling its volume is a rounding error dressed as a signal.</>}
-            {" "}Each ranking is the top {ranked.length} of the {flow.n} measured names on <i>that</i> metric,
-            ranked before it reached your browser — switching above changes the list, not just its order.
-          </p>
-        </section>
+        {PANELS.map((def) => (
+          <FlowPanel key={def.id} def={def} rows={flow[def.key]} flow={flow} onOpenStock={onOpenStock} />
+        ))}
 
         <section className="vol-panel vol-panel-wide">
           <div className="vol-ph">

@@ -2091,3 +2091,5 @@ body { background: #0a0b0d; }
 
 /* Volume tab: rank-by / direction controls above the table */
 .flow-ctl { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin: 0 0 14px; }
+/* the filtered/total count sits with the direction chips */
+.flow-ct { margin-left: auto; font-size: 10px; letter-spacing: var(--track-meta); color: var(--dim); }

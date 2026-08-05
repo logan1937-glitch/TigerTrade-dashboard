@@ -64,11 +64,13 @@ const VIEWS = [
   // so the calendar and portfolio shots both exercise it every run
   { id: "calendar",  state: { tt_product: "radar", tt_tab: "calendar", tt_positions: HOLDINGS } },
   { id: "vol",       state: { tt_product: "radar",   tt_tab: "vol" } },
-  // the other branch of the Volume tab: "rank by" swaps to a DIFFERENT server-
-  // ranked list rather than re-ordering the same rows, so it needs its own shot
+  // the Volume tab's filtered branch. The two panels filter INDEPENDENTLY, so
+  // this shoots opposite directions in each — a shared-state regression would
+  // show up as both panels moving together.
   { id: "volsort",   state: { tt_product: "radar",   tt_tab: "vol" }, act: async (p) => {
-      await click(p, "× normal volume");
-      await click(p, "Declining");
+      await p.locator('[data-panel="dv"] button', { hasText: /^Declining/ }).first().click();
+      await p.locator('[data-panel="rvol"] button', { hasText: /^Advancing/ }).first().click();
+      await p.waitForTimeout(400);
     } },
   { id: "screener",  state: { tt_product: "canslim" } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
@@ -192,10 +194,17 @@ function fixture() {
     // the whole reason there are two panels.
     vol: { level: 16.4, chg: -2.1, pct1y: 38, hist: series.map((r) => ({ d: r.d, v: r.v })) },
     flow: (() => {
-      const mk = (t, i, dv, rvol, chg) => ({ tk: t, name: `${t} Corporation`, sector: "Technology",
-        px: 80 + i * 37, chg, dv, vol: Math.round(dv / (80 + i * 37)), rvol, dollarVol: Math.round(dv * 0.8) });
-      const heavy = TK.slice(0, 30).map((t, i) => mk(t, i, (52 - i * 2.1) * 1e9 / 10, +(0.8 + (i % 7) * 0.14).toFixed(2), ((i % 7) - 3) * 0.9));
-      const unusual = TK.slice(6, 36).map((t, i) => mk(t, i + 6, (9 - i * 0.3) * 1e8, +(6.2 - i * 0.22).toFixed(2), ((i % 5) - 2) * 1.4));
+      // price and direction key off the ticker's position in TK, not its rank in
+      // whichever list — a name appearing in both must carry the same figures in
+      // both, or a real inconsistency bug would be invisible against the noise
+      const at = (t) => TK.indexOf(t);
+      const mk = (t, dv, rvol) => {
+        const i = at(t), px = 80 + i * 37;
+        return { tk: t, name: `${t} Corporation`, sector: "Technology", px,
+          chg: ((i % 7) - 3) * 0.9, dv, vol: Math.round(dv / px), rvol, dollarVol: Math.round(dv * 0.8) };
+      };
+      const heavy = TK.slice(0, 30).map((t, i) => mk(t, (52 - i * 2.1) * 1e9 / 10, +(0.8 + (i % 7) * 0.14).toFixed(2)));
+      const unusual = TK.slice(6, 36).map((t, i) => mk(t, (9 - i * 0.3) * 1e8, +(6.2 - i * 0.18).toFixed(2)));
       return { heavy, unusual, n: 41, totDv: 412e9, advDv: 236e9, decDv: 176e9, upShare: 57.3, liquidFloor: 5e6 };
     })(),
   };

@@ -235,11 +235,14 @@ Read the PNGs — page errors are reported inline next to each shot.
 The radar's 4th tab used to be **Catalysts** (internal id `playbook`) — a third
 rendering of the same event set as Radar and Full Timeline. It is now
 **Volume** (`vol`), reading `snap.flow` for the session's dollar-volume ranking
-and `snap.vol` for VIX context. Its "rank by" control **switches which
-server-ranked list is shown** (`flow.heavy` vs `flow.unusual`) rather than
-re-sorting one set of rows — re-sorting a top-30-by-dollar-volume slice on
-relative volume would show "the most unusual of the biggest" and silently drop
-every genuinely unusual mid-cap. The `volsort` shot covers that second branch. It was briefly a VIX term-structure view; that
+and `snap.vol` for VIX context. `flow.heavy` and `flow.unusual` are two
+separate server-side rankings shown side by side, not one set sorted two ways —
+re-ranking a top-30-by-dollar-volume slice on relative volume would show "the
+most unusual of the biggest" and silently drop every genuinely unusual mid-cap.
+Each panel's advance/decline filter is **panel-local state on purpose**: a shared
+one would forbid holding "heaviest, but only what was sold" next to "most
+unusual, but only what was bought". The `volsort` shot sets them to opposite
+directions, so a shared-state regression shows up as both panels moving together. It was briefly a VIX term-structure view; that
 was an options-desk answer to a momentum-trader question — contango is a fact
 with no decision attached unless you trade options — so it now shows where
 capital actually traded. **There is no options flow anywhere in this app and it
