@@ -5,7 +5,7 @@ from the top bar. React 18 + Vite, no framework beyond that, deployed on Vercel
 with serverless functions under `api/`.
 
 1. **Volatility & Momentum Radar** — macro-catalyst surveillance. Views: Radar,
-   Full Timeline, Calendar, Catalysts (internal tab id: `playbook`).
+   Full Timeline, Calendar, Volatility.
 2. **Leadership Screener** — a relative-strength growth screener built on the
    TigerTrade Leadership Model (LEADERS). Views: Screener, Market Map, Market
    Health, Playbook, Portfolio.
@@ -57,10 +57,17 @@ presentational.
 
 - `csData` (`App.jsx`) merges the editorial base, live quotes, EOD signals,
   earnings dates and user-set dates into one row per name. Views never fetch.
-- **`macro`, `vix` and `earnings` are set in exactly one place** — inside the
-  snapshot success branch. If the snapshot answers without them, nothing else
+- **`macro`, `vix`, `vol` and `earnings` are set in exactly one place** — inside
+  the snapshot success branch. If the snapshot answers without them, nothing else
   ever fills them in. This is why a failing FMP quota blanks the macro board,
   the VIX panel *and* the S&P earnings dates simultaneously.
+- **The snapshot is nightly, and it was the app's only quote fetch** — so every
+  price on the page is as-of the last cron. The stock tape is the one exception:
+  it refreshes its own ~14 names every 60s via `/api/yahoo` (never FMP) inside
+  9:25–16:15 ET, holds them in `tapeQ` rather than merging into `live.quotes`,
+  and carries its own clock. That split is deliberate — refreshing 14 of 500
+  rows would leave the screener with two price times and nothing saying which
+  row had which. If you widen the refresh, widen the labelling with it.
 
 **Swing math** (`signals.js` → `sig.swing`, shipped via `compactSig`). Computed
 from the *same* adjusted daily bars the momentum signals already use, so the
@@ -113,7 +120,7 @@ the post-filter one, so they don't move as you stack.
 |---|---|
 | `snapshot.js` | Nightly precompute of the whole universe. Cron: weekdays 22:00 UTC. Serves from Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set — **without it every request recomputes**, which burns the FMP quota fast. Check `"blob"` / `"served"` in its response. **Adding a field to the payload means bumping `SCHEMA`** — Blob serves the stored copy verbatim, so without a bump the new field is simply absent until the next cron, with nothing on screen to explain why. A mismatch recomputes on the first request after deploy. `?refresh=1` forces it by hand. |
 | `earnings.js` | Report dates for names outside the S&P 500. Finnhub (keyed) → Yahoo chart (crumb-free) → Yahoo quoteSummary (crumb) → stale cache. FMP is deliberately absent — verified incapable for these names. |
-| `yahoo.js` | Yahoo chart proxy — quotes + adjusted daily history. |
+| `yahoo.js` | Yahoo chart proxy — quotes + adjusted daily history. Also backs the stock tape's intraday refresh (`range=5d`), so that path costs no FMP quota. |
 | `fmp.js` | Allow-listed FMP proxy; keeps the key server-side. |
 | `claude.js` | Anthropic proxy for the AI features. |
 | `_upstream.js` | Optional residential proxy (`MASSIVE_PROXY_URL`) for the unkeyed, IP-defended Yahoo calls only. |
@@ -163,7 +170,8 @@ Use tokens. Never hard-code a hex — it will be wrong in three of four themes.
 VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 (screener + market health), `charts.jsx`, `marketMap.jsx`, `portfolio.jsx`,
 `views.jsx` (calendar/timeline), `playbook.jsx` (swing-setup split pane),
-`radarScope.jsx`, `catalystTimeline.jsx`, `commandPalette.jsx`, `disclaimer.jsx`.
+`radarScope.jsx`, `volView.jsx` (VIX term structure), `commandPalette.jsx`,
+`disclaimer.jsx`.
 
 ### CSS traps that have already bitten
 
@@ -198,12 +206,15 @@ npm run shots -- --views radar --live                   # against real APIs
 
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
-`catalysts`, `screener`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+`vol`, `screener`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
 Read the PNGs — page errors are reported inline next to each shot.
 
-Note the radar product's 4th tab has the internal id `playbook` but renders (and
-is labelled) **Catalysts**; the screener's Playbook is the swing-setup view. The
-shot ids disambiguate them — don't "fix" that mismatch by renaming one.
+The radar's 4th tab used to be **Catalysts** (internal id `playbook`) — a third
+rendering of the same event set as Radar and Full Timeline. It is now
+**Volatility** (`vol`), reading `snap.vol`. `tt_tab` still holds `"playbook"` on
+any device that last used the old tab, so `App.jsx` migrates that id on mount;
+an unknown id renders nothing at all under the subnav. The screener's Playbook
+is a different view (swing setups) and keeps its name.
 
 By default every `/api/*` call is served from a deterministic fixture in
 `scripts/shots.mjs`, so shots need no keys, no network, and the same commit

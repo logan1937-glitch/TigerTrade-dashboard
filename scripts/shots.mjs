@@ -63,8 +63,7 @@ const VIEWS = [
   // a user-set report date — that combination is the one that has broken before,
   // so the calendar and portfolio shots both exercise it every run
   { id: "calendar",  state: { tt_product: "radar", tt_tab: "calendar", tt_positions: HOLDINGS } },
-  // radar tab id is still "playbook" internally, but it renders (and is labelled) Catalysts
-  { id: "catalysts", state: { tt_product: "radar",   tt_tab: "playbook" } },
+  { id: "vol",       state: { tt_product: "radar",   tt_tab: "vol" } },
   { id: "screener",  state: { tt_product: "canslim" } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
@@ -181,6 +180,21 @@ function fixture() {
       cpi: { v: 3.1, chg: -0.1, asOf: day(-20) },
     },
     vix: { level: 16.4, chg: -2.1, avg50: 15.2, hi52: 34.8, lo52: 11.9, series },
+    // mirrors volSurface() in api/snapshot.js. Deliberately in contango with a
+    // positive risk premium — the ordinary shape, so a shot that comes back
+    // "backwardation" means the reader is broken and not that the fixture is odd.
+    vol: {
+      term: [
+        { k: "9D", note: "9-day implied — the next two weeks", v: 14.1, chg: -3.2 },
+        { k: "30D", note: "30-day implied — the VIX proper", v: 16.4, chg: -2.1 },
+        { k: "3M", note: "3-month implied", v: 18.2, chg: -0.8 },
+        { k: "6M", note: "6-month implied", v: 19.6, chg: -0.4 },
+      ],
+      slope: 10.98, state: "contango", pct1y: 38, vrp: 4.1,
+      realized: [{ k: "10D", v: 11.4 }, { k: "20D", v: 12.3 }, { k: "30D", v: 13.1 }],
+      hist: series.map((r) => ({ d: r.d, v: r.v })),
+      asOf: 1767225600000,
+    },
   };
 }
 

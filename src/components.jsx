@@ -644,7 +644,7 @@ export function StatStrip({ events }) {
 
 /* ------------------------------ SUBNAV ----------------------------- */
 export function SubNav({ tab, setTab, counts }) {
-  const tabs = [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["playbook", "Catalysts"]];
+  const tabs = [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["vol", "Volatility"]];
   return (
     <div className="wrap">
       <div className="subnav">

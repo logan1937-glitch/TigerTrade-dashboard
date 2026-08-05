@@ -31,7 +31,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 4;
+const SCHEMA = 5;
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -369,6 +369,79 @@ async function fmpVix() {
   };
 }
 
+/* ── the volatility surface ────────────────────────────────────────────────
+   Everything the Volatility tab draws, computed here so the client fetches
+   nothing. All of it comes off Yahoo's crumb-free chart endpoint and the SPY
+   bars this run already pulled — deliberately no FMP, because these four index
+   symbols would cost four quota calls a night for data that is free elsewhere.
+
+   The tenors are the CBOE constant-maturity VIX family. Read together they are
+   the market's own term structure: 9-day, 30-day (the VIX proper), 3-month and
+   6-month implied vol on the same index. */
+const VOL_TENORS = [
+  { k: "9D", sym: "^VIX9D", note: "9-day implied — the next two weeks" },
+  { k: "30D", sym: "^VIX", note: "30-day implied — the VIX proper" },
+  { k: "3M", sym: "^VIX3M", note: "3-month implied" },
+  { k: "6M", sym: "^VIX6M", note: "6-month implied" },
+];
+
+// Annualised close-to-close realised volatility over the last `n` sessions.
+// Log returns and the population stdev — the same convention the implied
+// numbers are quoted on, so the two are comparable rather than merely adjacent.
+function realizedVol(closes, n) {
+  if (!closes || closes.length < n + 1) return null;
+  const tail = closes.slice(-(n + 1));
+  const rets = [];
+  for (let i = 1; i < tail.length; i++) {
+    if (!(tail[i] > 0) || !(tail[i - 1] > 0)) return null;
+    rets.push(Math.log(tail[i] / tail[i - 1]));
+  }
+  const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+  const varr = rets.reduce((a, b) => a + (b - mean) ** 2, 0) / rets.length;
+  return +(Math.sqrt(varr) * Math.sqrt(252) * 100).toFixed(2);
+}
+
+async function volSurface(spyRows) {
+  const got = await Promise.all(VOL_TENORS.map(async (t) => {
+    const d = await yahooBars(t.sym);
+    return d && d.quote.price != null ? { ...t, d } : null;
+  }));
+  const live = got.filter(Boolean);
+  const spot = live.find((x) => x.k === "30D");
+  if (!spot) return null;   // without the VIX itself there is no surface to draw
+
+  const term = live.map((x) => ({ k: x.k, note: x.note, v: +(+x.d.quote.price).toFixed(2),
+    chg: x.d.quote.changePercentage != null ? +(+x.d.quote.changePercentage).toFixed(2) : null }));
+
+  // Contango (3M above 30D) is the resting state; backwardation means the near
+  // tenor is bid above the far one, which is what a stressed tape looks like.
+  const v30 = term.find((t) => t.k === "30D").v;
+  const v3m = term.find((t) => t.k === "3M");
+  const slope = v3m && v30 ? +(((v3m.v / v30) - 1) * 100).toFixed(2) : null;
+  const state = slope == null ? null : slope > 2 ? "contango" : slope < -2 ? "backwardation" : "flat";
+
+  // 1 year of VIX closes: the percentile rank, and the series the chart draws.
+  // A level only means something against its own history — "18" is calm in one
+  // regime and elevated in another, and the number alone cannot say which.
+  const vixCloses = spot.d.rows.map((r) => r.close).filter((v) => v > 0);
+  const below = vixCloses.filter((v) => v < v30).length;
+  const pct1y = vixCloses.length >= 60 ? Math.round((below / vixCloses.length) * 100) : null;
+
+  const rv = [10, 20, 30].map((n) => ({ k: `${n}D`, v: realizedVol(spyRows, n) }));
+  const rv20 = rv.find((r) => r.k === "20D");
+  // The volatility risk premium: what options charge for the next 30 days minus
+  // what the index has actually been delivering. Positive is normal — sellers
+  // are paid for carrying the risk. Negative means realised has overtaken it.
+  const vrp = rv20 && rv20.v != null ? +(v30 - rv20.v).toFixed(2) : null;
+
+  return {
+    term, slope, state, pct1y, vrp,
+    realized: rv,
+    hist: spot.d.rows.slice(-252).map((r) => ({ d: r.date, v: +(+r.close).toFixed(2) })),
+    asOf: spot.d.quote.timestamp ? spot.d.quote.timestamp * 1000 : null,
+  };
+}
+
 // unify curated sector labels with the FMP taxonomy so buckets don't split
 const SECTOR_ALIAS = { Financials: "Financial Services", Materials: "Basic Materials" };
 const normSector = (s) => SECTOR_ALIAS[s] || s || "—";
@@ -456,8 +529,10 @@ async function compute() {
   const earnings = await fmpEarnings(Object.keys(quotes));
   const macro = await fmpMacro();
   const vix = await fmpVix();
+  // SPY closes drive realised vol; they are already in hand from the bars pass
+  const vol = await volSurface(spy ? spy.map((r) => r.close) : null);
 
-  return { schema: SCHEMA, generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix };
+  return { schema: SCHEMA, generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix, vol };
 }
 
 export default async function handler(req, res) {

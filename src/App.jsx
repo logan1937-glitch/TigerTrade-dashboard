@@ -8,7 +8,7 @@ import { fetchProfile } from "./profile.js";
 import { WatchCtx, CanslimCtx, AlertCtx, PosCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape, tapePicks } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
-import { CatalystTimeline } from "./catalystTimeline.jsx";
+import { VolView } from "./volView.jsx";
 import { CommandPalette } from "./commandPalette.jsx";
 import { useStored } from "./store.js";
 
@@ -23,6 +23,10 @@ const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grote
 export default function App() {
   const [product, setProduct] = useStored("tt_product", "radar");
   const [tab, setTab] = useStored("tt_tab", "radar");
+  // `playbook` was the retired Catalysts tab's id, and it is sitting in tt_tab on
+  // every device that last used it. Nothing renders for an unknown id, so those
+  // devices would open on a blank page under the subnav until they clicked away.
+  useEffect(() => { if (tab === "playbook") setTab("vol"); }, [tab, setTab]);
   const [mode, setMode] = useStored("tt_mode", "dark");
 
   const [cats, setCats] = useState(() => new Set());
@@ -42,7 +46,8 @@ export default function App() {
   const [changes, setChanges] = useState(null); // day-over-day transitions from the snapshot
   const [earnings, setEarnings] = useState(null); // { TK: { d: ISO date, t: "bmo"|"amc"|null } } — next report per name
   const [macro, setMacro] = useState(null);      // { rates, fx, cpi } — treasury/FX/inflation board on the radar cover
-  const [vix, setVix] = useState(null);          // { level, chg, avg50, hi52, lo52, series } — VIX cover panel
+  const [vix, setVix] = useState(null);         // { level, chg, avg50, hi52, lo52, series } — VIX cover panel
+  const [vol, setVol] = useState(null);         // { term, slope, state, pct1y, vrp, realized, hist } — the Volatility tab
   // Whether the data load has finished, win or lose. macro/vix/earnings only
   // ever arrive with the snapshot; without this the panels cannot tell "still
   // coming" from "never coming" and skeleton forever on a feed that failed.
@@ -491,6 +496,7 @@ export default function App() {
             setEarnings(snap.earnings || null);
             setMacro(snap.macro || null);
             setVix(snap.vix || null);
+            setVol(snap.vol || null);
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
@@ -705,7 +711,7 @@ export default function App() {
 
   const commands = useMemo(() => {
     const cmds = [];
-    [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["playbook", "Catalysts"]]
+    [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["vol", "Volatility"]]
       .forEach(([id, label]) => cmds.push({ id: "tab-" + id, group: "Navigate", label, hint: "View", run: () => { setProduct("radar"); setTab(id); } }));
     cmds.push({ id: "prod-canslim", group: "Navigate", label: "Leadership Screener", hint: "Product", run: () => setProduct("canslim") });
     TT.CATEGORIES.forEach((c) => cmds.push({ id: "cat-" + c.id, group: "Filter", label: "Toggle " + c.label, dot: c.color, run: () => { setProduct("radar"); setTab("radar"); toggleCat(c.id); } }));
@@ -748,7 +754,7 @@ export default function App() {
             {tab === "radar" && <RadarView {...radarProps} />}
             {tab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
             {tab === "calendar" && <CalendarView rows={calErn} onOpenStock={openStock} />}
-            {tab === "playbook" && <CatalystTimeline events={allEvents} onOpen={openEvent} />}
+            {tab === "vol" && <VolView vol={vol} vix={vix} />}
           </>
         ) : (
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
