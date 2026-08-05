@@ -552,6 +552,12 @@ export function compactSig(sig, chgPct, px) {
     rsNewHigh: sig.rsNewHigh, rsLeads: sig.rsLeads,
     adrPct: sig.adrPct, dollarVol: sig.dollarVol, distDays: sig.distDays,
     volD: sig.volD, volAvg50: sig.volAvg50, rvol: sig.rvol, dvD: sig.dvD,
+    // The session's close-to-close change, off the SAME adjusted bars as volD.
+    // Deliberately not the quote's changePercentage: that is a different clock
+    // (a live-ish last price against a prior close) and can round to 0.00 for a
+    // whole universe, which reads on screen as "nothing advanced or declined".
+    // Volume and direction have to describe the same session or the pairing lies.
+    chgD: sig.chgPct != null && Number.isFinite(sig.chgPct) ? +sig.chgPct.toFixed(2) : null,
     pocketPivot: sig.pocketPivot, udVol: sig.udVol, above50: sig.above50, atLow: sig.atLow, asOf: sig.asOf,
     swing: sig.swing,
     ret: periodReturns(sig.closes, chgPct),

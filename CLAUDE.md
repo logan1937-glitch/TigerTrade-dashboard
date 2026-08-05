@@ -17,7 +17,7 @@ npm run dev            # vite dev server
 npm run build          # production build → dist/
 npm test               # both suites
 npm run test:earnings  # 55 assertions against a stubbed Yahoo/Finnhub
-npm run test:swing     # 20 assertions on the ATR/EMA/Launchpad math
+npm run test:swing     # 57 assertions on the ATR/EMA/Launchpad/session-direction math
 npm run shots          # screenshot every view headlessly → shots/
 ```
 
@@ -241,7 +241,11 @@ re-ranking a top-30-by-dollar-volume slice on relative volume would show "the
 most unusual of the biggest" and silently drop every genuinely unusual mid-cap.
 Each panel's advance/decline filter is **panel-local state on purpose**: a shared
 one would forbid holding "heaviest, but only what was sold" next to "most
-unusual, but only what was bought". The `volsort` shot sets them to opposite
+unusual, but only what was bought". Those filters read `sig.chgD` — the session's
+close-to-close change off the **same adjusted bars as `volD`**, never the quote's
+`changePercentage`, which is a different clock and rounded to 0.00 across the
+whole universe once, silently emptying both filters while "All" still showed
+every row. The `volsort` shot sets them to opposite
 directions, so a shared-state regression shows up as both panels moving together. It was briefly a VIX term-structure view; that
 was an options-desk answer to a momentum-trader question — contango is a fact
 with no decision attached unless you trade options — so it now shows where

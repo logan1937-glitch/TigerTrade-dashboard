@@ -100,6 +100,11 @@ function FlowPanel({ def, rows, flow, onOpenStock }) {
   const [dir, setDir] = useState("all");
   const dirDef = DIRS.find((d) => d.id === dir) || DIRS[0];
   const shown = useMemo(() => (rows || []).filter(dirDef.test), [rows, dirDef]);
+  // "no name closed that way" and "the snapshot carried no direction at all" look
+  // identical from an empty list, and only one of them is about the market. The
+  // filter chips are hidden outright when there is nothing to filter on, because
+  // a control that can only ever return nothing is worse than no control.
+  const directed = useMemo(() => (rows || []).filter((r) => r.chg != null).length, [rows]);
   return (
     <section className="vol-panel" data-panel={def.id}>
       <div className="vol-ph">
@@ -107,15 +112,17 @@ function FlowPanel({ def, rows, flow, onOpenStock }) {
         <span className="vol-phv mono">{def.desc}</span>
       </div>
       <div className="flow-ctl">
-        {DIRS.map((o) => (
+        {directed > 0 && DIRS.map((o) => (
           <button key={o.id} className="seg-btn" data-active={dir === o.id} onClick={() => setDir(o.id)}
             title={o.id === "all" ? "Every name in this ranking"
               : `Only names that closed ${o.id === "up" ? "up" : "down"} — where the money on this list actually went`}>
             {o.label}</button>
         ))}
-        <span className="flow-ct mono">{shown.length} of {rows ? rows.length : 0}</span>
+        <span className="flow-ct mono">
+          {directed === 0 ? "no session direction in this snapshot" : `${shown.length} of ${rows.length}`}
+        </span>
       </div>
-      <FlowTable rows={shown} all={rows} mode={def.id} sortDef={def} onOpenStock={onOpenStock} />
+      <FlowTable rows={directed === 0 ? rows : shown} all={rows} mode={def.id} sortDef={def} onOpenStock={onOpenStock} />
       <p className="vol-note mono">
         {def.why}
         {def.id === "rvol" && flow && <> Filtered to names averaging at least {money(flow.liquidFloor)} a day —
@@ -126,7 +133,7 @@ function FlowPanel({ def, rows, flow, onOpenStock }) {
 }
 
 function FlowTable({ rows, all, mode, sortDef, onOpenStock }) {
-  if (!rows || !rows.length) return <p className="vol-empty mono">Every name in this ranking closed the other way.</p>;
+  if (!rows || !rows.length) return <p className="vol-empty mono">No name in this ranking closed that way.</p>;
   // scaled against the top of the UNFILTERED ranking, so filtering by direction
   // shortens the list without silently rescaling every bar left in it
   const scale = all && all.length ? all : rows;

@@ -5,7 +5,8 @@
 //
 //   npm run test:swing
 
-import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT, peakSince } from "../src/signals.js";
+import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT, peakSince,
+  computeSignals, compactSig } from "../src/signals.js";
 
 let pass = 0, fail = 0;
 const eq = (label, got, want) => {
@@ -157,6 +158,36 @@ console.log("\n— peak since entry —");
   near("a 1.5x ATR trail is 6 points wide", t.dist, 6);
   near("against the 95 peak that puts the stop at 89", 95 - t.dist, 89);
   eq("which is ABOVE the 88 last price — already breached", 95 - t.dist > 88, true);
+}
+
+/* ── the session's direction, and where it comes from ────────────────────────
+   The Volume tab's advancing/declining filters read `chgD`. It must be derived
+   from the same adjusted bars as `volD`, NOT from the quote's changePercentage:
+   volume and direction that describe different moments make the pairing a lie,
+   and a quote change that rounds to 0.00 across a universe silently empties both
+   filters while "All" still shows every row — which is exactly how this broke. */
+{
+  console.log("\n— session direction (chgD) —");
+  const series = (closes) => closes.map((c, i) => ({
+    date: `2026-0${1 + Math.floor(i / 28)}-${String((i % 28) + 1).padStart(2, "0")}`,
+    open: c, high: c * 1.01, low: c * 0.99, close: c, volume: 1e6 + i * 1000,
+  }));
+  const up = computeSignals(series([...Array(80)].map((_, i) => 100 + i * 0.5)));
+  near("a rising series closes up on the day", up.chgPct, (139.5 / 139 - 1) * 100);
+  eq("and compactSig ships it as chgD", compactSig(up, null, 139.5).chgD > 0, true);
+
+  const dn = computeSignals(series([...Array(80)].map((_, i) => 200 - i * 0.5)));
+  eq("a falling series ships a negative chgD", compactSig(dn, null, 160.5).chgD < 0, true);
+
+  // the quote is only a fallback, and must not overwrite the bars' own answer —
+  // this is the regression that emptied both filters on the live site
+  const withQuote = compactSig(dn, 0, 160.5);
+  eq("a 0.00 quote change does NOT flatten a falling name", withQuote.chgD < 0, true);
+  eq("a flat series reports exactly 0, not null", compactSig(computeSignals(series(Array(80).fill(50))), null, 50).chgD, 0);
+
+  // the volume fields the same rows feed
+  eq("session volume is the last bar's", up.volD, 1e6 + 79 * 1000);
+  eq("and rvol is that over its own 50-day average", up.rvol > 1, true);
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);

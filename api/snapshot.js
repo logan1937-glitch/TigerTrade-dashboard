@@ -31,7 +31,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 6;
+const SCHEMA = 7;
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -394,7 +394,10 @@ function flowBlock(quotes, sig, meta) {
     rows.push({
       tk: t, name: (meta[t] && meta[t].name) || t, sector: (meta[t] && meta[t].sector) || "—",
       px: +(+q.price).toFixed(2),
-      chg: q.changePercentage != null ? +(+q.changePercentage).toFixed(2) : null,
+      // bars first — see the note on `chgD` in signals.js. The quote is only a
+      // fallback for a record computed before that field existed.
+      chg: g.chgD != null ? g.chgD
+        : (q.changePercentage != null ? +(+q.changePercentage).toFixed(2) : null),
       dv: Math.round(g.dvD), vol: g.volD, rvol: g.rvol,
       dollarVol: g.dollarVol != null ? Math.round(g.dollarVol) : null,
     });
