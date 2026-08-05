@@ -101,6 +101,15 @@ ratcheted past entry (`locked`) are all computed too, and surface in the cell's
 tooltip. Default `ATR_TRAIL_MULT` is 1.5, overridable per book via `tt_pf_atr`.
 No cost basis → `fromEntry` is null, never substituted with the current price.
 
+The Playbook's sizing box divides the risk budget by a distance to a stop, and
+**which stop is a choice, because the two are not interchangeable.** The
+Chandelier is anchored to where the name has *been* — it is the setup's
+invalidation level and can sit *above* price, at which point there is no
+long-side distance and sizing against it is undefined, not conservative. The ATR
+trail is anchored to where the name *is* (`mult × ATR` below the last price), so
+it always has a width and always sizes. Defaulting to one silently would answer
+a different question than the user asked; the picker states both.
+
 `peakSince(bars, entryDate)` gives the high-water mark a trail actually follows.
 A position carries an optional **`entry`** date; when set, `App.jsx` fetches that
 holding's daily bars once per session (`/api/yahoo`, so no FMP quota) and the
@@ -143,8 +152,10 @@ each feature degrades to a stated-unavailable state without its key.
 `tt_product`, `tt_tab`, `tt_mode`, `tt_watch`, `tt_alerts`, `tt_positions`,
 `tt_custom`, `tt_disclaimer_ack_v1`, and the Playbook's `tt_pb_filters`,
 `tt_pb_sort`, `tt_pb_seen` (the explainer auto-opens on the first visit only),
-and `tt_pb_risk` (account size + risk % for sizing), plus the portfolio's
-`tt_pf_atr` (ATR multiple for the trailing stop).
+`tt_pb_risk` (account size + risk % for sizing) and `tt_pb_basis` (which stop
+the sizing box divides by), plus `tt_pf_atr` — the ATR multiple, **shared** by
+the portfolio's trailing-stop column and the Playbook's sizing box on purpose,
+so a position sized in one is monitored on the same number in the other.
 
 ## Design system
 

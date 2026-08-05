@@ -2183,3 +2183,8 @@ body { background: #0a0b0d; }
   .scope { width: min(180px, 34vw); height: min(180px, 34vw); }
   .hero { padding: 10px 0 8px; }
 }
+
+/* Playbook sizing: the stop-basis picker sits inline with the account inputs */
+.pb-size-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--panel) 60%, transparent); border: 1px solid var(--border); }
+.pb-size-seg .seg-btn { padding: 6px 11px; font-size: 10.5px; }

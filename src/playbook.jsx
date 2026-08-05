@@ -15,7 +15,7 @@
 // with no computable metric shows "—" rather than a filled-in guess.
 import { useEffect, useMemo, useState } from "react";
 import { SearchIcon } from "./components.jsx";
-import { launchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf } from "./signals.js";
+import { launchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf, atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
 const px2 = (v) => (v == null ? "—" : `$${(+v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -310,9 +310,13 @@ function HowToRead({ counts, total, onClose }) {
         <li><b>Averages coiled.</b> The 21, 50 and 65-day EMAs converge inside {LAUNCHPAD_MAX_SPREAD}%
           of each other — the <i>EMA Launchpad</i>. Every timeframe agrees on price, so a resolution
           out of it tends to be decisive.</li>
-        <li><b>A level where it fails.</b> The <i>Stop</i> is a Chandelier Exit: the 22-day highest
-          high less 3 × ATR(14). It is arithmetic, not an order, and it defines the risk per share
-          the sizing box on the right divides into.</li>
+        <li><b>A level where it fails.</b> The <i>Stop</i> column is a Chandelier Exit: the 22-day
+          highest high less 3 × ATR(14). It is arithmetic, not an order. The sizing box divides your
+          risk budget by a distance to a stop, and it lets you pick which one — the Chandelier level
+          (where the setup is wrong, and which can sit <i>above</i> price on a name that has already
+          broken it) or an <b>ATR trail</b> set a multiple of ATR(14) below the current price. The
+          trail always has a width, so it sizes a name the Chandelier cannot, and it is the number a
+          broker's trailing-stop field takes.</li>
       </ol>
 
       <div className="pb-help-cols">
@@ -407,7 +411,7 @@ function Detail({ row, onOpenStock }) {
         </p>
       </div>
 
-      <Sizing px={row.px} stop={s.stop} />
+      <Sizing px={row.px} stop={s.stop} atr={s.atr} />
 
       <div className="pb-chart">
         {row.spark && row.spark.length > 1 && row._sparkReal
@@ -423,11 +427,46 @@ function Detail({ row, onOpenStock }) {
 /* Turns the stop into a share count. Pure arithmetic on numbers you enter —
    risk budget ÷ distance to the stop — which is the one step that makes a level
    actionable. It sizes nothing on its own and recommends nothing. */
-function Sizing({ px, stop }) {
+/* Two stops, and they are not interchangeable — which is the whole reason this
+   picks between them rather than quietly choosing one.
+
+   The Chandelier (22-day high − 3·ATR) is anchored to where the name has BEEN.
+   It is the setup's invalidation level, and it can sit above the current price:
+   that means the trail is already breached, and there is then no long-side
+   distance to size against. Sizing off it in that state is not conservative, it
+   is undefined — which is why the box used to just stop.
+
+   The ATR trail is anchored to where the name IS: `mult × ATR(14)` below the
+   current price. It always has a positive width, so it always sizes, and it is
+   the number a broker's trailing-stop field actually takes. The multiple is the
+   same `tt_pf_atr` the portfolio uses, so a book sized here and monitored there
+   agrees with itself. */
+const BASES = [
+  { id: "trail", label: "ATR trail",
+    desc: (m) => `${m}× ATR(14) below the current price — the width you would set on a broker trailing stop`,
+    note: "Sized against a stop that follows price. It has a width whenever ATR does, so this works on a name whose Chandelier level is already breached — but it is a risk figure, not a claim about where the setup fails." },
+  { id: "chand", label: "Chandelier",
+    desc: () => "22-day highest high − 3 × ATR(14) — the level that says the setup stopped working",
+    note: "Sized against the level where the thesis is wrong, which is the stricter read. When it sits above price there is no long-side distance and nothing to size." },
+];
+
+function Sizing({ px, stop, atr }) {
   const [cfg, setCfg] = useStored("tt_pb_risk", { account: 25000, riskPct: 1 });
+  // shared with the portfolio's trailing-stop column on purpose — one ATR
+  // multiple per book, so the size you take here and the stop you watch there
+  // are the same trade
+  const [mult, setMult] = useStored("tt_pf_atr", ATR_TRAIL_MULT);
+  const [basis, setBasis] = useStored("tt_pb_basis", "trail");
+
   const account = +cfg.account || 0;
   const riskPct = +cfg.riskPct || 0;
-  const dist = stop != null && px != null ? px - stop : null;
+  const m = +mult > 0 ? +mult : ATR_TRAIL_MULT;
+  const trail = atrTrail({ px, atr, mult: m });
+
+  const def = BASES.find((b) => b.id === basis) || BASES[0];
+  const dist = def.id === "trail" ? trail.dist : (stop != null && px != null ? px - stop : null);
+  const level = def.id === "trail" ? trail.trail : stop;
+
   const ok = dist != null && dist > 0 && account > 0 && riskPct > 0;
   const budget = ok ? (account * riskPct) / 100 : null;
   const shares = ok ? Math.floor(budget / dist) : null;
@@ -438,7 +477,19 @@ function Sizing({ px, stop }) {
       <div className="pb-ema-h mono">Position sizing
         <span className="pb-ema-sp mono">risk budget ÷ distance to stop</span>
       </div>
+
       <div className="pb-size-in">
+        <span className="pb-size-seg">
+          {BASES.map((b) => (
+            <button key={b.id} className="seg-btn" data-active={basis === b.id} onClick={() => setBasis(b.id)}
+              title={b.desc(m)}>{b.label}</button>
+          ))}
+        </span>
+        {def.id === "trail" && (
+          <label className="pb-size-lab mono">×ATR
+            <input className="pb-size-f mono" style={{ width: 62 }} type="number" min="0.25" step="0.25" value={mult}
+              onChange={(e) => setMult(e.target.value)} aria-label="ATR multiple for the trailing stop" /></label>
+        )}
         <label className="pb-size-lab mono">Account
           <input className="pb-size-f mono" type="number" min="0" step="1000" value={cfg.account}
             onChange={(e) => setCfg((c) => ({ ...c, account: e.target.value }))} aria-label="Account size" /></label>
@@ -446,14 +497,25 @@ function Sizing({ px, stop }) {
           <input className="pb-size-f mono" type="number" min="0" step="0.25" value={cfg.riskPct}
             onChange={(e) => setCfg((c) => ({ ...c, riskPct: e.target.value }))} aria-label="Risk percent per trade" /></label>
       </div>
+
       {ok ? (
         <>
           <div className="pb-size-out">
-            <Tile k="Risk / share" v={px2(dist)} s={`${((dist / px) * 100).toFixed(1)}% of price`} />
-            <Tile k="Risk budget" v={usd(budget)} s={`${riskPct}% of ${usd(account)}`} />
+            <Tile k="Risk / share" v={px2(dist)}
+              s={`${((dist / px) * 100).toFixed(1)}% of price`}
+              title={def.desc(m)} />
+            <Tile k="Stop level" v={px2(level)}
+              s={def.id === "trail" ? `${m}× ATR under ${px2(px)}` : "22-day high − 3 × ATR"}
+              title={def.id === "trail"
+                ? "Where the trail sits right now. It ratchets up as price rises — a broker applies the width to the running peak, not to your entry."
+                : "The Chandelier level. Arithmetic, not an order."} />
             <Tile k="Shares" v={shares ? shares.toLocaleString() : "0"} s="rounded down" />
             <Tile k="Position" v={usd(value)} s={value ? `${((value / account) * 100).toFixed(0)}% of account` : "—"} />
           </div>
+          <p className="pb-note mono">
+            Risking <b>{usd(budget)}</b> ({riskPct}% of {usd(account)}) at <b>{px2(dist)}</b> a share.
+            {" "}{def.note}
+          </p>
           {value > account && (
             <p className="pb-note mono">That position is larger than the account — this stop is tight
               enough that a {riskPct}% risk implies more shares than you can hold unlevered.</p>
@@ -461,9 +523,13 @@ function Sizing({ px, stop }) {
         </>
       ) : (
         <p className="pb-note mono">
-          {dist != null && dist <= 0
-            ? "The trailing stop sits above price — it is already breached, so there is no long-side risk distance to size against."
-            : "Enter an account size and a risk percentage to size this against the stop."}
+          {def.id === "chand" && dist != null && dist <= 0
+            ? <>The Chandelier level sits above price — already breached, so there is no long-side distance
+              to size against. Switch to <b>ATR trail</b> to size on a stop measured down from the current
+              price instead.</>
+            : def.id === "trail" && trail.dist == null
+              ? "No ATR for this name yet, so a trailing width cannot be measured."
+              : "Enter an account size and a risk percentage to size this against the stop."}
         </p>
       )}
     </div>
