@@ -2012,9 +2012,54 @@ body { background: #0a0b0d; }
 .vol-empty { font-size: 11px; line-height: 1.6; color: var(--dim); margin: 0; }
 .vol-foot { font-size: 10px; line-height: 1.6; color: var(--dim); margin: 18px 2px 0; max-width: 96ch; }
 
-.vol-curve { width: 100%; height: 150px; display: block; }
-.vol-cv { font-family: var(--font-mono); font-size: 10px; font-weight: 700; fill: var(--text); }
-.vol-ck { font-family: var(--font-mono); font-size: 9px; letter-spacing: var(--track-label); fill: var(--dim); }
+/* the session's dollar volume, split by direction */
+.flow-bar-wrap { margin: 2px 0 0; }
+.flow-bar { display: flex; height: 22px; border-radius: var(--radius-sm); overflow: hidden;
+  border: 1px solid var(--border-2); }
+.flow-up { background: color-mix(in oklch, var(--cat-growth) 68%, transparent); }
+.flow-dn { background: color-mix(in oklch, var(--sev-extreme) 62%, transparent); }
+.flow-bar-lg { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 9px;
+  font-size: 11px; color: var(--muted); }
+.flow-bar-lg [data-side="up"] b { color: var(--cat-growth); }
+.flow-bar-lg [data-side="dn"] b { color: var(--sev-extreme); }
+.flow-lean { font-size: 9.5px; font-weight: 700; letter-spacing: var(--track-label); text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border-2); color: var(--muted); }
+.flow-lean[data-lean="accumulation"] { color: var(--cat-growth); border-color: color-mix(in oklch, var(--cat-growth) 42%, var(--border)); }
+.flow-lean[data-lean="distribution"] { color: var(--sev-extreme); border-color: color-mix(in oklch, var(--sev-extreme) 42%, var(--border)); }
+
+/* the two ranked lists */
+.flow-tbl { display: flex; flex-direction: column; }
+.flow-row { display: grid; grid-template-columns: minmax(96px, 1.1fr) 62px minmax(120px, 1.7fr) 66px;
+  align-items: center; gap: 12px; padding: 8px 2px; }
+.flow-hrow { padding-bottom: 9px; border-bottom: 1px solid var(--border-2); }
+.flow-hrow span { font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: var(--track-label);
+  text-transform: uppercase; color: var(--dim); }
+.flow-drow { border-bottom: 1px solid var(--border); cursor: pointer; border-radius: var(--radius-sm);
+  transition: background .13s ease; }
+.flow-drow:last-child { border-bottom: 0; }
+.flow-drow:hover, .flow-drow:focus-visible { outline: none; background: color-mix(in oklch, var(--surface) 62%, transparent); }
+.flow-tk { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.flow-tk .cs-sym { font-size: 13.5px; }
+.flow-tk .cs-name { font-size: 10.5px; }
+.flow-chg { font-size: 12px; font-weight: 600; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.flow-chg[data-up="true"] { color: var(--cat-growth); }
+.flow-chg[data-up="false"] { color: var(--sev-extreme); }
+/* the bar carries the DAY'S direction, so the list reads as where money went
+   and not merely how much of it moved */
+.flow-meter { position: relative; height: 20px; display: flex; align-items: center;
+  border-radius: var(--radius-sm); background: color-mix(in oklch, var(--border-2) 38%, transparent); overflow: hidden; }
+.flow-meter-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--muted) 34%, transparent); }
+.flow-meter-fill[data-up="true"] { background: color-mix(in oklch, var(--cat-growth) 30%, transparent); }
+.flow-meter-fill[data-up="false"] { background: color-mix(in oklch, var(--sev-extreme) 28%, transparent); }
+.flow-meter-v { position: relative; font-size: 11px; font-weight: 700; color: var(--text); padding-left: 9px;
+  font-variant-numeric: tabular-nums; }
+.flow-sec { font-size: 11px; text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .flow-row { grid-template-columns: minmax(80px, 1fr) 56px minmax(90px, 1.4fr); }
+  .flow-row > *:nth-child(4) { display: none; }
+}
 
 .vol-histwrap { position: relative; }
 .vol-hist { width: 100%; height: 118px; display: block; }

@@ -276,6 +276,16 @@ export function computeSignals(rows, spyRows) {
   const adrPct = +mean(rows.slice(n - k).map((r) => (r.low > 0 ? (r.high / r.low - 1) * 100 : 0))).toFixed(2);
   const dollarVol = mean(rows.slice(n - k).map((r) => r.close * (r.volume || 0)));
 
+  /* Last session's own volume, and how it compares to this name's normal. The
+     20-day `dollarVol` above is an average — a liquidity filter, not an event.
+     These are the event: `rvol` is the multiple of normal that traded, which is
+     the only way a $2B mid-cap and a $60B mega-cap can be read on one screen.
+     A mega-cap always tops an absolute-volume list; 4× normal is the news. */
+  const volD = vols[n - 1] || null;
+  const volAvg50 = n > 50 ? mean(vols.slice(n - 51, n - 1)) : (n > 5 ? mean(vols.slice(0, n - 1)) : null);
+  const rvol = volD && volAvg50 > 0 ? +(volD / volAvg50).toFixed(2) : null;
+  const dvD = volD ? closes[n - 1] * volD : null;
+
   // distribution days (down ≥0.2% on higher volume than prior day) in last 25
   let distDays = 0;
   for (let i = Math.max(1, n - 25); i < n; i++) {
@@ -320,6 +330,7 @@ export function computeSignals(rows, spyRows) {
     rsLine, rsNewHigh, rsLeads,
     stage, stageLabel: stage ? STAGE_LABEL[stage] : "—",
     adrPct, dollarVol,
+    volD, volAvg50: volAvg50 != null ? Math.round(volAvg50) : null, rvol, dvD,
     distDays, pocketPivot, udVol,
     above50, atLow,
     swing: swingMetrics(highs, lows, closes, last),
@@ -540,6 +551,7 @@ export function compactSig(sig, chgPct, px) {
     off52: sig.off52, atHigh: sig.atHigh, ret12m: sig.ret12m,
     rsNewHigh: sig.rsNewHigh, rsLeads: sig.rsLeads,
     adrPct: sig.adrPct, dollarVol: sig.dollarVol, distDays: sig.distDays,
+    volD: sig.volD, volAvg50: sig.volAvg50, rvol: sig.rvol, dvD: sig.dvD,
     pocketPivot: sig.pocketPivot, udVol: sig.udVol, above50: sig.above50, atLow: sig.atLow, asOf: sig.asOf,
     swing: sig.swing,
     ret: periodReturns(sig.closes, chgPct),

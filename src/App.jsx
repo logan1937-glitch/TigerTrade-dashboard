@@ -48,7 +48,8 @@ export default function App() {
   const [earnings, setEarnings] = useState(null); // { TK: { d: ISO date, t: "bmo"|"amc"|null } } — next report per name
   const [macro, setMacro] = useState(null);      // { rates, fx, cpi } — treasury/FX/inflation board on the radar cover
   const [vix, setVix] = useState(null);         // { level, chg, avg50, hi52, lo52, series } — VIX cover panel
-  const [vol, setVol] = useState(null);         // { term, slope, state, pct1y, vrp, realized, hist } — the Volatility tab
+  const [vol, setVol] = useState(null);         // { level, chg, pct1y, hist } — VIX context for the Volume tab
+  const [flow, setFlow] = useState(null);       // { heavy, unusual, upShare, totDv } — the session's volume
   // Whether the data load has finished, win or lose. macro/vix/earnings only
   // ever arrive with the snapshot; without this the panels cannot tell "still
   // coming" from "never coming" and skeleton forever on a feed that failed.
@@ -505,6 +506,7 @@ export default function App() {
             setMacro(snap.macro || null);
             setVix(snap.vix || null);
             setVol(snap.vol || null);
+            setFlow(snap.flow || null);
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
@@ -719,7 +721,7 @@ export default function App() {
 
   const commands = useMemo(() => {
     const cmds = [];
-    [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["vol", "Volatility"]]
+    [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["vol", "Volume"]]
       .forEach(([id, label]) => cmds.push({ id: "tab-" + id, group: "Navigate", label, hint: "View", run: () => { setProduct("radar"); setTab(id); } }));
     cmds.push({ id: "prod-canslim", group: "Navigate", label: "Leadership Screener", hint: "Product", run: () => setProduct("canslim") });
     TT.CATEGORIES.forEach((c) => cmds.push({ id: "cat-" + c.id, group: "Filter", label: "Toggle " + c.label, dot: c.color, run: () => { setProduct("radar"); setTab("radar"); toggleCat(c.id); } }));
@@ -762,7 +764,7 @@ export default function App() {
             {tab === "radar" && <RadarView {...radarProps} />}
             {tab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
             {tab === "calendar" && <CalendarView rows={calErn} onOpenStock={openStock} />}
-            {tab === "vol" && <VolView vol={vol} vix={vix} />}
+            {tab === "vol" && <VolView flow={flow} vol={vol} vix={vix} asOf={live.asOf} onOpenStock={openStock} />}
           </>
         ) : (
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}

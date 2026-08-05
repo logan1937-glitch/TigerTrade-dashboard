@@ -1,71 +1,118 @@
-// ── Volatility ───────────────────────────────────────────────────────────────
-// What the options market is charging for the next six months, against what the
-// index has actually been delivering. Four panels, all reading `snap.vol`, which
-// api/snapshot.js computes nightly off Yahoo's crumb-free chart endpoint and the
-// SPY bars it already pulled — this view costs no FMP quota and fetches nothing.
+// ── Volume & Flow ────────────────────────────────────────────────────────────
+// Where capital actually traded last session, and which way it leaned. The index
+// is a weighted sum, so the names absorbing the most money are the ones setting
+// it — and heavy volume into DECLINING names is distribution, which is what
+// precedes a volatility expansion rather than merely describing one.
 //
-// The discipline is the same as everywhere else: a tenor Yahoo did not answer for
-// is absent from the term structure rather than interpolated, and every derived
-// figure (slope, VRP, percentile) renders "—" when an input is missing. A vol
-// surface with a guessed point on it is worse than one with a gap.
+// NO OPTIONS FLOW. Neither FMP nor Yahoo exposes option chains, put/call ratios
+// or unusual-options activity at any tier this app can reach, so every figure
+// here is share and dollar volume off the same daily bars the rest of the
+// terminal uses. That is stated on the page too — a flow panel with invented
+// options data would be the worst thing this app could ship.
+//
+// Two lists, because they answer different questions. Heaviest dollar volume is
+// "who moved the index" and will always be the mega-caps. Relative volume is
+// "where something happened" — a mid-cap at 4× its own normal is news in a way
+// that a mega-cap's ordinary billion shares is not.
 import { useMemo } from "react";
 
 const n2 = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : (+v).toFixed(dp));
-const sgn = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(+v).toFixed(dp)}`);
+const sgn = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(+v).toFixed(dp)}%`);
+const money = (v) => {
+  if (v == null || Number.isNaN(+v)) return "—";
+  const a = Math.abs(v);
+  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`;
+  if (a >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (a >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${Math.round(v).toLocaleString()}`;
+};
+const shares = (v) => {
+  if (v == null || Number.isNaN(+v)) return "—";
+  if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
+  return String(Math.round(v));
+};
 
-// The VIX regime bands the rest of the terminal already uses, so a level reads
-// the same here as it does on the cover.
+// The VIX bands the rest of the terminal uses, so a level reads the same here
+// as it does on the cover.
 const BANDS = [
-  { max: 15, k: "Low", c: "var(--cat-growth)", note: "complacent — cheap hedges, thin cushion" },
-  { max: 20, k: "Normal", c: "var(--accent)", note: "the resting state of an orderly tape" },
-  { max: 28, k: "Elevated", c: "var(--sev-high)", note: "the market is paying up for protection" },
-  { max: Infinity, k: "Stress", c: "var(--sev-extreme)", note: "dislocation pricing" },
+  { max: 15, k: "Low", c: "var(--cat-growth)" },
+  { max: 20, k: "Normal", c: "var(--accent)" },
+  { max: 28, k: "Elevated", c: "var(--sev-high)" },
+  { max: Infinity, k: "Stress", c: "var(--sev-extreme)" },
 ];
-const bandOf = (v) => (v == null ? { k: "—", c: "var(--muted)", note: "No VIX level" } : BANDS.find((b) => v < b.max));
+const bandOf = (v) => (v == null ? { k: "—", c: "var(--muted)" } : BANDS.find((b) => v < b.max));
 
-/* The term structure. Read left to right it is the market's own forecast: each
-   point is implied vol for a different horizon on the same index. */
-function TermCurve({ term }) {
-  const pts = (term || []).filter((t) => t.v != null);
-  if (pts.length < 2) return <p className="vol-empty mono">Term structure needs at least two tenors; the feed returned {pts.length}.</p>;
-  const W = 520, H = 150, padL = 34, padR = 18, padT = 16, padB = 26;
-  const vs = pts.map((p) => p.v);
-  const lo = Math.min(...vs), hi = Math.max(...vs);
-  // a 1-point spread across the curve is a flat curve — without a floor the
-  // scale would magnify rounding noise into a dramatic slope
-  const span = Math.max(hi - lo, 1.5);
-  const mid = (hi + lo) / 2;
-  const y = (v) => padT + (1 - (v - (mid - span / 2)) / span) * (H - padT - padB);
-  const x = (i) => padL + (i / (pts.length - 1)) * (W - padL - padR);
-  const d = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+/* The session's dollar volume split by direction — one bar, because the whole
+   point is the ratio and two numbers side by side make you do the division. */
+function FlowBar({ upShare }) {
+  if (upShare == null) return <p className="vol-empty mono">No directional split — the session's change figures are missing.</p>;
+  const dn = +(100 - upShare).toFixed(1);
+  const lean = upShare >= 60 ? "accumulation" : upShare <= 40 ? "distribution" : "mixed";
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="vol-curve" role="img" aria-label="VIX term structure">
-      <path d={`${d} L${x(pts.length - 1)},${H - padB} L${padL},${H - padB} Z`} fill="var(--accent)" opacity=".10" />
-      <path d={d} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      {pts.map((p, i) => (
-        <g key={p.k}>
-          <circle cx={x(i)} cy={y(p.v)} r="3.4" fill="var(--accent)" />
-          <text x={x(i)} y={y(p.v) - 9} className="vol-cv" textAnchor="middle">{n2(p.v)}</text>
-          <text x={x(i)} y={H - 8} className="vol-ck" textAnchor="middle">{p.k}</text>
-        </g>
-      ))}
-    </svg>
+    <div className="flow-bar-wrap">
+      <div className="flow-bar" role="img" aria-label={`${upShare}% of dollar volume in advancing names`}>
+        <span className="flow-up" style={{ width: `${upShare}%` }} />
+        <span className="flow-dn" style={{ width: `${dn}%` }} />
+      </div>
+      <div className="flow-bar-lg mono">
+        <span data-side="up"><b>{n2(upShare, 1)}%</b> into advancing</span>
+        <span className="flow-lean" data-lean={lean}>{lean}</span>
+        <span data-side="dn"><b>{n2(dn, 1)}%</b> into declining</span>
+      </div>
+    </div>
   );
 }
 
-/* A year of VIX closes with the current level marked, because a level only means
-   something against its own history — 18 is calm in one regime and elevated in
-   another, and the number by itself cannot tell you which. */
-function HistChart({ hist, level }) {
+function FlowTable({ rows, mode, onOpenStock }) {
+  if (!rows || !rows.length) return <p className="vol-empty mono">Nothing to rank — the snapshot carried no session volume.</p>;
+  const max = Math.max(...rows.map((r) => (mode === "rvol" ? (r.rvol || 0) : r.dv)));
+  return (
+    <div className="flow-tbl">
+      <div className="flow-row flow-hrow mono">
+        <span>Ticker</span>
+        <span style={{ textAlign: "right" }}>Δ</span>
+        <span>{mode === "rvol" ? "× normal volume" : "Dollar volume"}</span>
+        <span style={{ textAlign: "right" }}>{mode === "rvol" ? "Shares" : "× normal"}</span>
+      </div>
+      {rows.map((r) => {
+        const v = mode === "rvol" ? (r.rvol || 0) : r.dv;
+        return (
+          <div className="flow-row flow-drow" key={r.tk} role="button" tabIndex={0}
+            aria-label={`${r.tk} — open full analysis`}
+            onClick={() => onOpenStock && onOpenStock({ tk: r.tk })}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock && onOpenStock({ tk: r.tk }); } }}>
+            <div className="flow-tk"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></div>
+            <div className="flow-chg mono" data-up={r.chg == null ? undefined : r.chg >= 0}>{r.chg == null ? "—" : sgn(r.chg)}</div>
+            {/* the bar is coloured by the DAY'S direction, so the list reads as
+                where money went and not merely how much of it moved */}
+            <div className="flow-meter" title={`${money(r.dv)} traded · ${shares(r.vol)} shares · ${r.rvol != null ? `${r.rvol}× its own average` : "no average to compare"}`}>
+              <span className="flow-meter-fill" data-up={r.chg == null ? undefined : r.chg >= 0}
+                style={{ width: `${max > 0 ? Math.max(2, (v / max) * 100) : 0}%` }} />
+              <span className="flow-meter-v mono">{mode === "rvol" ? `${n2(r.rvol, 1)}×` : money(r.dv)}</span>
+            </div>
+            <div className="flow-sec mono">{mode === "rvol" ? shares(r.vol) : (r.rvol != null ? `${n2(r.rvol, 1)}×` : "—")}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* A year of VIX closes with today marked. Kept from the old surface because it
+   is the one VIX read the cover does not give: a level means nothing on its own,
+   and this is the only panel that says whether 18 is high or low *lately*. */
+function VixYear({ hist, level }) {
   const path = useMemo(() => {
     const v = (hist || []).filter((r) => r.v != null);
     if (v.length < 10) return null;
-    const W = 520, H = 118, padT = 8, padB = 16;
+    const W = 520, H = 96, padT = 7, padB = 13;
     const lo = Math.min(...v.map((r) => r.v)), hi = Math.max(...v.map((r) => r.v));
     const span = hi - lo || 1;
     const y = (x) => padT + (1 - (x - lo) / span) * (H - padT - padB);
-    const d = v.map((r, i) => `${i ? "L" : "M"}${((i / (v.length - 1)) * W).toFixed(1)},${y(r.v).toFixed(1)}`).join(" ");
-    return { W, H, d, lo, hi, yNow: level != null ? y(level) : null };
+    return { W, H, lo, hi, yNow: level != null ? y(level) : null,
+      d: v.map((r, i) => `${i ? "L" : "M"}${((i / (v.length - 1)) * W).toFixed(1)},${y(r.v).toFixed(1)}`).join(" ") };
   }, [hist, level]);
   if (!path) return <p className="vol-empty mono">Not enough VIX history in the snapshot to draw a year.</p>;
   return (
@@ -84,113 +131,105 @@ function HistChart({ hist, level }) {
   );
 }
 
-export function VolView({ vol, vix }) {
-  // the spot level: the snapshot's vol block first, the cover's VIX record as a
-  // fallback so the header still reads when only the FMP path answered
-  const spot = vol && vol.term ? (vol.term.find((t) => t.k === "30D") || {}).v : null;
-  const level = spot != null ? spot : (vix && vix.level != null ? vix.level : null);
-  const chg = vol && vol.term ? (vol.term.find((t) => t.k === "30D") || {}).chg : null;
-  const dayChg = chg != null ? chg : (vix && vix.chg != null ? vix.chg : null);
+export function VolView({ flow, vol, vix, asOf, onOpenStock }) {
+  const level = vol && vol.level != null ? vol.level : (vix && vix.level != null ? vix.level : null);
+  const dayChg = vol && vol.chg != null ? vol.chg : (vix && vix.chg != null ? vix.chg : null);
   const band = bandOf(level);
+  let stamp = "—";
+  try { if (asOf) stamp = new Date(asOf).toLocaleDateString(undefined, { month: "short", day: "numeric" }); } catch {}
 
-  if (!vol && level == null) {
+  if (!flow) {
     return (
       <div className="wrap vol">
         <div className="vol-head">
-          <div className="vol-kicker mono">Volatility surface</div>
+          <div className="vol-kicker mono">Volume &amp; flow</div>
           <p className="vol-sub mono">
-            The volatility feed is unavailable, so nothing here can be drawn. This block is built
-            in the nightly snapshot from Yahoo's index data — if it is missing, that run did not
-            complete or the tenors were denied upstream. Nothing on this page is estimated in
-            its absence.
+            The session's volume block is missing from the snapshot, so nothing here can be drawn.
+            It is computed nightly from the same daily bars the screener uses — if it is absent,
+            that run did not complete. Nothing on this page is estimated in its place.
           </p>
         </div>
       </div>
     );
   }
 
-  const rv20 = vol && vol.realized ? (vol.realized.find((r) => r.k === "20D") || {}).v : null;
-  const stateNote = vol && vol.state === "contango"
-    ? "Far-dated vol is bid above near-dated — the resting shape of an orderly tape. Hedges get more expensive the further out you buy them."
-    : vol && vol.state === "backwardation"
-      ? "Near-dated vol is bid ABOVE far-dated. The market is paying most for protection right now, which is what a stressed tape looks like — and historically it is where vol has been closest to a top rather than a bottom."
-      : vol && vol.state === "flat"
-        ? "The curve is nearly flat — near and far tenors agree on the price of risk. Neither the calm shape nor the stressed one."
-        : "Not enough tenors answered to read the curve's shape.";
-
   return (
     <div className="wrap vol">
       <div className="vol-head">
-        <div className="vol-kicker mono">Volatility surface</div>
+        <div className="vol-kicker mono">Volume &amp; flow · session of {stamp}</div>
         <p className="vol-sub mono">
-          What options cost across four horizons, against what the S&amp;P has actually delivered.
-          Computed nightly from index data — no figure here is interpolated, and a tenor the feed
-          skipped is simply absent from the curve.
+          Where capital actually traded across the S&amp;P 500, and which way it leaned. The index is
+          a weighted sum, so the names taking the most money are the ones setting it — and heavy
+          volume into <i>declining</i> names is distribution, which is what precedes a volatility
+          expansion rather than just describing one.
         </p>
       </div>
 
       <div className="vol-tiles">
+        <div className="vol-tile" title="Total dollar volume across every measured name in the session">
+          <span className="vol-tk mono">Traded</span>
+          <span className="vol-tv">{money(flow.totDv)}</span>
+          <span className="vol-ts mono">across {flow.n} names</span>
+        </div>
+        <div className="vol-tile" title="Share of the session's dollar volume that traded in names closing up">
+          <span className="vol-tk mono">Into advancing</span>
+          <span className="vol-tv" data-up={flow.upShare == null ? undefined : flow.upShare >= 50}>
+            {flow.upShare == null ? "—" : `${n2(flow.upShare, 0)}%`}</span>
+          <span className="vol-ts mono">{money(flow.advDv)} up · {money(flow.decDv)} down</span>
+        </div>
         <div className="vol-tile" title="30-day implied volatility — the VIX itself">
-          <span className="vol-tk mono">VIX · 30-day implied</span>
+          <span className="vol-tk mono">VIX</span>
           <span className="vol-tv" style={{ color: band.c }}>{n2(level)}</span>
           <span className="vol-ts mono" data-up={dayChg == null ? undefined : dayChg <= 0}>
-            {dayChg == null ? "no change figure" : `${sgn(dayChg)}% on the day`}</span>
+            {dayChg == null ? band.k : `${band.k} · ${sgn(dayChg)} on the day`}</span>
         </div>
-        <div className="vol-tile" title={band.note}>
-          <span className="vol-tk mono">Regime</span>
-          <span className="vol-tv" style={{ color: band.c }}>{band.k}</span>
-          <span className="vol-ts mono">{band.note}</span>
-        </div>
-        <div className="vol-tile" title="Share of the last year's closes that sat below today's level">
-          <span className="vol-tk mono">1-year percentile</span>
+        <div className="vol-tile" title="Share of the last year's VIX closes that sat below today's level">
+          <span className="vol-tk mono">VIX vs its year</span>
           <span className="vol-tv">{vol && vol.pct1y != null ? `${vol.pct1y}th` : "—"}</span>
           <span className="vol-ts mono">{vol && vol.pct1y != null
-            ? `higher than ${vol.pct1y}% of the past year's closes` : "needs a year of closes"}</span>
-        </div>
-        <div className="vol-tile" title="30-day implied minus 20-day realised. Positive = options are charging more than the index has been delivering.">
-          <span className="vol-tk mono">Risk premium</span>
-          <span className="vol-tv" data-up={vol && vol.vrp != null ? vol.vrp >= 0 : undefined}>
-            {vol && vol.vrp != null ? sgn(vol.vrp, 1) : "—"}</span>
-          <span className="vol-ts mono">{vol && vol.vrp != null
-            ? (vol.vrp >= 0 ? "implied above realised — sellers paid" : "realised has overtaken implied")
-            : "needs implied and realised"}</span>
+            ? `above ${vol.pct1y}% of the past year` : "needs a year of closes"}</span>
         </div>
       </div>
 
       <div className="vol-grid">
-        <section className="vol-panel">
+        <section className="vol-panel vol-panel-wide">
           <div className="vol-ph">
-            <span className="vol-phk mono">Term structure</span>
-            <span className="vol-phv mono" data-state={vol && vol.state ? vol.state : undefined}>
-              {vol && vol.state ? vol.state : "—"}{vol && vol.slope != null ? ` · 3M ${sgn(vol.slope, 1)}% vs 30D` : ""}</span>
+            <span className="vol-phk mono">Direction of the session's money</span>
+            <span className="vol-phv mono">{money(flow.totDv)} · {flow.n} names</span>
           </div>
-          <TermCurve term={vol && vol.term} />
-          <p className="vol-note mono">{stateNote}</p>
+          <FlowBar upShare={flow.upShare} />
+          <p className="vol-note mono">
+            Dollar volume, split by whether the name closed up or down. This is breadth weighted by
+            money rather than by name count — a hundred small advancers do not outweigh three
+            mega-caps being sold, and the index agrees with the money.
+          </p>
         </section>
 
         <section className="vol-panel">
           <div className="vol-ph">
-            <span className="vol-phk mono">Implied vs realised</span>
-            <span className="vol-phv mono">S&amp;P 500 · close-to-close</span>
+            <span className="vol-phk mono">Heaviest dollar volume</span>
+            <span className="vol-phv mono">who moved the index</span>
           </div>
-          <div className="vol-rv">
-            <div className="vol-rvrow" data-lead="true">
-              <span className="vol-rvk mono">Implied · 30D</span>
-              <span className="vol-rvv mono">{n2(level, 1)}</span>
-            </div>
-            {(vol && vol.realized ? vol.realized : [{ k: "10D" }, { k: "20D" }, { k: "30D" }]).map((r) => (
-              <div className="vol-rvrow" key={r.k}>
-                <span className="vol-rvk mono">Realised · {r.k}</span>
-                <span className="vol-rvv mono">{n2(r.v, 1)}</span>
-              </div>
-            ))}
-          </div>
+          <FlowTable rows={flow.heavy} mode="dv" onOpenStock={onOpenStock} />
           <p className="vol-note mono">
-            Realised is the annualised standard deviation of daily log returns — the same
-            convention implied vol is quoted on, so the two are comparable rather than merely
-            adjacent. {rv20 != null && level != null
-              ? `Options are currently pricing ${n2(level, 1)} against a delivered ${n2(rv20, 1)} over the last month.`
-              : "Both sides are needed before the gap means anything."}
+            Price × shares, this session. These are the names the index's move is actually made of.
+            Expect the mega-caps — that is the point, not a flaw: when the top of this list is red,
+            the index was sold regardless of how many small names rose.
+          </p>
+        </section>
+
+        <section className="vol-panel">
+          <div className="vol-ph">
+            <span className="vol-phk mono">Unusual volume</span>
+            <span className="vol-phv mono">where something happened</span>
+          </div>
+          <FlowTable rows={flow.unusual} mode="rvol" onOpenStock={onOpenStock} />
+          <p className="vol-note mono">
+            Session volume as a multiple of the name's own 50-day average, so a mid-cap and a
+            mega-cap can be read on one screen. Filtered to names averaging at least
+            {" "}{money(flow.liquidFloor)} a day — a thin name doubling its volume is a rounding
+            error dressed as a signal. Volume this far above normal is news, an index rebalance, or
+            a report; the drawer says which.
           </p>
         </section>
 
@@ -199,18 +238,20 @@ export function VolView({ vol, vix }) {
             <span className="vol-phk mono">VIX · past year</span>
             <span className="vol-phv mono">dashed line is today</span>
           </div>
-          <HistChart hist={vol && vol.hist} level={level} />
+          <VixYear hist={vol && vol.hist} level={level} />
           <p className="vol-note mono">
-            A level only means something against its own history: 18 is complacent in one regime
-            and elevated in another, and the number alone cannot say which. The percentile above
-            is this series, counted.
+            A level only means something against its own history: 18 is complacent in one regime and
+            elevated in another, and the number alone cannot say which. The percentile above is this
+            series, counted.
           </p>
         </section>
       </div>
 
       <p className="vol-foot mono">
-        Implied volatility is what the options market charges, not a forecast it stands behind, and
-        the term structure is a price rather than a prediction. Nothing here is a signal to trade.
+        Share and dollar volume only — <b>not options flow</b>. Neither of this app's data sources
+        exposes option chains, put/call ratios or unusual-options activity at any tier it can reach,
+        and a flow panel filled with invented options data would be worse than no panel. Volumes are
+        as of the session named above, from the nightly snapshot. Nothing here is a signal to trade.
       </p>
     </div>
   );

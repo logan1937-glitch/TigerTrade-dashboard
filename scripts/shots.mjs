@@ -180,21 +180,18 @@ function fixture() {
       cpi: { v: 3.1, chg: -0.1, asOf: day(-20) },
     },
     vix: { level: 16.4, chg: -2.1, avg50: 15.2, hi52: 34.8, lo52: 11.9, series },
-    // mirrors volSurface() in api/snapshot.js. Deliberately in contango with a
-    // positive risk premium — the ordinary shape, so a shot that comes back
-    // "backwardation" means the reader is broken and not that the fixture is odd.
-    vol: {
-      term: [
-        { k: "9D", note: "9-day implied — the next two weeks", v: 14.1, chg: -3.2 },
-        { k: "30D", note: "30-day implied — the VIX proper", v: 16.4, chg: -2.1 },
-        { k: "3M", note: "3-month implied", v: 18.2, chg: -0.8 },
-        { k: "6M", note: "6-month implied", v: 19.6, chg: -0.4 },
-      ],
-      slope: 10.98, state: "contango", pct1y: 38, vrp: 4.1,
-      realized: [{ k: "10D", v: 11.4 }, { k: "20D", v: 12.3 }, { k: "30D", v: 13.1 }],
-      hist: series.map((r) => ({ d: r.d, v: r.v })),
-      asOf: 1767225600000,
-    },
+    // mirrors vixContext() + flowBlock() in api/snapshot.js. The two lists are
+    // deliberately DIFFERENT sets: heaviest-dollar-volume is the mega-caps,
+    // unusual-volume is whoever spiked. A fixture where they matched would hide
+    // the whole reason there are two panels.
+    vol: { level: 16.4, chg: -2.1, pct1y: 38, hist: series.map((r) => ({ d: r.d, v: r.v })) },
+    flow: (() => {
+      const mk = (t, i, dv, rvol, chg) => ({ tk: t, name: `${t} Corporation`, sector: "Technology",
+        px: 80 + i * 37, chg, dv, vol: Math.round(dv / (80 + i * 37)), rvol, dollarVol: Math.round(dv * 0.8) });
+      const heavy = TK.slice(0, 20).map((t, i) => mk(t, i, (52 - i * 2.1) * 1e9 / 10, +(0.8 + (i % 7) * 0.14).toFixed(2), ((i % 7) - 3) * 0.9));
+      const unusual = TK.slice(6, 26).map((t, i) => mk(t, i + 6, (9 - i * 0.3) * 1e8, +(6.2 - i * 0.22).toFixed(2), ((i % 5) - 2) * 1.4));
+      return { heavy, unusual, n: 41, totDv: 412e9, advDv: 236e9, decDv: 176e9, upShare: 57.3, liquidFloor: 5e6 };
+    })(),
   };
 }
 

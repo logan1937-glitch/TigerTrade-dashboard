@@ -5,7 +5,7 @@ from the top bar. React 18 + Vite, no framework beyond that, deployed on Vercel
 with serverless functions under `api/`.
 
 1. **Volatility & Momentum Radar** — macro-catalyst surveillance. Views: Radar,
-   Full Timeline, Calendar, Volatility.
+   Full Timeline, Calendar, Volume.
 2. **Leadership Screener** — a relative-strength growth screener built on the
    TigerTrade Leadership Model (LEADERS). Views: Screener, Market Map, Market
    Health, Playbook, Portfolio.
@@ -180,7 +180,7 @@ Use tokens. Never hard-code a hex — it will be wrong in three of four themes.
 VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 (screener + market health), `charts.jsx`, `marketMap.jsx`, `portfolio.jsx`,
 `views.jsx` (calendar/timeline), `playbook.jsx` (swing-setup split pane),
-`radarScope.jsx`, `volView.jsx` (VIX term structure), `commandPalette.jsx`,
+`radarScope.jsx`, `volView.jsx` (volume & flow), `commandPalette.jsx`,
 `disclaimer.jsx`.
 
 ### CSS traps that have already bitten
@@ -234,7 +234,14 @@ Read the PNGs — page errors are reported inline next to each shot.
 
 The radar's 4th tab used to be **Catalysts** (internal id `playbook`) — a third
 rendering of the same event set as Radar and Full Timeline. It is now
-**Volatility** (`vol`), reading `snap.vol`. `tt_tab` still holds `"playbook"` on
+**Volume** (`vol`), reading `snap.flow` for the session's dollar-volume ranking
+and `snap.vol` for VIX context. It was briefly a VIX term-structure view; that
+was an options-desk answer to a momentum-trader question — contango is a fact
+with no decision attached unless you trade options — so it now shows where
+capital actually traded. **There is no options flow anywhere in this app and it
+is not an oversight:** neither FMP nor Yahoo exposes chains, put/call ratios or
+unusual-options activity at any reachable tier, the page says so, and inventing
+it would be the worst thing this codebase could ship. `tt_tab` still holds `"playbook"` on
 any device that last used the old tab, so `App.jsx` migrates that id on mount;
 an unknown id renders nothing at all under the subnav. The screener's Playbook
 is a different view (swing setups) and keeps its name.
