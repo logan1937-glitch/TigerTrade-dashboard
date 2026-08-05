@@ -1731,11 +1731,14 @@ body { background: #0a0b0d; }
   }
   .tt-disclaimer-bar { bottom: calc(52px + env(safe-area-inset-bottom)) !important; }
   .disc-extra { display: none; }
-  .eventlist, .cs-table, .mh, .pb, .tl, .cal-grid, .mm, .ctl, .pf-panels { padding-bottom: 124px !important; }
+  /* Clearance for the tab bar AND the disclaimer bar, reserved once on the app
+     shell rather than per-container. The old per-class list ("eventlist, cs-table,
+     mh, pb, tl, …") had to be extended every time a view gained a trailing block,
+     and whichever one was forgotten had its last rows sitting under the legal bar
+     — which is how the screener's ticker-add row ended up unreachable. */
+  .app { padding-bottom: calc(52px + 34px + env(safe-area-inset-bottom)); }
   .mm-tiles { grid-template-columns: repeat(2, 1fr); }
-  .seg-btn { padding: 8px 12px; }
   .star { width: 32px; height: 32px; }
-  .linkbtn, .subtab { padding-top: 11px; padding-bottom: 11px; }
 }
 
 /* ============================ MOBILE / iOS ============================ */
@@ -2093,3 +2096,90 @@ body { background: #0a0b0d; }
 .flow-ctl { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin: 0 0 14px; }
 /* the filtered/total count sits with the direction chips */
 .flow-ct { margin-left: auto; font-size: 10px; letter-spacing: var(--track-meta); color: var(--dim); }
+
+/* ============================ MOBILE POLISH ============================
+   Phone-only. Everything here is scoped to ≤640px and changes nothing on a
+   desktop, so the two layouts can be tuned independently. */
+@media (max-width: 640px) {
+  /* ── the top bar owns nothing the bottom bar already owns ──────────────
+     Radar/Screener, Search and Watch all live in the fixed tab bar. Keeping
+     duplicates up here cost the pills their width — the product switcher was
+     rendering as a clipped "VOL…" you could neither read nor reliably hit, and
+     it was the second copy of a control that already works. */
+  .nav-pills, .cmdk-btn, .watch-btn { display: none; }
+  .topbar { gap: 12px; }
+  .brand .brand-tx { display: flex; }        /* room for the wordmark again */
+  .topbar-spacer { flex: 1; }
+  /* the 940px rule hid the clock to make room for the pills; with those gone it
+     fits, and "LIVE" with no time attached is a claim rather than a reading */
+  .live-clk { display: block; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+  /* The legal bar is fixed, so it floats over whatever is beneath it. At 88%
+     opacity that meant macro rows and table rows reading THROUGH the text.
+     Opaque on a phone; !important because the base is an inline style. */
+  .tt-disclaimer-bar { background: var(--bg) !important; padding: 6px 12px !important; }
+
+  /* ── touch feel ────────────────────────────────────────────────────────
+     `touch-action: manipulation` drops the double-tap-zoom wait, which is what
+     makes taps feel ~300ms behind on a phone. The grey flash is replaced with a
+     press state we control, so a tap reads as landing rather than as a bug. */
+  button, .seg-btn, .navpill, .subtab, .linkbtn, [role="button"] {
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  button:active, .seg-btn:active, .subtab:active, [role="button"]:active { opacity: .72; }
+  /* 40px is the smallest a control should be under a thumb; these all sat
+     between 28 and 34 because they were sized for a mouse */
+  .seg-btn { padding: 10px 14px; min-height: 40px; }
+  .linkbtn, .subtab { padding-top: 12px; padding-bottom: 12px; }
+  .topbar button { min-width: 40px; min-height: 40px; }
+  .flow-ctl .seg-btn, .pb-fchip { min-height: 40px; }
+
+  /* one scroll surface: stop the page rubber-banding the whole document when an
+     inner list reaches its end */
+  html, body { overscroll-behavior-y: none; }
+
+  /* ── cost ──────────────────────────────────────────────────────────────
+     Two stacked backdrop-filters over a full-width blur are the most expensive
+     thing on this page, and on a phone they are what makes scrolling stutter.
+     Halved, and the grain overlay — a fixed full-screen blended layer for a 3%
+     texture — is not worth a repaint on every frame. */
+  .topbar { backdrop-filter: blur(8px) saturate(1.1); }
+  .mobile-tabbar { backdrop-filter: blur(10px) saturate(1.1); }
+  .grain { display: none; }
+  .hero-glow { display: none; }              /* follows a pointer a phone hasn't got */
+
+  /* ── things that were clipping ─────────────────────────────────────────── */
+  /* "TO NEXT EXTREME" ran off the third KPI; the labels wrap rather than the
+     tile growing, so the three stay on one row */
+  .hero-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .hero-kpi { min-width: 0; }
+  .hero-kpi-k { white-space: normal; line-height: 1.25; }
+  .hero-kpi-v { font-size: 22px; }
+  /* a date is one token — breaking "2026-07-08" across two lines reads as two */
+  .statcell .val { white-space: nowrap; font-size: 17px; }
+
+  /* horizontal scrollers get an edge fade, so a cut-off tab reads as "more this
+     way" instead of as a layout bug */
+  .subnav, .nav-pills, .filters { -webkit-overflow-scrolling: touch; }
+  .subnav { mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+
+  /* the drawer sits ABOVE the tab bar (z 180 vs 130), so it needs its own home-
+     indicator clearance — the shell's padding is behind it and does nothing here */
+  .dr { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+  /* the drawer is the densest surface on the phone; give its type room */
+  .dr-sym { font-size: 22px; }
+  .dr-px { font-size: 26px; }
+  .dr-actionbar .dr-actions > * { min-height: 44px; }
+
+  /* Volume tab: two panels stack, so their tables get the full width back */
+  .flow-row { grid-template-columns: minmax(88px, 1fr) 58px minmax(96px, 1.5fr); }
+  .flow-row > *:nth-child(4) { display: none; }
+  .vol-tv { font-size: 23px; }
+}
+
+/* A phone in landscape is still a phone: keep the tab bar, but the hero's
+   fixed-height scope would eat the whole viewport. */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  .scope { width: min(180px, 34vw); height: min(180px, 34vw); }
+  .hero { padding: 10px 0 8px; }
+}

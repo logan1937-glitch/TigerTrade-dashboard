@@ -202,6 +202,14 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 - **Mobile breakpoints hide columns.** `.pf-row` / `.cs-row` drop columns below
   880px. Adding a control to a table cell means checking it's still reachable on
   a phone — a control in a hidden column doesn't exist.
+- **On a phone the bottom tab bar owns product/search/watch, and the topbar must
+  not duplicate them.** `.nav-pills`, `.cmdk-btn` and `.watch-btn` are hidden
+  ≤640px — six controls in a 390px bar left the product switcher rendering as a
+  clipped "VOL…". Clearance for the tab bar plus the fixed legal bar is reserved
+  **once on `.app`**, not per view container; the old per-class list had to be
+  extended every time a view gained a trailing block, and whatever was forgotten
+  ended up underneath the legal bar. The drawer is the exception — at z-index 180
+  it covers the tab bar, so it carries its own safe-area padding.
 - **Decorative `overflow: hidden` clips real content.** `.hero` carried one to
   contain `.hero-glow`, which is `inset: 0` and could never overflow anyway —
   what it actually clipped was the InfoDot tooltip on both hero titles, cut off
@@ -222,7 +230,7 @@ Reading a diff cannot tell you whether a CSS change worked. Screenshot it:
 
 ```bash
 npm run build && npm run shots -- --theme both
-npm run shots -- --views drawer,portfolio --width 420   # check the breakpoints
+npm run shots -- --views drawer,portfolio --width 390   # phone (all mobile rules are ≤640px)
 npm run shots -- --views radar --scroll 640             # a section below the fold
 npm run shots -- --views radar --live                   # against real APIs
 ```
