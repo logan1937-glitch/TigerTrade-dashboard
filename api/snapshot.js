@@ -384,7 +384,7 @@ async function fmpVix() {
    `LIQUID_FLOOR` keeps the unusual-volume list honest: a thin name doubling
    its volume is a rounding error dressed as a signal. */
 const LIQUID_FLOOR = 5e6;      // $5M of 20-day average dollar volume
-const FLOW_N = 20;
+const FLOW_N = 30;
 
 function flowBlock(quotes, sig, meta) {
   const rows = [];

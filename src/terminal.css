@@ -2088,3 +2088,6 @@ body { background: #0a0b0d; }
 
 /* Playbook: search + ticker-add, above the filter chips */
 .pb-find { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+
+/* Volume tab: rank-by / direction controls above the table */
+.flow-ctl { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin: 0 0 14px; }

@@ -10,11 +10,18 @@
 // terminal uses. That is stated on the page too — a flow panel with invented
 // options data would be the worst thing this app could ship.
 //
-// Two lists, because they answer different questions. Heaviest dollar volume is
-// "who moved the index" and will always be the mega-caps. Relative volume is
-// "where something happened" — a mid-cap at 4× its own normal is news in a way
-// that a mega-cap's ordinary billion shares is not.
-import { useMemo } from "react";
+// The sort is not a display preference — it changes which ranking you are
+// looking at, and they answer different questions. Dollar volume is "who moved
+// the index" and will always be the mega-caps. Relative volume is "where
+// something happened": a mid-cap at 4× its own normal is news in a way that a
+// mega-cap's ordinary billion shares is not.
+//
+// So each sort switches to a list the SERVER ranked on that metric, rather than
+// re-ordering one fixed set of rows. Re-sorting a top-30-by-dollar-volume slice
+// by relative volume would show "the most unusual of the biggest", quietly
+// dropping every genuinely unusual mid-cap — a plausible list that is not the
+// one the column header claims.
+import { useMemo, useState } from "react";
 
 const n2 = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : (+v).toFixed(dp));
 const sgn = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(+v).toFixed(dp)}%`);
@@ -65,16 +72,34 @@ function FlowBar({ upShare }) {
   );
 }
 
-function FlowTable({ rows, mode, onOpenStock }) {
-  if (!rows || !rows.length) return <p className="vol-empty mono">Nothing to rank — the snapshot carried no session volume.</p>;
+/* Each sort names the list it selects and says what that list is for; the panel
+   prints this, so the explanation cannot drift from the ranking that runs. */
+const SORTS = [
+  { id: "dv", label: "Dollar volume", key: "heavy", col: "Dollar volume", alt: "× normal",
+    desc: "who moved the index",
+    why: "Price × shares, this session — the names the index's move is actually made of. Expect the mega-caps: that is the point, not a flaw. When the top of this list is red, the index was sold no matter how many small names rose." },
+  { id: "rvol", label: "× normal volume", key: "unusual", col: "× normal volume", alt: "Shares",
+    desc: "where something happened",
+    why: "Session volume as a multiple of the name's own 50-day average, so a mid-cap and a mega-cap can be read on one screen. Volume this far above normal is news, an index rebalance, or a report — the drawer says which." },
+];
+const DIRS = [
+  { id: "all", label: "All", test: () => true },
+  { id: "up", label: "Advancing", test: (r) => r.chg != null && r.chg > 0 },
+  { id: "dn", label: "Declining", test: (r) => r.chg != null && r.chg < 0 },
+];
+
+function FlowTable({ rows, mode, sortDef, onOpenStock }) {
+  if (!rows || !rows.length) return <p className="vol-empty mono">No names left — every one in this ranking closed the other way.</p>;
+  // scaled against the top of the UNFILTERED ranking, so switching direction
+  // re-ranks the list without silently rescaling every bar under it
   const max = Math.max(...rows.map((r) => (mode === "rvol" ? (r.rvol || 0) : r.dv)));
   return (
     <div className="flow-tbl">
       <div className="flow-row flow-hrow mono">
         <span>Ticker</span>
         <span style={{ textAlign: "right" }}>Δ</span>
-        <span>{mode === "rvol" ? "× normal volume" : "Dollar volume"}</span>
-        <span style={{ textAlign: "right" }}>{mode === "rvol" ? "Shares" : "× normal"}</span>
+        <span>{sortDef.col}</span>
+        <span style={{ textAlign: "right" }}>{sortDef.alt}</span>
       </div>
       {rows.map((r) => {
         const v = mode === "rvol" ? (r.rvol || 0) : r.dv;
@@ -132,6 +157,15 @@ function VixYear({ hist, level }) {
 }
 
 export function VolView({ flow, vol, vix, asOf, onOpenStock }) {
+  const [sort, setSort] = useState("dv");
+  const [dir, setDir] = useState("all");
+  const sortDef = SORTS.find((x) => x.id === sort) || SORTS[0];
+  const dirDef = DIRS.find((x) => x.id === dir) || DIRS[0];
+  // the server ranked each list on its own metric; the direction chip filters
+  // within it. `ranked` stays whole so the bars keep a stable scale.
+  const ranked = (flow && flow[sortDef.key]) || [];
+  const shown = useMemo(() => ranked.filter(dirDef.test), [ranked, dirDef]);
+
   const level = vol && vol.level != null ? vol.level : (vix && vix.level != null ? vix.level : null);
   const dayChg = vol && vol.chg != null ? vol.chg : (vix && vix.chg != null ? vix.chg : null);
   const band = bandOf(level);
@@ -205,31 +239,39 @@ export function VolView({ flow, vol, vix, asOf, onOpenStock }) {
           </p>
         </section>
 
-        <section className="vol-panel">
+        <section className="vol-panel vol-panel-wide">
           <div className="vol-ph">
-            <span className="vol-phk mono">Heaviest dollar volume</span>
-            <span className="vol-phv mono">who moved the index</span>
+            <span className="vol-phk mono">Where the money traded · {sortDef.desc}</span>
+            <span className="vol-phv mono">{shown.length} of {ranked.length}{dir !== "all" ? ` ${dirDef.label.toLowerCase()}` : ""}</span>
           </div>
-          <FlowTable rows={flow.heavy} mode="dv" onOpenStock={onOpenStock} />
-          <p className="vol-note mono">
-            Price × shares, this session. These are the names the index's move is actually made of.
-            Expect the mega-caps — that is the point, not a flaw: when the top of this list is red,
-            the index was sold regardless of how many small names rose.
-          </p>
-        </section>
 
-        <section className="vol-panel">
-          <div className="vol-ph">
-            <span className="vol-phk mono">Unusual volume</span>
-            <span className="vol-phv mono">where something happened</span>
+          <div className="flow-ctl">
+            <span className="minwt-lab">Rank by</span>
+            <div className="seg">
+              {SORTS.map((o) => (
+                <button key={o.id} className="seg-btn" data-active={sort === o.id} onClick={() => setSort(o.id)}
+                  title={`${o.desc} — ${o.why}`}>{o.label}</button>
+              ))}
+            </div>
+            <span className="minwt-lab" style={{ marginLeft: 6 }}>Show</span>
+            <div className="seg">
+              {DIRS.map((o) => (
+                <button key={o.id} className="seg-btn" data-active={dir === o.id} onClick={() => setDir(o.id)}
+                  title={o.id === "all" ? "Every name in this ranking"
+                    : `Only names that closed ${o.id === "up" ? "up" : "down"} — where the money on this list actually went`}>
+                  {o.label}</button>
+              ))}
+            </div>
           </div>
-          <FlowTable rows={flow.unusual} mode="rvol" onOpenStock={onOpenStock} />
+
+          <FlowTable rows={shown} mode={sort} sortDef={sortDef} onOpenStock={onOpenStock} />
+
           <p className="vol-note mono">
-            Session volume as a multiple of the name's own 50-day average, so a mid-cap and a
-            mega-cap can be read on one screen. Filtered to names averaging at least
-            {" "}{money(flow.liquidFloor)} a day — a thin name doubling its volume is a rounding
-            error dressed as a signal. Volume this far above normal is news, an index rebalance, or
-            a report; the drawer says which.
+            {sortDef.why}
+            {sort === "rvol" && <> Filtered to names averaging at least {money(flow.liquidFloor)} a day — a thin
+              name doubling its volume is a rounding error dressed as a signal.</>}
+            {" "}Each ranking is the top {ranked.length} of the {flow.n} measured names on <i>that</i> metric,
+            ranked before it reached your browser — switching above changes the list, not just its order.
           </p>
         </section>
 

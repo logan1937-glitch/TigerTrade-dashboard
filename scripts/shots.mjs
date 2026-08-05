@@ -64,6 +64,12 @@ const VIEWS = [
   // so the calendar and portfolio shots both exercise it every run
   { id: "calendar",  state: { tt_product: "radar", tt_tab: "calendar", tt_positions: HOLDINGS } },
   { id: "vol",       state: { tt_product: "radar",   tt_tab: "vol" } },
+  // the other branch of the Volume tab: "rank by" swaps to a DIFFERENT server-
+  // ranked list rather than re-ordering the same rows, so it needs its own shot
+  { id: "volsort",   state: { tt_product: "radar",   tt_tab: "vol" }, act: async (p) => {
+      await click(p, "× normal volume");
+      await click(p, "Declining");
+    } },
   { id: "screener",  state: { tt_product: "canslim" } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
@@ -188,8 +194,8 @@ function fixture() {
     flow: (() => {
       const mk = (t, i, dv, rvol, chg) => ({ tk: t, name: `${t} Corporation`, sector: "Technology",
         px: 80 + i * 37, chg, dv, vol: Math.round(dv / (80 + i * 37)), rvol, dollarVol: Math.round(dv * 0.8) });
-      const heavy = TK.slice(0, 20).map((t, i) => mk(t, i, (52 - i * 2.1) * 1e9 / 10, +(0.8 + (i % 7) * 0.14).toFixed(2), ((i % 7) - 3) * 0.9));
-      const unusual = TK.slice(6, 26).map((t, i) => mk(t, i + 6, (9 - i * 0.3) * 1e8, +(6.2 - i * 0.22).toFixed(2), ((i % 5) - 2) * 1.4));
+      const heavy = TK.slice(0, 30).map((t, i) => mk(t, i, (52 - i * 2.1) * 1e9 / 10, +(0.8 + (i % 7) * 0.14).toFixed(2), ((i % 7) - 3) * 0.9));
+      const unusual = TK.slice(6, 36).map((t, i) => mk(t, i + 6, (9 - i * 0.3) * 1e8, +(6.2 - i * 0.22).toFixed(2), ((i % 5) - 2) * 1.4));
       return { heavy, unusual, n: 41, totDv: 412e9, advDv: 236e9, decDv: 176e9, upShare: 57.3, liquidFloor: 5e6 };
     })(),
   };
