@@ -700,7 +700,7 @@ body { background: #0a0b0d; }
   /* Sized to what each cell actually holds; the slack goes to the two columns
      that get *more informative* with width — the trend spark and the RS bar —
      instead of pooling as a void between the ticker and the price. */
-  grid-template-columns: minmax(150px, 0.55fr) 96px 112px minmax(90px, 1.45fr) 178px minmax(100px, 0.5fr) 116px 58px;
+  grid-template-columns: minmax(140px, 0.5fr) 96px 108px minmax(170px, 1.05fr) 104px 178px minmax(96px, 0.45fr) 112px 56px;
   align-items: center; gap: 14px;
 }
 /* sticky below the 58px topbar — with a 500-row list the column labels
@@ -750,10 +750,22 @@ body { background: #0a0b0d; }
   border-radius: 3px; background: color-mix(in oklch, var(--border-2) 80%, transparent); }
 .cs-rs i { position: absolute; left: 0; bottom: 0; height: 3px; z-index: 1; max-width: 100%;
   background: var(--cat-growth); border-radius: 3px; }
-/* Takes the row's slack: it is the one cell that gets more informative with
-   width — at 600px the 1-year line is a chart you can read the shape of, where
-   the ticker and status columns would only have gained padding. */
-.cs-spark { width: 100%; }
+/* Capped: past ~560px the 4-day sampling shows as long straight segments and the
+   line stops looking like the name's real chart, which is the whole point of it. */
+.cs-spark { width: 100%; max-width: 560px; }
+/* depth below the 52-week high */
+.cs-off { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.cs-off-v { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cs-off[data-tier="near"] .cs-off-v { color: var(--cat-growth); }
+.cs-off[data-tier="far"] .cs-off-v { color: var(--sev-extreme); }
+.cs-off-bar { position: relative; width: 100%; height: 3px; border-radius: 3px;
+  background: color-mix(in oklch, var(--border-2) 80%, transparent); }
+/* right-anchored — the bar grows leftward out of the high, so a column of
+   leaders lines up on a clean right edge and a laggard reaches across */
+.cs-off-bar i { position: absolute; right: 0; top: 0; height: 100%; border-radius: 3px;
+  background: color-mix(in oklch, var(--muted) 60%, transparent); }
+.cs-off[data-tier="near"] .cs-off-bar i { background: var(--cat-growth); }
+.cs-off[data-tier="far"] .cs-off-bar i { background: color-mix(in oklch, var(--sev-extreme) 75%, transparent); }
 .mh-ispark .cs-spark { width: 64px; }
 .cs-letters { display: flex; gap: 4px; }
 .cs-let { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; font-family: var(--font-mono);
@@ -787,8 +799,11 @@ body { background: #0a0b0d; }
 @media (max-width: 880px) {
   .cs-head { display: none; }
   .cs-row { grid-template-columns: 1.5fr 1fr 0.7fr; row-gap: 8px; }
+  /* keep ticker, price and score; 3–8 are the analysis columns. Adding a column
+     to the table means extending this list, or the phone silently keeps one it
+     has no room for and the three survivors stop lining up with the header. */
   .cs-row > div:nth-child(3), .cs-row > div:nth-child(4), .cs-row > div:nth-child(5),
-  .cs-row > div:nth-child(6), .cs-row > div:nth-child(7) { display: none; }
+  .cs-row > div:nth-child(6), .cs-row > div:nth-child(7), .cs-row > div:nth-child(8) { display: none; }
 }
 
 /* scrollbar */
@@ -1823,8 +1838,19 @@ body { background: #0a0b0d; }
 .pb-note { font-size: 10.5px; line-height: 1.55; color: var(--dim); margin: 10px 0 0; }
 
 .pb-chart { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.pb-sparkwrap { position: relative; }
 .pb-spark { width: 100%; height: 92px; display: block; }
-.pb-chart-l { display: block; font-size: 9.5px; color: var(--dim); margin-top: 7px; }
+/* price scale, overlaid rather than gridded — two numbers are enough to read the
+   shape as prices, and a full axis would crowd a 92px chart */
+.pb-spark-ax { position: absolute; right: 0; font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: var(--track-meta); color: var(--dim); pointer-events: none;
+  background: color-mix(in oklch, var(--surface) 72%, transparent); padding: 0 3px; border-radius: 3px; }
+.pb-spark-ax[data-at="hi"] { top: 0; }
+.pb-spark-ax[data-at="lo"] { bottom: 0; }
+.pb-spark-stop { position: absolute; left: 0; transform: translateY(-50%); font-size: 9px; font-weight: 700;
+  letter-spacing: var(--track-meta); color: var(--sev-extreme); pointer-events: none;
+  background: color-mix(in oklch, var(--surface) 78%, transparent); padding: 0 4px; border-radius: 3px; }
+.pb-chart-l { display: block; font-size: 9.5px; line-height: 1.5; color: var(--dim); margin-top: 7px; }
 .pb-empty { font-size: 11.5px; line-height: 1.6; color: var(--dim); margin: 0; padding: 18px; }
 .pb-disc { font-size: 10px; line-height: 1.6; color: var(--dim); margin: 18px 2px 0; max-width: 82ch; }
 

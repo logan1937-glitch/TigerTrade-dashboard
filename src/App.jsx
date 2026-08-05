@@ -262,7 +262,9 @@ export default function App() {
     // `rs`/`score` stay the 12-month values every other surface expects.
     const rsMaps = {};
     for (const tf of RANK_TFS) rsMaps[tf] = rsRatings(list, tf);
-    const sampleSpark = (c) => (c && c.length ? c.filter((_, i) => i % Math.max(1, Math.floor(c.length / 8)) === 0) : null);
+    // same resolution as signals.js sampleSpark — a fallback that drew a coarser
+    // line than the snapshot's would make custom names look like different data
+    const sampleSpark = (c) => (c && c.length ? c.filter((_, i) => i % Math.max(1, Math.floor(c.length / 60)) === 0) : null);
 
     list = list.map((r) => {
       if (!r.sig) return r;
@@ -276,7 +278,12 @@ export default function App() {
       const rs = rsBy["1Y"];
       const score = scoreBy["1Y"];
       const grade = score >= 80 ? "a" : score >= 60 ? "b" : "c";
-      const spark = r.sig.spark || sampleSpark(r.sig.closes) || r.spark;
+      // `_buildFull` seeds every curated row with an editorial price curve, and
+      // `_series` draws one of three canned shapes off `status` — so an uncovered
+      // name renders a trend line that is not this company's. Clearing the flag
+      // only when real bars arrived lets the Trend column fall back to `—`.
+      const realSpark = r.sig.spark || sampleSpark(r.sig.closes);
+      const spark = realSpark || r.spark;
       // technical buy point: precomputed on compact snapshot records; derived
       // from full history for custom / live-fallback names
       let status = r.status;
@@ -326,7 +333,8 @@ export default function App() {
         ];
         passCount = breakdown.filter((b) => b.pass === true).length;
       }
-      return { ...r, rs, score, rsBy, scoreBy, grade, spark, status, breakdown, pass: passCount, ...pivotFields };
+      return { ...r, rs, score, rsBy, scoreBy, grade, spark, _synthetic: realSpark ? false : r._synthetic,
+        status, breakdown, pass: passCount, ...pivotFields };
     });
 
     return { list, byTicker: Object.fromEntries(list.map((s) => [s.tk, s])) };

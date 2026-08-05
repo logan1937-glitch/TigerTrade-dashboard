@@ -358,8 +358,10 @@ function Detail({ row, onOpenStock }) {
       <Sizing px={row.px} stop={s.stop} />
 
       <div className="pb-chart">
-        {row.spark && row.spark.length > 1
-          ? <><Sparkline data={row.spark} /><span className="pb-chart-l mono">Daily closes · full interactive chart in the stock drawer</span></>
+        {row.spark && row.spark.length > 1 && !row._synthetic
+          ? <><Sparkline data={row.spark} stop={s.stop} />
+              <span className="pb-chart-l mono">Daily closes · dotted line is the window's open, dashed red the
+                Chandelier stop · full interactive chart in the stock drawer</span></>
           : <span className="pb-chart-l mono">No price series for this name yet.</span>}
       </div>
     </>
@@ -439,20 +441,49 @@ function EmaBar({ row }) {
   );
 }
 
-// enlarged sparkline from the snapshot's sampled closes — real data, coarse by
-// design; the drawer's PriceChart is the full-resolution view
-function Sparkline({ data }) {
-  const n = data.length, W = 560, H = 92;
-  const lo = Math.min(...data), hi = Math.max(...data), span = hi - lo || 1;
+// Enlarged sparkline from the snapshot's sampled closes — real data, coarse by
+// design; the drawer's PriceChart is the full-resolution view. It carries the
+// Chandelier stop because that line is the whole argument of this tab: the shape
+// only means something next to the level where it stops meaning something.
+// A stop further than this below the low would flatten the price action into a
+// band at the top of the box, so past it the line is dropped and the caption
+// says the trail is that far away rather than drawing a misleading chart.
+const STOP_MAX_DROP = 0.35;
+function Sparkline({ data, stop }) {
+  const n = data.length, W = 560, H = 92, padT = 8, padB = 10;
+  const lo0 = Math.min(...data), hi0 = Math.max(...data);
+  // a breached trail sits above price — it belongs on the chart just as much
+  const showStop = stop != null && stop > lo0 * (1 - STOP_MAX_DROP) && stop < hi0 * 1.25;
+  const lo = showStop ? Math.min(lo0, stop) : lo0;
+  const hi = showStop ? Math.max(hi0, stop) : hi0;
+  const span = hi - lo || 1;
   const x = (i) => (i / (n - 1)) * W;
-  const y = (v) => H - 6 - ((v - lo) / span) * (H - 14);
+  const y = (v) => H - padB - ((v - lo) / span) * (H - padT - padB);
   const d = data.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const up = data[n - 1] >= data[0];
+  const c = up ? "var(--cat-growth)" : "var(--sev-extreme)";
+  const fmt = (v) => (v >= 1000 ? v.toFixed(0) : v.toFixed(2));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="pb-spark" role="img" aria-label="price sparkline">
-      <path d={`${d} L${W},${H} L0,${H} Z`} fill={up ? "var(--cat-growth)" : "var(--sev-extreme)"} opacity=".10" />
-      <path d={d} fill="none" stroke={up ? "var(--cat-growth)" : "var(--sev-extreme)"} strokeWidth="2"
-        strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
+    <div className="pb-sparkwrap">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="pb-spark" role="img"
+        aria-label={`price from ${fmt(data[0])} to ${fmt(data[n - 1])}`}>
+        {/* fill to the opening close, not the floor — the shaded area is the move */}
+        <path d={`${d} L${W},${y(data[0])} L0,${y(data[0])} Z`} fill={c} opacity=".11" />
+        <line x1="0" y1={y(data[0])} x2={W} y2={y(data[0])} stroke="var(--border-2)" strokeWidth="1"
+          strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
+        {showStop && (
+          <line x1="0" y1={y(stop)} x2={W} y2={y(stop)} stroke="var(--sev-extreme)" strokeWidth="1.25"
+            strokeDasharray="6 4" opacity=".8" vectorEffect="non-scaling-stroke" />
+        )}
+        <path d={d} fill="none" stroke={c} strokeWidth="2"
+          strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {/* the scale, so the shape is readable as prices instead of a silhouette.
+          A bound the stop set is already labelled by the stop marker — printing
+          the same number twice reads as two different levels. */}
+      {!(showStop && hi === stop) && <span className="pb-spark-ax" data-at="hi">{fmt(hi)}</span>}
+      {!(showStop && lo === stop) && <span className="pb-spark-ax" data-at="lo">{fmt(lo)}</span>}
+      {showStop && <span className="pb-spark-stop mono" style={{ top: `${(y(stop) / H) * 100}%` }}>stop {fmt(stop)}</span>}
+    </div>
   );
 }

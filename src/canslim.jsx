@@ -14,25 +14,60 @@ const fmtAsOf = (ms) => {
   catch { return "—"; }
 };
 
+// The smallest move that gets to fill the box. Without a floor the scale is
+// max-minus-min, so a name that drifted 2% over a year is stretched to the exact
+// same peaks and troughs as one that tripled — the chart draws noise as if it
+// were a trend, and every row ends up looking alike. 8% over the window is a
+// genuinely quiet stock, and it should look quiet.
+const SPARK_MIN_SPAN = 8;
+
 function Spark({ data }) {
-  const w = 64, h = 32, max = Math.max(...data), min = Math.min(...data);
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((v - min) / (max - min || 1)) * (h - 4) - 2;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const area = `0,${h} ${pts} ${w},${h}`;
+  const w = 240, h = 40, pad = 3;
+  const first = data[0], last = data[data.length - 1];
+  if (!first) return <span className="cs-sig-na mono">—</span>;
+  // Everything is measured against the window's opening price, so the vertical
+  // middle is "unchanged" on every row and the rows are comparable to each other.
+  const pcts = data.map((v) => (v / first - 1) * 100);
+  const span = Math.max(SPARK_MIN_SPAN, ...pcts.map(Math.abs));
+  const mid = h / 2, amp = mid - pad;
+  const y = (p) => mid - (p / span) * amp;
+  const pts = pcts.map((p, i) => `${((i / (data.length - 1)) * w).toFixed(1)},${y(p).toFixed(2)}`);
+  const net = (last / first - 1) * 100;
   // polarity follows the window's net direction — a downtrend must not read green
-  const c = data[data.length - 1] >= data[0] ? "var(--cat-growth)" : "var(--sev-extreme)";
-  // Stretches to fill its column so the wide-screen slack becomes a readable
-  // chart instead of dead space. preserveAspectRatio="none" would also scale the
-  // stroke non-uniformly, so the line pins its own width in device pixels.
+  const c = net >= 0 ? "var(--cat-growth)" : "var(--sev-extreme)";
+  // fill to the unchanged line rather than to the floor of the box, so the shaded
+  // area is the gain (or the loss) and not just "there is a line here"
+  const area = `0,${mid} ${pts.join(" ")} ${w},${mid}`;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} height={h} className="cs-spark" preserveAspectRatio="none" style={{ display: "block" }}>
-      <polygon points={area} fill={`color-mix(in oklch, ${c} 14%, transparent)`} />
-      <polyline points={pts} fill="none" stroke={c} strokeWidth="1.6" vectorEffect="non-scaling-stroke"
+    <svg viewBox={`0 0 ${w} ${h}`} height={h} className="cs-spark" preserveAspectRatio="none"
+      role="img" aria-label={`${net >= 0 ? "up" : "down"} ${Math.abs(net).toFixed(1)}% over the window`}>
+      <polygon points={area} fill={`color-mix(in oklch, ${c} 16%, transparent)`} />
+      <line x1="0" y1={mid} x2={w} y2={mid} stroke="var(--border-2)" strokeWidth="1"
+        strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+      <polyline points={pts.join(" ")} fill="none" stroke={c} strokeWidth="1.5" vectorEffect="non-scaling-stroke"
         strokeLinecap="round" strokeLinejoin="round" />
+      {/* the last close, so the eye lands on where the name is now */}
+      <circle cx={w} cy={y(net)} r="2.4" fill={c} vectorEffect="non-scaling-stroke" />
     </svg>
+  );
+}
+
+// Depth below the 52-week high — the metric this whole product turns on, since a
+// leader by definition sits near its own highs. Right-anchored: the bar grows
+// leftward as the name falls away from the high, so a row of leaders reads as a
+// clean right edge and a laggard visibly sticks out.
+const OFF_CAP = 40;   // beyond 40% off the high the exact depth stops mattering
+function OffHigh({ off }) {
+  // always the same element type — the mobile rule hides cells by
+  // `div:nth-child(n)`, and a bare span here would survive into a 3-column layout
+  if (off == null) return <div className="cs-off"><span className="cs-sig-na mono">—</span></div>;
+  const tier = off <= 5 ? "near" : off <= 15 ? "mid" : "far";
+  return (
+    <div className="cs-off" data-tier={tier}
+      title={`${off.toFixed(1)}% below the 52-week high${off <= 5 ? " — within 5%, the leadership band" : ""}`}>
+      <span className="cs-off-v mono">{off < 0.05 ? "at high" : `−${off.toFixed(1)}%`}</span>
+      <span className="cs-off-bar"><i style={{ width: `${Math.min(off, OFF_CAP) / OFF_CAP * 100}%` }} /></span>
+    </div>
   );
 }
 
@@ -213,7 +248,11 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           <Th label="Ticker" k="ticker" />
           <Th label={`Price · Δ${tf}`} k="chg" right />
           <Th label={tf === "1Y" ? "RS" : `RS · ${tf}`} k="rs" />
-          <span>Trend</span>
+          {/* named 1y because it does NOT follow the Δ window — the snapshot ships
+              one series per name, and a column that silently meant something else
+              than its neighbours would be worse than one that says its scope */}
+          <span>Trend · 1y</span>
+          <span>Off high</span>
           <Th label="Leadership" k="pass" />
           <span>Signals</span>
           <Th label="Buy Status" k="status" right />
@@ -227,7 +266,10 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{(r._ret || 0).toFixed(2)}%</span></div>
             <div className="cs-rs mono" title={tf === "1Y" ? "Relative-strength rank over 12 months" : `Relative-strength rank over the selected ${tf} window`}>
               {r._rs != null ? r._rs : "—"}{r._rs != null && <i style={{ width: r._rs + "%" }} />}</div>
-            <div>{r.spark && r.spark.length ? <Spark data={r.spark} /> : <span className="cs-sig-na mono">—</span>}</div>
+            {/* `_synthetic` = the editorial seeded curve, not this company's price */}
+            <div>{r.spark && r.spark.length > 1 && !r._synthetic ? <Spark data={r.spark} />
+              : <span className="cs-sig-na mono" title="No daily history for this name in the latest snapshot">—</span>}</div>
+            <OffHigh off={r.sig ? r.sig.off52 : null} />
             <div className="cs-letters">{r._breakdown && r._breakdown.length ? r._breakdown.map((b, j) => (
               <span key={j} className="cs-let" data-on={b.pass === true} data-na={b.pass == null || undefined} title={`${b.name}${b.pass == null ? " — needs data" : b.pass ? " ✓" : ""}`}>{b.letter}</span>
             )) : <span className="cs-sig-na mono">—</span>}</div>

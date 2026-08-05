@@ -26,6 +26,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
+import { TT } from "../src/tt.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
@@ -90,7 +91,14 @@ const click = async (p, label) => {
    Shaped exactly like /api/snapshot so the client's real merge path runs. */
 const day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 function fixture() {
-  const TK = ["NVDA", "AVGO", "CRDO", "APP", "GEV", "HOOD", "MU", "ANET", "MRVL", "VRT", "NFLX", "AXON"];
+  // The real snapshot covers the S&P 500 union the curated list, so nearly every
+  // screener row arrives with signals. A fixture of 12 unrelated symbols left the
+  // visible rows falling back to tt.js's editorial seeded curves — which made the
+  // shots show the *fallback* while claiming to show the feature.
+  const TK = [...new Set([
+    ...TT.CANSLIM.slice(0, 40).map((s) => s.tk),
+    "NVDA", "AVGO", "CRDO", "APP", "GEV", "HOOD", "MU", "ANET", "MRVL", "VRT", "NFLX", "AXON",
+  ])];
   const quotes = {}, sig = {}, meta = {}, earnings = {};
   TK.forEach((t, i) => {
     const px = 80 + i * 37;
@@ -102,7 +110,18 @@ function fixture() {
       rsNewHigh: i % 3 === 0, rsLeads: i % 5 === 0, adrPct: 2.4, dollarVol: 9e8, distDays: i % 4,
       pocketPivot: i % 6 === 0, udVol: 1 + (i % 5) / 10, above50: true, atLow: false, asOf: day(0),
       ret: { d1: ((i % 7) - 3) * 0.9, w1: (i % 5) + 1, m1: (i % 11) + 2, m3: (i % 23) + 4, y1: 15 + i * 6 },
-      spark: Array.from({ length: 8 }, (_, k) => px * (0.9 + 0.03 * ((k + i) % 5))),
+      // 60 points, matching sampleSpark's real resolution, with a different
+      // trajectory and amplitude per name — an identical shape on every row
+      // would hide exactly the flatness the real chart is meant to reveal
+      spark: (() => {
+        const trend = ((i % 5) - 1.6) * 0.42;             // -0.67%..+1.4% per step
+        const amp = 1.5 + (i % 4) * 2.6;                  // quiet names stay quiet
+        let v = px / (1 + (trend * 60) / 100);
+        return Array.from({ length: 60 }, (_, k) => {
+          v *= 1 + trend / 100;
+          return +(v * (1 + (amp / 100) * Math.sin((k + i * 3) / 3.7))).toFixed(2);
+        });
+      })(),
       pivot: px * 0.96, buyLo: px * 0.96, buyHi: px * 1.01, pctExt: 1.8,
       baseType: "Cup-with-handle", baseWeeks: 11, baseDepth: 24, status: "buy",
       // swing block (Playbook): spread widens across the set so some names sit

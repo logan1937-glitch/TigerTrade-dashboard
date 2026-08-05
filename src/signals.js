@@ -499,8 +499,11 @@ export function periodReturns(closes, chgPct) {
 // tf id ("1D".."1Y") → key on the precomputed returns object
 export const RET_KEY = { "1D": "d1", "1W": "w1", "1M": "m1", "3M": "m3", "1Y": "y1" };
 
-// ~8-point sparkline sampled from daily closes
-export function sampleSpark(closes, pts = 8) {
+// Sparkline sampled from daily closes. 60 points over ~a year is roughly a
+// 4-day bar — coarse enough to stay small in the payload, fine enough that the
+// line has the same shape as the real chart. At the old 8 points every name
+// drew the same three kinks and none of them matched the drawer's chart.
+export function sampleSpark(closes, pts = 60) {
   if (!closes || !closes.length) return null;
   const step = Math.max(1, Math.floor(closes.length / pts));
   const out = closes.filter((_, i) => i % step === 0).map((v) => +(+v).toFixed(2));
