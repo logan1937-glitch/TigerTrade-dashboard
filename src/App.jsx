@@ -50,6 +50,7 @@ export default function App() {
   const [vix, setVix] = useState(null);         // { level, chg, avg50, hi52, lo52, series } — VIX cover panel
   const [vol, setVol] = useState(null);         // { level, chg, pct1y, hist } — VIX context for the Volume tab
   const [flow, setFlow] = useState(null);       // { heavy, unusual, upShare, totDv } — the session's volume
+  const [sectors, setSectors] = useState(null); // { rows: sector ETFs vs SPY, spy } — the Market Map's tracker
   // Whether the data load has finished, win or lose. macro/vix/earnings only
   // ever arrive with the snapshot; without this the panels cannot tell "still
   // coming" from "never coming" and skeleton forever on a feed that failed.
@@ -507,6 +508,7 @@ export default function App() {
             setVix(snap.vix || null);
             setVol(snap.vol || null);
             setFlow(snap.flow || null);
+            setSectors(snap.sectors || null);
             setLive({ status: "live", quotes: snap.quotes, asOf: asOf || (snap.asOf || Date.now()), count: covered.length, total: snap.total || covered.length, source: snap.source || "snapshot" });
             setHist({ rows: {}, sig: snap.sig });
             if (snap.market) setMarket({ ...snap.market, asOf: asOf || snap.asOf || null });
@@ -769,7 +771,7 @@ export default function App() {
         ) : (
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr}
-            posRows={posRows} events={upcoming} vix={vix}
+            posRows={posRows} events={upcoming} vix={vix} sectors={sectors}
             pbFocus={pbFocus} onPbFocused={() => setPbFocus(null)} />
         )}
 

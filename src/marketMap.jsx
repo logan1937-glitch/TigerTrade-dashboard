@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useStored } from "./store.js";
 import { rrgTail, RET_KEY } from "./signals.js";
 import { SearchIcon } from "./components.jsx";
 
@@ -79,6 +80,98 @@ function SectorMap({ rows, tf, onSelectSector }) {
   );
 }
 
+/* -------------------- sector ETF tracker --------------------
+   The tradeable expression of the sector map directly above it. Ranked on
+   EXCESS return over SPY rather than raw return, because every sector is up in
+   an up tape and "+4%" alone says nothing about whether money is rotating in.
+   Both legs come off the same bars in the nightly snapshot, so the subtraction
+   is like-for-like; a window where either leg is missing shows "—" rather than
+   a raw number wearing a relative label.
+
+   A row filters the screener to that sector — the map's tiles already do this,
+   and the ETF is the same bucket with a ticker attached. */
+const ETF_WINDOWS = [
+  { id: "w1", label: "1W" }, { id: "m1", label: "1M" },
+  { id: "m3", label: "3M" }, { id: "y1", label: "1Y" },
+];
+
+function SectorEtfs({ sectors, onSelectSector }) {
+  const [win, setWin] = useStored("tt_mm_etfwin", "m1");
+  const w = ETF_WINDOWS.find((x) => x.id === win) ? win : "m1";
+  const rows = useMemo(() => {
+    const list = [...((sectors && sectors.rows) || [])];
+    // unmeasurable windows sink rather than sorting as if flat
+    return list.sort((a, b) => (b.rel[w] ?? -Infinity) - (a.rel[w] ?? -Infinity));
+  }, [sectors, w]);
+
+  if (!rows.length) {
+    return (
+      <p className="mm-etf-empty mono">
+        Sector ETF data is missing from this snapshot. It is fetched nightly from index
+        data — nothing here is estimated in its absence.
+      </p>
+    );
+  }
+  const spy = sectors.spy ? sectors.spy[w] : null;
+  const span = Math.max(1, ...rows.map((r) => Math.abs(r.rel[w] ?? 0)));
+
+  return (
+    <div className="mm-etf">
+      <div className="mm-etf-ctl">
+        <span className="minwt-lab">vs S&amp;P over</span>
+        <div className="seg">
+          {ETF_WINDOWS.map((o) => (
+            <button key={o.id} className="seg-btn" data-active={w === o.id} onClick={() => setWin(o.id)}
+              title={`Excess return over SPY across ${o.label}`}>{o.label}</button>
+          ))}
+        </div>
+        <span className="mm-etf-spy mono">
+          SPY {spy == null ? "—" : `${spy >= 0 ? "+" : "−"}${Math.abs(spy).toFixed(1)}%`} over {ETF_WINDOWS.find((x) => x.id === w).label}
+        </span>
+      </div>
+
+      <div className="mm-etf-tbl">
+        <div className="mm-etf-row mm-etf-hrow mono">
+          <span>ETF</span><span>Sector</span>
+          <span style={{ textAlign: "right" }}>Last</span>
+          <span style={{ textAlign: "right" }}>Δ day</span>
+          <span>vs S&amp;P</span><span style={{ textAlign: "right" }}>Excess</span>
+          <span style={{ textAlign: "right" }}>Abs</span>
+        </div>
+        {rows.map((r) => {
+          const rel = r.rel[w], abs = r.ret[w];
+          return (
+            <button className="mm-etf-row mm-etf-drow" key={r.tk}
+              onClick={() => onSelectSector && onSelectSector(r.sector)}
+              title={`Screen the ${r.sector} names${rel == null ? "" : ` · ${rel >= 0 ? "leading" : "lagging"} the S&P by ${Math.abs(rel).toFixed(2)}pts`}`}>
+              <span className="mm-etf-tk">{r.tk}</span>
+              <span className="mm-etf-sec">{r.sector}</span>
+              <span className="mm-etf-px mono">{r.px == null ? "—" : `$${r.px.toFixed(2)}`}</span>
+              <span className="mm-etf-chg mono" data-up={r.chg == null ? undefined : r.chg >= 0}>
+                {r.chg == null ? "—" : `${r.chg >= 0 ? "+" : "−"}${Math.abs(r.chg).toFixed(2)}%`}</span>
+              {/* diverging bar from a centre line: leading grows right, lagging left,
+                  so the rotation is a shape rather than a column of signed numbers */}
+              <span className="mm-etf-bar">
+                <i className="mm-etf-zero" />
+                {rel != null && (
+                  <i className="mm-etf-fill" data-up={rel >= 0}
+                    style={{ width: `${(Math.abs(rel) / span) * 50}%`, [rel >= 0 ? "left" : "right"]: "50%" }} />
+                )}
+              </span>
+              {/* its own column, not overlaid on the bar — at full scale the bar
+                  reaches the cell edge and the two collided */}
+              <span className="mm-etf-relv mono" data-up={rel == null ? undefined : rel >= 0}>
+                {rel == null ? "—" : `${rel >= 0 ? "+" : "−"}${Math.abs(rel).toFixed(2)}`}</span>
+              <span className="mm-etf-abs mono" data-up={abs == null ? undefined : abs >= 0}>
+                {abs == null ? "—" : `${abs >= 0 ? "+" : "−"}${Math.abs(abs).toFixed(1)}%`}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* -------------------- industry-group leaders (RS within group) --------------------
    One level finer than the sector map: names bucketed by IBD-style industry
    group, ranked by momentum score inside each group, groups ordered by their
@@ -126,6 +219,9 @@ function IndustryGroups({ rows, onOpenStock }) {
         <span className="ig-search-ic"><SearchIcon /></span>
         <input className="search" placeholder="filter ticker…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter industry-group names" />
       </div>
+      {/* Same treatment as the screener's table: 60+ groups scroll inside the
+          panel so the filter above stays put while you work down the list. */}
+      <div className="ig-scroll">
       {shown.length ? shown.map((g) => (
         <div className="ig-group" key={g.group}>
           <div className="ig-group-head">
@@ -144,6 +240,7 @@ function IndustryGroups({ rows, onOpenStock }) {
           </div>
         </div>
       )) : <div className="empty">No names match “{q}”.</div>}
+      </div>
     </div>
   );
 }
@@ -388,7 +485,7 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
 }
 
 /* ------------------------------ shell ------------------------------ */
-export function MarketMap({ rows, live, onOpenStock, onSelectSector }) {
+export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) {
   const [tf, setTf] = useState("1M");
   const withSig = rows.filter((r) => r.sig).length;
   return (
@@ -404,6 +501,9 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector }) {
           </div>
         </div>
       </div>
+
+      <div className="mm-sec-h"><h3>Sector ETFs</h3><span className="dr-sec-sub mono">excess return over the S&amp;P · tap a row to screen that sector</span></div>
+      <SectorEtfs sectors={sectors} onSelectSector={onSelectSector} />
 
       <div className="mm-sec-h"><h3>Sector momentum</h3><span className="dr-sec-sub mono">median {tf} return · tap a sector to screen it</span></div>
       <SectorMap rows={rows} tf={tf} onSelectSector={onSelectSector} />

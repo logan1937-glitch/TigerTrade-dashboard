@@ -416,7 +416,7 @@ function StageBreadth({ stages }) {
 
 /* ------------------------------ SHELL ------------------------------ */
 export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr,
-  posRows = [], events = [], vix = null, pbFocus = null, onPbFocused }) {
+  posRows = [], events = [], vix = null, sectors = null, pbFocus = null, onPbFocused }) {
   const [tab, setTab] = useState("screener");
   // the drawer's "Open in Playbook" lands here: switch tabs, then let the view
   // consume the ticker and clear it so a later tab visit doesn't re-select it
@@ -491,7 +491,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr}
           sectorF={sectorF} onClearSector={() => setSectorF(null)} changes={changes} />}
         {tab === "map" && <MarketMap rows={rows} live={live} onOpenStock={onOpenStock}
-          onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} />}
+          onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} sectors={sectors} />}
         {tab === "health" && <MarketHealth market={market} />}
         {tab === "playbook" && <PlaybookView rows={rows} onOpenStock={onOpenStock}
           onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr}

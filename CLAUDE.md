@@ -142,6 +142,7 @@ the post-filter one, so they don't move as you stack.
 |---|---|
 | `snapshot.js` | Nightly precompute of the whole universe. Cron: weekdays 22:00 UTC. Serves from Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set — **without it every request recomputes**, which burns the FMP quota fast. Check `"blob"` / `"served"` in its response. **Adding a field to the payload means bumping `SCHEMA`** — Blob serves the stored copy verbatim, so without a bump the new field is simply absent until the next cron, with nothing on screen to explain why. A mismatch recomputes on the first request after deploy. `?refresh=1` forces it by hand. |
 | `earnings.js` | Report dates for names outside the S&P 500. Finnhub (keyed) → Yahoo chart (crumb-free) → Yahoo quoteSummary (crumb) → stale cache. FMP is deliberately absent — verified incapable for these names. |
+| `snapshot.js` also fetches the **11 SPDR sector ETFs** (Yahoo, no FMP quota) for the Market Map's tracker. Its `sector` labels must match what `normSector()` produces, or a row's tap-to-screen filters to a bucket the universe isn't in. |
 | `yahoo.js` | Yahoo chart proxy — quotes + adjusted daily history. Also backs the stock tape's intraday refresh (`range=5d`), so that path costs no FMP quota. |
 | `fmp.js` | Allow-listed FMP proxy; keeps the key server-side. |
 | `claude.js` | Anthropic proxy for the AI features. |
@@ -251,6 +252,11 @@ npm run shots -- --views radar --live                   # against real APIs
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
 `vol`, `volsort`, `screener`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+The fixture gives every name a sector AND an industry from `FIX_SECTORS`, and a
+6-point `rrg` tail. Both were flat for a long time, and the cost was silent: one
+industry meant the group panel rendered a single group, and a missing `rrg` left
+the whole relative-rotation panel on "Waiting for live data…" in every shot ever
+taken. A fixture that under-varies doesn't fail — it just stops testing.
 Read the PNGs — page errors are reported inline next to each shot.
 
 The radar's 4th tab used to be **Catalysts** (internal id `playbook`) — a third

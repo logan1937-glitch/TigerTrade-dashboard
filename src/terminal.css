@@ -2133,3 +2133,68 @@ body { background: #0a0b0d; }
 
 /* no return for the selected window — quiet, and never a green +0.00% */
 .cs-chg[data-na="true"] { color: var(--dim); }
+
+/* ============================ SECTOR ETF TRACKER ============================ */
+.mm-etf { margin-bottom: 4px; }
+.mm-etf-ctl { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 10px; }
+.mm-etf-spy { margin-left: auto; font-size: 10.5px; color: var(--dim); letter-spacing: var(--track-meta); }
+.mm-etf-empty { font-size: 11px; line-height: 1.6; color: var(--dim); margin: 0 0 4px; }
+.mm-etf-tbl {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 55%, transparent), transparent 200px);
+  border: 1px solid var(--border-2); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 14px 34px -28px rgba(0,0,0,0.5);
+}
+.mm-etf-row { display: grid; grid-template-columns: 54px minmax(0, 1.1fr) 84px 72px minmax(130px, 1.5fr) 58px 62px;
+  align-items: center; gap: 12px; padding: 9px 16px; width: 100%; text-align: left; }
+.mm-etf-hrow { padding-top: 11px; padding-bottom: 10px; border-bottom: 1px solid var(--border-2); }
+.mm-etf-hrow span { font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: var(--track-label);
+  text-transform: uppercase; color: var(--dim); }
+.mm-etf-drow { background: none; border: 0; border-bottom: 1px solid var(--border); cursor: pointer;
+  transition: background .13s ease; }
+.mm-etf-drow:last-child { border-bottom: 0; }
+.mm-etf-drow:hover, .mm-etf-drow:focus-visible { outline: none; background: color-mix(in oklch, var(--surface) 62%, transparent); }
+.mm-etf-tk { font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--text); letter-spacing: var(--track-data); }
+.mm-etf-sec { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-etf-px { font-size: 12px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mm-etf-chg, .mm-etf-abs { font-size: 12px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mm-etf-chg[data-up="true"], .mm-etf-abs[data-up="true"] { color: var(--cat-growth); }
+.mm-etf-chg[data-up="false"], .mm-etf-abs[data-up="false"] { color: var(--sev-extreme); }
+/* diverging bar: the centre line is "matching the S&P", so leading grows right
+   and lagging grows left — rotation reads as a shape, not a column of signs */
+.mm-etf-bar { position: relative; height: 20px; display: flex; align-items: center; }
+.mm-etf-zero { position: absolute; left: 50%; top: 2px; bottom: 2px; width: 1px;
+  background: var(--border-2); }
+.mm-etf-fill { position: absolute; top: 5px; bottom: 5px; border-radius: 2px; }
+.mm-etf-fill[data-up="true"] { background: color-mix(in oklch, var(--cat-growth) 55%, transparent); }
+.mm-etf-fill[data-up="false"] { background: color-mix(in oklch, var(--sev-extreme) 50%, transparent); }
+.mm-etf-relv { font-size: 11.5px; font-weight: 700; text-align: right; color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+.mm-etf-relv[data-up="true"] { color: var(--cat-growth); }
+.mm-etf-relv[data-up="false"] { color: var(--sev-extreme); }
+
+/* Industry groups scroll inside their panel, same as the screener's table.
+   The tail below this block is short (it is the last thing on the page), so the
+   height is set from the viewport directly rather than against a measured tail. */
+.ig-scroll { max-height: clamp(360px, calc(100vh - 260px), 1100px); overflow-y: auto;
+  overscroll-behavior: contain; padding-right: 4px;
+  scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+.ig-scroll::-webkit-scrollbar { width: 10px; }
+.ig-scroll::-webkit-scrollbar-track { background: transparent; }
+.ig-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 6px;
+  border: 3px solid transparent; background-clip: content-box; }
+.ig-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+
+@media (max-width: 880px) {
+  /* drop Last and Abs; the excess figure and its bar are the whole point */
+  .mm-etf-row { grid-template-columns: 50px minmax(0, 1fr) 64px minmax(90px, 1.2fr) 56px; }
+  .mm-etf-row > *:nth-child(3), .mm-etf-row > *:nth-child(7) { display: none; }
+}
+@media (max-width: 640px) {
+  /* a scroller inside a scroller is miserable on a touch screen */
+  .ig-scroll { max-height: none; overflow-y: visible; padding-right: 0; }
+  /* the day's tick goes too: with it in, "Communication Services" rendered as
+     "C…" and the sector label is the thing this table is read for */
+  .mm-etf-row { grid-template-columns: 46px minmax(0, 1fr) minmax(74px, 1fr) 52px; }
+  .mm-etf-row > *:nth-child(4) { display: none; }
+  .mm-etf-sec { font-size: 11px; }
+}

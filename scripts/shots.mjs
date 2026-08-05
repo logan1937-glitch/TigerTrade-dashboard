@@ -97,6 +97,15 @@ const click = async (p, label) => {
 /* ── deterministic fixture ───────────────────────────────────────────────
    Shaped exactly like /api/snapshot so the client's real merge path runs. */
 const day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+// [sector, [industry groups]] — mirrors the shape normSector() produces
+const FIX_SECTORS = [
+  ["Technology", ["Semiconductors", "Software - Infrastructure", "Software - Application"]],
+  ["Financial Services", ["Banks - Diversified", "Capital Markets"]],
+  ["Healthcare", ["Biotechnology", "Medical Devices"]],
+  ["Consumer Cyclical", ["Internet Retail", "Restaurants"]],
+  ["Energy", ["Oil & Gas E&P"]],
+  ["Industrials", ["Aerospace & Defense", "Specialty Industrial Machinery"]],
+];
 function fixture() {
   // The real snapshot covers the S&P 500 union the curated list, so nearly every
   // screener row arrives with signals. A fixture of 12 unrelated symbols left the
@@ -110,12 +119,23 @@ function fixture() {
   TK.forEach((t, i) => {
     const px = 80 + i * 37;
     quotes[t] = { price: px, changePercentage: ((i % 7) - 3) * 0.9, timestamp: 1767225600 };
-    meta[t] = { name: `${t} Corporation`, sector: "Technology", industry: "Semiconductors" };
+    // Sector AND industry vary. Every name sharing one industry meant the
+    // industry-group panel rendered a single group, so its scroller — and the
+    // group ordering it exists to make navigable — were never in a shot.
+    const sec = FIX_SECTORS[i % FIX_SECTORS.length];
+    meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][i % sec[1].length] };
     earnings[t] = { d: day(2 + i * 3), t: i % 2 ? "amc" : "bmo", last: null };
     sig[t] = {
       stage: 2, stageLabel: "Advancing", off52: (i % 9) + 1, atHigh: i % 4 === 0, ret12m: 15 + i * 6,
       rsNewHigh: i % 3 === 0, rsLeads: i % 5 === 0, adrPct: 2.4, dollarVol: 9e8, distDays: i % 4,
       pocketPivot: i % 6 === 0, udVol: 1 + (i % 5) / 10, above50: true, atLow: false, asOf: day(0),
+      // the RRG's 6-point tail. Without it `rrgOf` returns null for every row and
+      // the whole rotation panel sat on "Waiting for live data…" in every shot —
+      // a panel the harness has therefore never actually verified.
+      rrg: Array.from({ length: 6 }, (_, k) => ({
+        ratio: +(100 + ((i % 9) - 4) * 1.6 + k * (((i % 5) - 2) * 0.24)).toFixed(2),
+        mom: +(100 + ((i % 7) - 3) * 1.3 + k * (((i % 4) - 1.5) * 0.3)).toFixed(2),
+      })),
       ret: { d1: ((i % 7) - 3) * 0.9, w1: (i % 5) + 1, m1: (i % 11) + 2, m3: (i % 23) + 4, y1: 15 + i * 6 },
       // 60 points, matching sampleSpark's real resolution, with a different
       // trajectory and amplitude per name — an identical shape on every row
@@ -193,6 +213,26 @@ function fixture() {
     // unusual-volume is whoever spiked. A fixture where they matched would hide
     // the whole reason there are two panels.
     vol: { level: 16.4, chg: -2.1, pct1y: 38, hist: series.map((r) => ({ d: r.d, v: r.v })) },
+    // mirrors sectorEtfs() in api/snapshot.js. Spread across leading and lagging
+    // so the diverging bar is exercised in both directions — a fixture where
+    // every sector led would never draw the left half of it.
+    sectors: {
+      spy: { w1: 0.9, m1: 2.4, m3: 5.1, y1: 14.2 },
+      rows: [
+        ["XLK", "Technology", 241.30, 0.82, 6.1], ["XLC", "Communication Services", 108.44, 0.41, 3.4],
+        ["XLF", "Financial Services", 51.02, 0.18, 1.9], ["XLI", "Industrials", 142.77, -0.12, 0.7],
+        ["XLY", "Consumer Cyclical", 214.05, 0.34, 0.2], ["XLV", "Healthcare", 138.61, -0.28, -0.9],
+        ["XLB", "Basic Materials", 92.18, -0.44, -1.6], ["XLE", "Energy", 88.94, -1.12, -2.8],
+        ["XLP", "Consumer Defensive", 79.36, -0.21, -3.5], ["XLU", "Utilities", 76.12, 0.09, -4.2],
+        ["XLRE", "Real Estate", 41.88, -0.63, -5.7],
+      ].map(([tk, sector, px, chg, relM1]) => ({
+        tk, sector, px, chg,
+        ret: { w1: +(0.9 + relM1 / 6).toFixed(2), m1: +(2.4 + relM1).toFixed(2),
+               m3: +(5.1 + relM1 * 1.6).toFixed(2), y1: +(14.2 + relM1 * 2.2).toFixed(2) },
+        rel: { w1: +(relM1 / 6).toFixed(2), m1: relM1,
+               m3: +(relM1 * 1.6).toFixed(2), y1: +(relM1 * 2.2).toFixed(2) },
+      })),
+    },
     flow: (() => {
       // price and direction key off the ticker's position in TK, not its rank in
       // whichever list — a name appearing in both must carry the same figures in

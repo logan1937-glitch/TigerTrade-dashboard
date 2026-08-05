@@ -31,7 +31,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 7;
+const SCHEMA = 8;
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -428,6 +428,68 @@ function flowBlock(quotes, sig, meta) {
   };
 }
 
+/* ── sector ETFs ───────────────────────────────────────────────────────────
+   The tradeable expression of the sector map. `sector` matches the label the
+   universe is bucketed under (post-normSector), so a row can filter the
+   screener to the same names the map colours.
+
+   The column that matters is EXCESS return, not raw: every sector is up in an
+   up tape, and "XLK +4%" says nothing on its own about whether money is
+   rotating into technology. Measured against SPY over the same windows, from
+   the same bars, so the subtraction is like-for-like.
+
+   Eleven Yahoo calls a night, crumb-free, no FMP quota. */
+const SECTOR_ETFS = [
+  { tk: "XLK", sector: "Technology" },
+  { tk: "XLF", sector: "Financial Services" },
+  { tk: "XLV", sector: "Healthcare" },
+  { tk: "XLY", sector: "Consumer Cyclical" },
+  { tk: "XLP", sector: "Consumer Defensive" },
+  { tk: "XLE", sector: "Energy" },
+  { tk: "XLI", sector: "Industrials" },
+  { tk: "XLB", sector: "Basic Materials" },
+  { tk: "XLU", sector: "Utilities" },
+  { tk: "XLRE", sector: "Real Estate" },
+  { tk: "XLC", sector: "Communication Services" },
+];
+const RET_WINDOWS = { w1: 5, m1: 21, m3: 63, y1: 252 };
+
+// % return over `bars` sessions of closes; null rather than 0 when the history
+// is short or the base close is unusable
+function retOver(closes, bars) {
+  const n = closes ? closes.length : 0;
+  if (n < 2) return null;
+  const i = Math.max(0, n - 1 - bars);
+  if (i === n - 1 || !(closes[i] > 0)) return null;
+  return +(((closes[n - 1] / closes[i]) - 1) * 100).toFixed(2);
+}
+
+async function sectorEtfs(spyCloses) {
+  const spyRet = {};
+  for (const [k, bars] of Object.entries(RET_WINDOWS)) spyRet[k] = retOver(spyCloses, bars);
+
+  const got = await Promise.all(SECTOR_ETFS.map(async (e) => {
+    const d = await yahooBars(e.tk);
+    if (!d || d.quote.price == null || d.rows.length < 2) return null;
+    const closes = d.rows.map((r) => r.close);
+    const ret = {}, rel = {};
+    for (const [k, bars] of Object.entries(RET_WINDOWS)) {
+      ret[k] = retOver(closes, bars);
+      // excess vs SPY — null unless BOTH legs exist, because a difference
+      // against a missing benchmark is not an excess, it is just the raw number
+      rel[k] = ret[k] != null && spyRet[k] != null ? +(ret[k] - spyRet[k]).toFixed(2) : null;
+    }
+    return {
+      tk: e.tk, sector: e.sector,
+      px: +(+d.quote.price).toFixed(2),
+      chg: d.quote.changePercentage != null ? +(+d.quote.changePercentage).toFixed(2) : null,
+      ret, rel,
+    };
+  }));
+  const rows = got.filter(Boolean);
+  return rows.length ? { rows, spy: spyRet } : null;
+}
+
 /* A year of VIX closes, for the one VIX read the cover does not already give:
    where today's level sits in its own recent range. A level means nothing on its
    own — 18 is complacent in one regime and elevated in another. One Yahoo call,
@@ -534,8 +596,9 @@ async function compute() {
   const vix = await fmpVix();
   const vol = await vixContext();
   const flow = flowBlock(quotes, sig, metaOut);
+  const sectors = await sectorEtfs(spy ? spy.map((r) => r.close) : null);
 
-  return { schema: SCHEMA, generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix, vol, flow };
+  return { schema: SCHEMA, generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix, vol, flow, sectors };
 }
 
 export default async function handler(req, res) {
