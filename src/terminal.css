@@ -391,7 +391,9 @@ body { background: #0a0b0d; }
   border-radius: 50%; border: 1px solid var(--border-2); color: var(--dim); background: transparent; cursor: help;
   font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 0; transition: color .14s, border-color .14s; }
 .infodot:hover, .infodot:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
-.infodot-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 20; width: max-content; max-width: 340px;
+/* above the sticky table head (30) — this is a transient overlay and should
+   out-rank anything it can be summoned on top of */
+.infodot-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; width: max-content; max-width: 340px;
   padding: 10px 13px; border-radius: var(--radius-sm); background: var(--panel); border: 1px solid var(--border-2);
   box-shadow: 0 16px 40px -18px #000; font-family: var(--font-ui); font-size: 12.5px; font-weight: 400;
   line-height: 1.5; letter-spacing: 0; text-transform: none; color: var(--muted); text-wrap: pretty;
@@ -703,6 +705,33 @@ body { background: #0a0b0d; }
   grid-template-columns: minmax(140px, 0.5fr) 96px 108px minmax(170px, 1.05fr) 104px 178px minmax(96px, 0.45fr) 112px 56px;
   align-items: center; gap: 14px;
 }
+/* The screener's 500 rows scroll inside the panel rather than down the page, so
+   the filters, the window/sort chips and the count stay put while you work the
+   list. Only the screener: the portfolio is a book you can see the end of, and
+   a nested scroller on a short list is friction with nothing to show for it. */
+/* Sized so the panel's bottom lands at the viewport floor once the hero has
+   scrolled away — at that point its top sits ~150px down, clear of the 58px
+   topbar, so the sticky column labels are never hidden behind it. A tighter cap
+   would strand the list mid-viewport with page scroll still left to do. */
+/* The 240px is load-bearing, not padding taste. At full page scroll the panel's
+   top lands at `100vh − panelHeight − (everything below the panel)`; the tail
+   below it — this table's bottom padding plus the model footnote — measures
+   ~166px, so a panel of 100vh−150px put its own top at −16px and buried the
+   sticky column labels behind the 58px topbar. 100vh−240px leaves the top at
+   ~+64px, clear of it. Anything added under the table makes this safer, never
+   worse; anything that shortens the tail needs this number rechecked with
+   `.cs-panel-scroll` measured at full scroll. */
+.cs-panel-scroll { max-height: clamp(360px, calc(100vh - 240px), 1400px); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+.cs-panel-scroll::-webkit-scrollbar { width: 10px; }
+.cs-panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.cs-panel-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 6px;
+  border: 3px solid transparent; background-clip: content-box; }
+.cs-panel-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: content-box; }
+/* sticky against the panel's own scrollport, not the topbar — inside a scroller
+   `top: 58px` would park the labels 58px down from the panel's top edge */
+.cs-panel-scroll .cs-head { top: 0; }
+
 /* sticky below the 58px topbar — with a 500-row list the column labels
    otherwise scroll away immediately; solid bg so rows don't ghost through */
 .cs-head { padding: 13px 20px; border-bottom: 1px solid var(--border-2);
@@ -797,6 +826,9 @@ body { background: #0a0b0d; }
   border-radius: 5px; padding: 2px 6px; }
 
 @media (max-width: 880px) {
+  /* a scroller inside a scroller is miserable on a touch screen, and the phone
+     has no sticky header to protect anyway — the whole page scrolls instead */
+  .cs-panel-scroll { max-height: none; overflow-y: visible; }
   .cs-head { display: none; }
   .cs-row { grid-template-columns: 1.5fr 1fr 0.7fr; row-gap: 8px; }
   /* keep ticker, price and score; 3–8 are the analysis columns. Adding a column
@@ -934,7 +966,11 @@ body { background: #0a0b0d; }
 .cmdk-btn kbd { font-family: var(--font-mono); font-size: 10px; color: var(--dim); background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; }
 
 /* ============================ HERO EXTRAS ============================ */
-.hero { position: relative; overflow: hidden; }
+/* NOT `overflow: hidden`. The only absolutely-positioned child is .hero-glow at
+   inset:0, which cannot leave the box on its own — but the clip DID eat the
+   InfoDot tooltip on both hero titles, cutting it off mid-sentence against the
+   stat strip below. A decorative guard is not worth silently truncating copy. */
+.hero { position: relative; }
 .hero-glow { position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(420px circle at var(--mx, 70%) var(--my, 30%), color-mix(in oklch, var(--accent) 9%, transparent), transparent 60%);
   opacity: 0; transition: opacity .4s ease; }

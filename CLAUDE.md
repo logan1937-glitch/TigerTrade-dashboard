@@ -202,6 +202,19 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 - **Mobile breakpoints hide columns.** `.pf-row` / `.cs-row` drop columns below
   880px. Adding a control to a table cell means checking it's still reachable on
   a phone — a control in a hidden column doesn't exist.
+- **Decorative `overflow: hidden` clips real content.** `.hero` carried one to
+  contain `.hero-glow`, which is `inset: 0` and could never overflow anyway —
+  what it actually clipped was the InfoDot tooltip on both hero titles, cut off
+  mid-sentence. Before adding an overflow guard, check what it costs.
+- **`.cs-panel-scroll`'s max-height is arithmetic, not taste.** The screener's
+  rows scroll inside the panel. At full page scroll its top lands at
+  `100vh − panelHeight − (tail below the panel)`; that tail is ~166px, so the
+  height must stay at `100vh − 240px` or so for the top to clear the 58px
+  topbar — otherwise the sticky column labels end up behind it. Changing what
+  sits under the table means re-measuring `.cs-panel-scroll` at full scroll.
+  Note `position: sticky` on that panel does **not** work (a plain sibling in
+  the same container sticks fine; the scroll container does not) — don't reach
+  for it as a shortcut.
 
 ## Verifying UI changes
 

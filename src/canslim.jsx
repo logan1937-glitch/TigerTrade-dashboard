@@ -243,7 +243,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
         <span className="count mono" style={{ opacity: .8 }}>click a header to sort · a row for full analysis</span></div>
 
       <div className="cs-table">
-       <div className="cs-panel">
+       <div className="cs-panel cs-panel-scroll">
         <div className="cs-head" role="row">
           <Th label="Ticker" k="ticker" />
           <Th label={`Price · Δ${tf}`} k="chg" right />
