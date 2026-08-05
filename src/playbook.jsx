@@ -13,9 +13,9 @@
 // Nothing here is a suggestion to trade. The stop is an arithmetic level with
 // its inputs stated (Chandelier: 22-day high − 3·ATR), not advice, and a name
 // with no computable metric shows "—" rather than a filled-in guess.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon } from "./components.jsx";
-import { launchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf, atrTrail, ATR_TRAIL_MULT } from "./signals.js";
+import { isLaunchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf, atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
 const px2 = (v) => (v == null ? "—" : `$${(+v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -49,7 +49,7 @@ export const FILTERS = [
     id: "coiled", label: "EMA Launchpad",
     desc: `21, 50 and 65-day EMAs all within ${LAUNCHPAD_MAX_SPREAD}% of each other`,
     why: "Three averages converging means every recent timeframe agrees on price. Moves out of that state tend to be decisive, in whichever direction they resolve.",
-    test: (r) => { const s = emaSpreadOf(r); return s != null && s <= LAUNCHPAD_MAX_SPREAD; },
+    test: (r) => isLaunchpad(r),
   },
   {
     id: "tight", label: "Tight only",
@@ -118,6 +118,18 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
   const [help, setHelp] = useState(!seen);
   useEffect(() => { if (!seen) setSeen(true); }, [seen, setSeen]);
   const [sel, setSel] = useState(null);
+  // On a phone the panes stack and the detail is ordered ABOVE the scan (see
+  // .pb-split's ≤880px rule — the same breakpoint, or the scroll fires on a
+  // layout that never stacked), so tapping a row updates a panel you have scrolled
+  // past. Bring it back rather than making you scroll up to find what you picked.
+  const detailRef = useRef(null);
+  const pick = (tk) => {
+    setSel(tk);
+    const el = detailRef.current;
+    if (el && window.matchMedia("(max-width: 880px)").matches) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   // only names with the swing block computed — a row we cannot measure has no
   // business in a setup scan
@@ -251,8 +263,8 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
                 const isOn = active && r.tk === active.tk;
                 return (
                   <div className="pb-row pb-drow" key={r.tk} data-on={isOn || undefined} role="button" tabIndex={0}
-                    aria-label={`${r.tk} — show levels`} onClick={() => setSel(r.tk)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(r.tk); } }}>
+                    aria-label={`${r.tk} — show levels`} onClick={() => pick(r.tk)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(r.tk); } }}>
                     <div className="pb-tk"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></div>
                     <div className="pb-num mono">{px2(r.px)}
                       {r.chg != null && <span className="pb-sub2 mono" data-up={r.chg >= 0}>{pct(r.chg)}</span>}</div>
@@ -275,7 +287,7 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
             </div>
           </div>
 
-          <div className="pb-detail">
+          <div className="pb-detail" ref={detailRef}>
             {active ? <Detail row={active} onOpenStock={onOpenStock} /> : (
               <p className="pb-empty mono">Select a name on the left.</p>
             )}

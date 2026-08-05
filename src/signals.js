@@ -215,6 +215,15 @@ export function emaSpreadOf(row) {
   return +(((hi - lo) / lo) * 100).toFixed(4);
 }
 
+/* The predicate the Playbook's "EMA Launchpad" chip actually runs. It lived
+   twice — once here inside `launchpad()`, once inline in playbook.jsx's FILTERS
+   — so the tests covered a list-filter the app never called while the shipped
+   check went untested. One definition, used by both. */
+export function isLaunchpad(row, maxSpread = LAUNCHPAD_MAX_SPREAD) {
+  const s = emaSpreadOf(row);
+  return s != null && s <= maxSpread;
+}
+
 export function launchpad(rows, maxSpread = LAUNCHPAD_MAX_SPREAD) {
   return (rows || []).filter((r) => {
     const spread = emaSpreadOf(r);

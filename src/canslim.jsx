@@ -3,7 +3,7 @@ import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
 import { PlaybookView } from "./playbook.jsx";
 import { SearchIcon, StarBtn, InfoDot } from "./components.jsx";
-import { RSLine, BarMeter } from "./charts.jsx";
+import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
 import { PortfolioView } from "./portfolio.jsx";
 
@@ -84,15 +84,18 @@ const TF_BARS = { "1W": 5, "1M": 21, "3M": 63, "1Y": 252 };
 // % return over the selected timeframe. Prefers the snapshot's precomputed
 // returns (compact records carry no price arrays); falls back to closes for
 // custom / live-fallback names, then to the daily quote change.
+// Returns null when the window cannot be measured. It used to fall through to 0,
+// which printed a green +0.00% — a name with no data and a name that closed
+// exactly flat rendering identically, in the column people scan first.
 function periodReturn(s, tf) {
   const pr = s.sig && s.sig.ret;
   if (pr && pr[RET_KEY[tf]] != null) return pr[RET_KEY[tf]];
   const c = s.closes, n = c ? c.length : 0;
-  if (tf === "1D") return s.chg != null ? s.chg : (n >= 2 ? (c[n - 1] / c[n - 2] - 1) * 100 : 0);
-  if (!c || n < 2) return s.chg || 0;
+  if (tf === "1D") return s.chg != null ? s.chg : (n >= 2 ? (c[n - 1] / c[n - 2] - 1) * 100 : null);
+  if (!c || n < 2) return s.chg != null ? s.chg : null;
   const back = TF_BARS[tf] || 21;
   const i = Math.max(0, n - 1 - back);
-  return (c[n - 1] / c[i] - 1) * 100;
+  return c[i] > 0 ? (c[n - 1] / c[i] - 1) * 100 : null;
 }
 
 /* ---------- what changed today (day-over-day snapshot diff) ---------- */
@@ -263,7 +266,9 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             role="button" tabIndex={0} aria-label={`${r.tk} — open full analysis`}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock(r); } }}>
             <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
-            <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span><span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{(r._ret || 0).toFixed(2)}%</span></div>
+            <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span>{r._ret == null
+                ? <span className="cs-chg mono" data-na="true" title={`No ${tf} return for this name in the snapshot`}>—</span>
+                : <span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{r._ret.toFixed(2)}%</span>}</div>
             <div className="cs-rs mono" title={tf === "1Y" ? "Relative-strength rank over 12 months" : `Relative-strength rank over the selected ${tf} window`}>
               {r._rs != null ? r._rs : "—"}{r._rs != null && <i style={{ width: r._rs + "%" }} />}</div>
             {/* `_sparkReal` = the snapshot answered for this name; without it the

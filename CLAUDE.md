@@ -128,7 +128,10 @@ a name it can't measure rather than assuming it passes.
 `playbook.jsx` each carry their `test`/`val` function *and* the `desc`/`why`
 text the "How to read this" panel prints. They're one object, so the explainer
 cannot drift from the code that runs — adding a filter adds its documentation by
-construction. Thresholds are named exports (`LAUNCHPAD_MAX_SPREAD` 2%,
+construction. The `coiled` chip calls `isLaunchpad()` from `signals.js` rather than
+re-implementing the spread test — `launchpad()` is the same predicate over a
+list, and having two copies meant the tests covered the one the app never ran.
+Thresholds are named exports (`LAUNCHPAD_MAX_SPREAD` 2%,
 `TIGHT_MAX_CX` 0.55, `LIQUID_MIN_DV` $20M, `ERN_BLACKOUT_DAYS` 7). Filters stack
 with AND; the chip counts are measured against the **full** measurable set, not
 the post-filter one, so they don't move as you stack.
@@ -191,8 +194,7 @@ Use tokens. Never hard-code a hex — it will be wrong in three of four themes.
 VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 (screener + market health), `charts.jsx`, `marketMap.jsx`, `portfolio.jsx`,
 `views.jsx` (calendar/timeline), `playbook.jsx` (swing-setup split pane),
-`radarScope.jsx`, `volView.jsx` (volume & flow), `commandPalette.jsx`,
-`disclaimer.jsx`.
+`volView.jsx` (volume & flow), `commandPalette.jsx`, `disclaimer.jsx`.
 
 ### CSS traps that have already bitten
 

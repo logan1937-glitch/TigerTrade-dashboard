@@ -18,7 +18,7 @@ import { Drawer, EventDrawerBody, StockDrawerBody, WatchlistBody } from "./drawe
 import { CanslimView } from "./canslim.jsx";
 
 /* fixed presentation settings (the prototype's design-tool tweaks, pinned for production) */
-const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grotesk", GLOW = "on", SHOW_SCOPE = true;
+const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grotesk", GLOW = "on", SHOW_BOARDS = true;
 
 export default function App() {
   const [product, setProduct] = useStored("tt_product", "radar");
@@ -758,7 +758,7 @@ export default function App() {
           : <StockTape rows={csData.list} quotes={tapeQ.quotes} asOf={tapeQ.asOf} onPick={openStock} />}
         {product === "radar" ? (
           <>
-            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showScope={SHOW_SCOPE} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />
+            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showBoards={SHOW_BOARDS} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />
             <StatStrip events={allEvents} />
             <SubNav tab={tab} setTab={setTab} counts={events.length} />
             {tab === "radar" && <RadarView {...radarProps} />}

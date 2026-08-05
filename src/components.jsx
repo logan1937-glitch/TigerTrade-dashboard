@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useRef, useEffect, useMemo } from "react";
 import { TT } from "./tt.js";
-import { RadarScope, ScopeLegend } from "./radarScope.jsx";
 
 export const SEV_LABEL = { extreme: "Extreme", high: "High", medium: "Medium", low: "Low" };
 
@@ -216,7 +215,7 @@ export function InfoDot({ text }) {
 }
 
 /* ------------------------------- HERO ------------------------------ */
-export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, vix, settled }) {
+export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro, vix, settled }) {
   const ref = useRef(null);
   const onMove = (e) => {
     const el = ref.current; if (!el) return;
@@ -304,7 +303,9 @@ export function Hero({ events, onSelectEvent, activeId, showScope, live, macro, 
           )}
           <span className="hero-meta">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} catalysts tracked · updated {TT.todayISO}</span>
         </div>
-        {showScope && (
+        {/* the macro board + VIX panel; the prop was named showScope back when it
+            gated the radar scope, which no longer exists */}
+        {showBoards && (
           <>
             <MacroBoard macro={macro} settled={settled} />
             <VixPanel vix={vix} settled={settled} />
@@ -395,7 +396,7 @@ function MiniSpark({ data }) {
   return <svg className="mb-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"><polyline points={pts} fill="none" stroke={c} strokeWidth="1.4" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
-const fmtRate = (v) => v.toFixed(2) + "%";
+const fmtRate = (v) => (v == null ? "—" : v.toFixed(2) + "%");
 const fmtFx = (f) => (f.idx ? f.v.toFixed(2) : f.v.toFixed(f.v >= 100 ? 2 : 4));
 const fmtComm = (v) => "$" + (v >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : v.toFixed(2));
 const bpTxt = (bp) => (bp == null ? "—" : bp === 0 ? "0bp" : `${bp > 0 ? "+" : ""}${bp}bp`);

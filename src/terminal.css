@@ -438,13 +438,6 @@ body { background: #0a0b0d; }
   letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hero-next-t small { font-size: 0.5em; vertical-align: baseline; margin-left: 2px; letter-spacing: var(--track-meta); opacity: 0.7; }
 
-/* HUD corner brackets around the scope */
-.scope-frame { position: relative; padding: 12px; }
-.scope-frame .cnr { position: absolute; width: 13px; height: 13px; border: 1.5px solid var(--border-2); opacity: 0.75; pointer-events: none; }
-.scope-frame .cnr.tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-.scope-frame .cnr.tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-.scope-frame .cnr.bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-.scope-frame .cnr.br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 55%, transparent); }
   70% { box-shadow: 0 0 0 8px transparent; }
@@ -858,7 +851,6 @@ body { background: #0a0b0d; }
   .event-head { grid-template-columns: 20px 62px 1fr 16px; }
   .event-badges { grid-column: 2 / 5; flex-direction: row; margin-top: 4px; }
   .ed-grid { grid-template-columns: 1fr; gap: 18px; }
-  .hero-scope { display: none; }
   .live-clk { display: none; }
   .cmdk-btn span { display: none; }
 }
@@ -980,52 +972,6 @@ body { background: #0a0b0d; }
 .app[data-motion="full"] .hero-pulse { animation: pulse 2.2s infinite; }
 .hero-badge { margin-top: 4px; }
 .hero-row { align-items: center; }
-.hero-scope { display: flex; flex-direction: column; align-items: center; gap: 14px; flex: 0 0 auto; }
-
-/* ============================ RADAR SCOPE ============================ */
-.scope { position: relative; width: 360px; height: 360px; flex: none; }
-@media (max-width: 1200px) { .scope { width: 300px; height: 300px; } }
-.scope-grid { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.scope-ring { fill: none; stroke: var(--border-2); stroke-width: 0.3; opacity: 0.55; }
-.scope-cross { stroke: var(--border); stroke-width: 0.3; }
-.scope-cross-d { opacity: 0.5; }
-.scope-rlabel { fill: var(--dim); font-family: var(--font-mono); font-size: 2.2px; letter-spacing: var(--track-label); }
-.scope-sweep { position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0deg 232deg,
-    color-mix(in oklch, var(--accent) 30%, transparent) 320deg,
-    color-mix(in oklch, var(--accent) 72%, transparent) 358deg, transparent 360deg);
-  -webkit-mask: radial-gradient(circle, transparent 7%, #000 11%);
-  mask: radial-gradient(circle, transparent 7%, #000 11%);
-  pointer-events: none; opacity: 1; }
-.app[data-motion="full"] .scope-sweep { animation: spin 4.6s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.scope-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; }
-.scope-center span { position: absolute; inset: 0; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px -1px var(--accent); }
-.scope-now { position: absolute; left: 50%; top: calc(50% + 11px); transform: translateX(-50%); font-size: 8px; letter-spacing: var(--track-wide); color: var(--dim); }
-.blip { position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; display: grid; place-items: center;
-  background: none; border: 0; padding: 0; cursor: pointer; z-index: 3; }
-.blip-dot { display: block; border-radius: 50%; background: var(--c); transition: transform .15s ease;
-  box-shadow: 0 0 0 0 color-mix(in oklch, var(--c) 60%, transparent), 0 0 8px -1px var(--c); }
-.blip[data-sev="extreme"] .blip-dot { width: 12px; height: 12px; }
-.blip[data-sev="high"] .blip-dot { width: 10px; height: 10px; }
-.blip[data-sev="medium"] .blip-dot { width: 7px; height: 7px; }
-.blip[data-sev="low"] .blip-dot { width: 6px; height: 6px; }
-.blip:hover .blip-dot { transform: scale(1.45); }
-.app[data-motion="full"] .blip[data-imminent] .blip-dot { animation: blipPing 2s infinite; }
-/* glint as the sweep beam passes — delay is phase-computed per blip (--glint),
-   period matches the 4.6s sweep. Filter on the wrapper, so it stacks with the
-   imminent ping without fighting its animation. */
-.app[data-motion="full"] .blip { animation: blipGlint 4.6s linear infinite; animation-delay: var(--glint, 0s); }
-@keyframes blipGlint { 0% { filter: brightness(2.3) saturate(1.3); } 8% { filter: none; } 100% { filter: none; } }
-@keyframes blipPing { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--c) 55%, transparent), 0 0 8px -1px var(--c); }
-  70% { box-shadow: 0 0 0 9px transparent, 0 0 8px -1px var(--c); } 100% { box-shadow: 0 0 0 0 transparent, 0 0 8px -1px var(--c); } }
-.blip[data-active] .blip-dot { transform: scale(1.5); box-shadow: 0 0 0 4px color-mix(in oklch, var(--c) 35%, transparent), 0 0 12px 0 var(--c); }
-.scope-tip { position: absolute; transform: translate(-50%, calc(-100% - 14px)); pointer-events: none; z-index: 5;
-  background: var(--panel); border: 1px solid var(--border-2); border-left: 2px solid var(--c); border-radius: var(--radius-sm);
-  padding: 7px 10px; min-width: 150px; max-width: 210px; box-shadow: 0 12px 30px -12px #000; }
-.scope-tip-t { display: block; font-size: 10px; letter-spacing: var(--track-meta); color: var(--c); margin-bottom: 3px; }
-.scope-tip-n { display: block; font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.25; }
-.scope-legend { display: flex; flex-wrap: wrap; gap: 9px 14px; justify-content: center; max-width: 400px; }
 
 /* ===================== SCROLLING TAPES (catalysts / stocks) ===================== */
 /* pinned to the top of the page, directly under the topbar */
@@ -1053,9 +999,6 @@ body { background: #0a0b0d; }
   .tape-track { animation: none !important; }
   .tape { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
 }
-.scope-leg { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; letter-spacing: var(--track-meta); color: var(--dim); }
-.scope-leg i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
-.scope-caption { font-size: 9.5px; letter-spacing: var(--track-meta); color: var(--dim); text-align: center; max-width: 340px; }
 
 /* ============================ STAT PROXIMITY ============================ */
 .prox { margin-top: 11px; height: 3px; border-radius: 3px; background: color-mix(in oklch, var(--border) 70%, transparent); overflow: hidden; }
@@ -1104,9 +1047,6 @@ body { background: #0a0b0d; }
   /* disable the flashy entrance/pulse motion for reduce-motion users… */
   .app .reveal { opacity: 1 !important; animation: none !important; }
   .app[data-motion="full"] .live-dot, .app[data-motion="full"] .hero-pulse, .app .pulse { animation: none !important; }
-  /* …but keep the radar's signature continuous sweep (a smooth, slow rotation) */
-  .app[data-motion="full"] .scope-sweep { animation: spin 6s linear infinite !important; }
-  .app[data-motion="full"] .blip { animation: none !important; }   /* no glint pulse; it would also desync at 6s */
 }
 
 /* ============================ CHARTS ============================ */
@@ -1765,10 +1705,6 @@ body { background: #0a0b0d; }
   .hero-cover .hero-meta { margin-top: 6px; }
   .hero-title { font-size: clamp(21px, 6vw, 26px); white-space: normal; line-height: 1.06; }
   .hero-next { width: 100%; }
-  /* radar scope: centered + sized to the phone, with breathing room */
-  .hero-scope { width: 100%; align-items: center; margin-top: 4px; }
-  .scope { width: min(252px, 70vw); height: min(252px, 70vw); }
-  .scope-legend { max-width: 100%; }
   .statgrid { grid-template-columns: repeat(2, 1fr) !important; }
   .statcell { padding: 13px 14px; }
   .statcell:nth-child(odd) { border-left: 0; }
@@ -1899,9 +1835,15 @@ body { background: #0a0b0d; }
 .pb-disc { font-size: 10px; line-height: 1.6; color: var(--dim); margin: 18px 2px 0; max-width: 82ch; }
 
 @media (max-width: 880px) {
-  /* two panes stop being readable here — the scan goes full width and the
-     detail follows it rather than being squeezed into a column */
+  /* Two panes stop being readable here, so they stack — and the DETAIL comes
+     first. The scan is 40+ rows on a phone, so source order put the selected
+     name's levels — the entire reason you tapped — below all of them. `order`
+     flips it without touching the DOM, so desktop tab order stays right. */
   .pb-split { grid-template-columns: 1fr; }
+  .pb-detail { order: -1; }
+  /* the scan is the browse surface once the detail is above it; give it a lid so
+     the page below stays reachable without a 40-row scroll */
+  .pb-scan { max-height: 62vh; overflow-y: auto; overscroll-behavior: contain; }
   .pb-rows { max-height: none; }
   .pb-tiles { grid-template-columns: repeat(2, 1fr); }
   .pb-row { grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr; }
@@ -2177,14 +2119,17 @@ body { background: #0a0b0d; }
   .vol-tv { font-size: 23px; }
 }
 
-/* A phone in landscape is still a phone: keep the tab bar, but the hero's
-   fixed-height scope would eat the whole viewport. */
+/* A phone in landscape is still a phone — the hero eats the whole viewport
+   otherwise, and the tab bar has to stay reachable. */
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
-  .scope { width: min(180px, 34vw); height: min(180px, 34vw); }
   .hero { padding: 10px 0 8px; }
+  .hero-title { font-size: 20px; }
 }
 
 /* Playbook sizing: the stop-basis picker sits inline with the account inputs */
 .pb-size-seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: var(--radius-sm);
   background: color-mix(in oklch, var(--panel) 60%, transparent); border: 1px solid var(--border); }
 .pb-size-seg .seg-btn { padding: 6px 11px; font-size: 10.5px; }
+
+/* no return for the selected window — quiet, and never a green +0.00% */
+.cs-chg[data-na="true"] { color: var(--dim); }
