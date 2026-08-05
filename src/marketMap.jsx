@@ -502,9 +502,6 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) 
         </div>
       </div>
 
-      <div className="mm-sec-h"><h3>Sector ETFs</h3><span className="dr-sec-sub mono">excess return over the S&amp;P · tap a row to screen that sector</span></div>
-      <SectorEtfs sectors={sectors} onSelectSector={onSelectSector} />
-
       <div className="mm-sec-h"><h3>Sector momentum</h3><span className="dr-sec-sub mono">median {tf} return · tap a sector to screen it</span></div>
       <SectorMap rows={rows} tf={tf} onSelectSector={onSelectSector} />
 
@@ -520,6 +517,9 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) 
           <span style={{ opacity: .7 }}> Our approximation of the relative-rotation concept popularized by Julius de Kempenaer (RRG Research); not the proprietary JdK RS-Ratio / RS-Momentum. Educational use only.</span>
         </p>
       </div>
+
+      <div className="mm-sec-h"><h3>Sector ETFs</h3><span className="dr-sec-sub mono">excess return over the S&amp;P · tap a row to screen that sector</span></div>
+      <SectorEtfs sectors={sectors} onSelectSector={onSelectSector} />
 
       <div className="mm-sec-h"><h3>Industry group leaders</h3><span className="dr-sec-sub mono">ranked by momentum inside each group · tap a name for full analysis</span></div>
       <IndustryGroups rows={rows} onOpenStock={onOpenStock} />
