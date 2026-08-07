@@ -12,6 +12,7 @@ import { computeSignals, computeMarketHealth, compactSig } from "../src/signals.
 import { SP500 } from "../src/sp500.js";
 import { put, list } from "@vercel/blob";
 import { bulkFetch } from "./_upstream.js";
+import { quoteFromChart } from "./_quote.js";
 
 // index set for market health; ETF proxies cover any index symbol Yahoo denies
 const INDICES = [
@@ -31,7 +32,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 8;
+const SCHEMA = 9;
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -85,15 +86,8 @@ async function yahooBars(symbol) {
         open: fin(q.open ? q.open[i] : null), high: fin(q.high ? q.high[i] : null),
         low: fin(q.low ? q.low[i] : null), close: fin(close), volume: fin(q.volume ? q.volume[i] : null) });
     }
-    const price = fin(meta.regularMarketPrice);
-    // prior-session close from the bars (chartPreviousClose = range start, wrong)
-    let prev = null;
-    if (rows.length >= 2) {
-      const lastClose = rows[rows.length - 1].close;
-      prev = price != null && Math.abs(price - lastClose) < 1e-9 ? rows[rows.length - 2].close : lastClose;
-    }
-    if (prev == null) prev = fin(meta.previousClose != null ? meta.previousClose : meta.chartPreviousClose);
-    return { rows, quote: { price, changePercentage: price != null && prev ? ((price - prev) / prev) * 100 : null, timestamp: meta.regularMarketTime || null } };
+    // one implementation, shared with /api/yahoo — see api/_quote.js for why
+    return { rows, quote: quoteFromChart(meta, rows) };
   } catch { return null; }
 }
 

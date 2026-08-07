@@ -7,6 +7,7 @@
 
 import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT, peakSince,
   computeSignals, compactSig } from "../src/signals.js";
+import { quoteFromChart } from "../api/_quote.js";
 
 let pass = 0, fail = 0;
 const eq = (label, got, want) => {
@@ -188,6 +189,53 @@ console.log("\n— peak since entry —");
   // the volume fields the same rows feed
   eq("session volume is the last bar's", up.volD, 1e6 + 79 * 1000);
   eq("and rvol is that over its own 50-day average", up.rvol > 1, true);
+}
+
+/* ── the quote a Yahoo chart response yields ─────────────────────────────────
+   The regression these pin is the one that emptied the Volume tab's direction
+   filters, blanked the stock tape, and then made it revert to zeros a second
+   after load: both endpoints decided "is the last bar the current session?" by
+   testing `Math.abs(regularMarketPrice - bars[last].close) < 1e-9`. Yahoo's bar
+   closes carry float32-grade precision, so a $241 stock reports
+   241.30000305175781 in the bars and 241.3 in the quote — 3e-5 apart, thirty
+   thousand times the tolerance. Every symbol took the wrong branch and got the
+   SAME session's close as its denominator, i.e. a change of ~0.00%. */
+{
+  console.log("\n— quoteFromChart —");
+  const bars = (closes) => closes.map((c, i) => ({ date: `2026-08-0${i + 1}`, close: c }));
+
+  // the exact shape that broke it: quote price and last bar are the same close,
+  // differing only in float representation
+  const drift = quoteFromChart(
+    { regularMarketPrice: 241.3, previousClose: 238.9, regularMarketTime: 1767225600 },
+    bars([236.1, 238.9, 241.30000305175781]),
+  );
+  near("float noise between quote and bar does not zero the change",
+    drift.changePercentage, ((241.3 - 238.9) / 238.9) * 100);
+  eq("and it is nowhere near flat", Math.abs(drift.changePercentage) > 0.5, true);
+
+  // previousClose is preferred: quote-side price over quote-side previous close,
+  // both unadjusted, rather than an unadjusted price over an ADJUSTED bar close
+  const adj = quoteFromChart(
+    { regularMarketPrice: 100, previousClose: 99 },
+    bars([90, 95, 97.5]),          // adjusted closes, shifted by a dividend
+  );
+  near("previousClose wins over the bars", adj.changePercentage, (100 / 99 - 1) * 100);
+
+  // without it, bars only — adjusted against adjusted, never mixed
+  const barsOnly = quoteFromChart({ regularMarketPrice: 100 }, bars([90, 95, 97.5]));
+  near("no previousClose falls back to bar-over-bar", barsOnly.changePercentage, (97.5 / 95 - 1) * 100);
+  eq("and reports that bar as the previous close", barsOnly.previousClose, 95);
+
+  // chartPreviousClose is the close before the RANGE — on range=1y using it as
+  // the denominator turns the daily change into the 12-month move
+  const yearAgo = quoteFromChart({ regularMarketPrice: 100, chartPreviousClose: 50 }, bars([90, 95, 97.5]));
+  near("chartPreviousClose is never the denominator", yearAgo.changePercentage, (97.5 / 95 - 1) * 100);
+
+  // nothing to difference against is null, never 0
+  eq("a single bar yields a null change", quoteFromChart({ regularMarketPrice: 100 }, bars([100])).changePercentage, null);
+  eq("no bars and no meta yields a null change", quoteFromChart({}, []).changePercentage, null);
+  eq("a zero previous close does not divide", quoteFromChart({ regularMarketPrice: 10, previousClose: 0 }, []).changePercentage, null);
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);

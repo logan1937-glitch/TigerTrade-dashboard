@@ -17,7 +17,7 @@ npm run dev            # vite dev server
 npm run build          # production build → dist/
 npm test               # both suites
 npm run test:earnings  # 55 assertions against a stubbed Yahoo/Finnhub
-npm run test:swing     # 57 assertions on the ATR/EMA/Launchpad/session-direction math
+npm run test:swing     # 66 assertions on the ATR/EMA/Launchpad/quote-building math
 npm run shots          # screenshot every view headlessly → shots/
 ```
 
@@ -160,6 +160,7 @@ the post-filter one, so they don't move as you stack.
 | `snapshot.js` | Nightly precompute of the whole universe. Cron: weekdays 22:00 UTC. Serves from Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set — **without it every request recomputes**, which burns the FMP quota fast. Check `"blob"` / `"served"` in its response. **Adding a field to the payload means bumping `SCHEMA`** — Blob serves the stored copy verbatim, so without a bump the new field is simply absent until the next cron, with nothing on screen to explain why. A mismatch recomputes on the first request after deploy. `?refresh=1` forces it by hand. |
 | `earnings.js` | Report dates for names outside the S&P 500. Finnhub (keyed) → Yahoo chart (crumb-free) → Yahoo quoteSummary (crumb) → stale cache. FMP is deliberately absent — verified incapable for these names. |
 | `snapshot.js` also fetches the **11 SPDR sector ETFs** (Yahoo, no FMP quota) for the Market Map's tracker. Its `sector` labels must match what `normSector()` produces, or a row's tap-to-screen filters to a bucket the universe isn't in. |
+| `_quote.js` | **The only place a Yahoo chart response becomes a quote.** Both `/api/yahoo` and the snapshot had their own copy and drifted into the same bug: they decided "is the last bar the current session?" with a float-exact price comparison (`< 1e-9`), and Yahoo's bar closes carry float32 precision, so every symbol took the wrong branch and got its OWN close as the denominator — a change of ±0.00% across the whole universe. It now prefers `meta.previousClose` (unadjusted, paired with the unadjusted `regularMarketPrice`) and falls back to bar-over-bar (adjusted against adjusted). Never mix the two, and never use `chartPreviousClose` as a denominator — it is the close before the *range*. |
 | `yahoo.js` | Yahoo chart proxy — quotes + adjusted daily history. Also backs the stock tape's intraday refresh (`range=5d`), so that path costs no FMP quota. |
 | `fmp.js` | Allow-listed FMP proxy; keeps the key server-side. |
 | `claude.js` | Anthropic proxy for the AI features. |
