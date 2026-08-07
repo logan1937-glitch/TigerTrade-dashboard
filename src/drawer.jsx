@@ -28,6 +28,8 @@ function BellIcon() {
 export function Drawer({ open, onClose, children, label }) {
   const startX = useRef(null);
   const startY = useRef(null);
+  const panelRef = useRef(null);
+  const returnTo = useRef(null);
   const [dx, setDx] = useState(0);
 
   useEffect(() => {
@@ -36,6 +38,27 @@ export function Drawer({ open, onClose, children, label }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  /* Focus follows the dialog and comes back. The screener's rows are
+     `tabIndex={0}` and the palette is keyboard-first, so a drawer that opened
+     without moving focus left Tab walking the page BEHIND it, and closing
+     dropped focus to <body> — from there the only way back to the row you were
+     on is tabbing from the top of a 500-row table. */
+  useEffect(() => {
+    if (open) {
+      returnTo.current = document.activeElement;
+      // the panel itself, not its first control: announces the dialog without
+      // skipping past the heading a screen reader should hear first
+      const id = requestAnimationFrame(() => panelRef.current && panelRef.current.focus());
+      return () => cancelAnimationFrame(id);
+    }
+    const el = returnTo.current;
+    returnTo.current = null;
+    // only restore if the trigger is still in the document — a row can be
+    // filtered away while the drawer is open, and focusing a detached node
+    // silently sends focus to <body> anyway
+    if (el && typeof el.focus === "function" && document.contains(el)) el.focus();
+  }, [open]);
 
   useEffect(() => { if (!open) setDx(0); }, [open]);
 
@@ -56,6 +79,7 @@ export function Drawer({ open, onClose, children, label }) {
     <div className="drawer-root" data-open={open || undefined} aria-hidden={!open}>
       <div className="drawer-scrim" onClick={onClose} />
       <aside className="drawer" role="dialog" aria-modal="true" aria-label={label}
+        ref={panelRef} tabIndex={-1}
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         style={dx ? { transform: `translateX(${dx}px)`, transition: "none" } : undefined}>
         {open && children}
@@ -494,7 +518,7 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
             <div className="dr-bp"><span className="dr-bpk mono">ADR%</span><span className="dr-bpv mono">{s.sig.adrPct}%</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">Distribution days</span><span className="dr-bpv mono" data-warn={s.sig.distDays >= 5}>{s.sig.distDays} / 25</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">$ volume</span><span className="dr-bpv mono">${(s.sig.dollarVol / 1e6).toFixed(0)}M</span></div>
-            <div className="dr-bp"><span className="dr-bpk mono">Off 52-wk high</span><span className="dr-bpv mono">{s.sig.atHigh ? "at high" : "−" + s.sig.off52 + "%"}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Off 52-wk high</span><span className="dr-bpv mono">{s.sig.atHigh ? "at high" : s.sig.off52 == null ? "—" : "−" + s.sig.off52 + "%"}</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">Pocket pivot</span><span className="dr-bpv" data-up={s.sig.pocketPivot}>{s.sig.pocketPivot ? "Yes ✦" : "No"}</span></div>
           </div>
         </div>

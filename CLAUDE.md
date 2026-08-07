@@ -31,6 +31,13 @@ Every figure on screen is real or absent — there is no third option, and no
 placeholder that could be mistaken for a measurement.
 
 - A value whose input is missing renders `—`, never `0`, never an estimate.
+  **This has shipped five times now** — the stock tape, the screener's Δ column,
+  the Volume tab's direction filter, Market Health's index rows, and `off52` in
+  the signal engine. The pattern is always the same: a `|| 0` / `: 0` / `!!x` at
+  a boundary turning "we don't know" into a definite reading. When you add a
+  field, check what it renders as when its input is absent — and remember that
+  `null <= 6` is **true** and `null >= 0` is **false**, so a null flows through
+  comparisons as a confident answer in whichever direction hurts most.
 - A projected date carries `~` and a tooltip saying who projected it.
 - A date the *user* typed carries a `yours` tag so it never reads as confirmed.
 - Demo/illustrative data must be labelled loudly (`DEMO — NOT LIVE`).

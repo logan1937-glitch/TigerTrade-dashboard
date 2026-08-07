@@ -318,7 +318,7 @@ export default function App() {
         pivotFields = { pivot, buyLo: pivot, buyHi: +(pivot * 1.05).toFixed(2), pctExt,
           baseType: "60-day base high", baseWeeks: 12, baseDepth: +(((pivot - baseLo) / pivot) * 100).toFixed(0) };
       } else if (r.coverage === "signals") {
-        status = r.sig.stage === 2 && r.sig.off52 <= 6 ? "buy" : null;
+        status = r.sig.stage === 2 && r.sig.off52 != null && r.sig.off52 <= 6 ? "buy" : null;
       }
       // LEADERS scorecard — one honest path for EVERY name (curated included).
       // Technical factors (L, A, the breakout E, S) compute live from real

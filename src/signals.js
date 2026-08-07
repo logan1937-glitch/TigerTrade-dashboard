@@ -247,7 +247,10 @@ export function computeSignals(rows, spyRows) {
   // 52-week high / distance
   const win = Math.min(252, n);
   const hi52 = Math.max(...highs.slice(n - win));
-  const off52 = hi52 > 0 ? Math.max(0, +(((hi52 - last) / hi52) * 100).toFixed(1)) : 0;
+  // null, NOT 0. Zero means "at its 52-week high" — the strongest reading this
+  // model has — so defaulting to it handed a name with no usable highs a passing
+  // E factor, a "buy" status and the top proximity bonus in momentumScore.
+  const off52 = hi52 > 0 ? Math.max(0, +(((hi52 - last) / hi52) * 100).toFixed(1)) : null;
 
   // 12-month return
   const back = Math.min(252, n - 1);
@@ -335,7 +338,7 @@ export function computeSignals(rows, spyRows) {
 
   return {
     closes, volume: vols, dates, last, chgPct,
-    off52, atHigh: off52 <= 1, ret12m,
+    off52, atHigh: off52 != null && off52 <= 1, ret12m,
     rsLine, rsNewHigh, rsLeads,
     stage, stageLabel: stage ? STAGE_LABEL[stage] : "—",
     adrPct, dollarVol,
@@ -549,7 +552,9 @@ export function deriveBuyPoint(closes, px, coverage, stage, off52) {
       baseType: "60-day base high", baseWeeks: 12, baseDepth: +(((pivot - baseLo) / pivot) * 100).toFixed(0),
     };
   }
-  return { status: coverage === "signals" ? (stage === 2 && off52 <= 6 ? "buy" : null) : null };
+  // `off52 <= 6` with a null off52 is TRUE (null coerces to 0), so an
+  // unmeasurable name used to qualify as a buy on the strength of missing data
+  return { status: coverage === "signals" ? (stage === 2 && off52 != null && off52 <= 6 ? "buy" : null) : null };
 }
 
 // build the compact signal record the client consumes (drops the heavy arrays)
@@ -585,7 +590,8 @@ export function momentumScore(sig, rs) {
   const st = sig.stage;
   s += st === 2 ? 20 : st === 1 ? 8 : st === 3 ? 4 : st === 4 ? 0 : 6;  // Weinstein stage
   s += sig.rsLeads ? 10 : sig.rsNewHigh ? 6 : 0;          // RS line new high (esp. before price)
-  s += sig.off52 <= 3 ? 8 : sig.off52 <= 12 ? 5 : sig.off52 <= 25 ? 2 : 0;  // proximity to 52-wk high
+  // no 52-week reading earns no proximity points, rather than the maximum
+  s += sig.off52 == null ? 0 : sig.off52 <= 3 ? 8 : sig.off52 <= 12 ? 5 : sig.off52 <= 25 ? 2 : 0;
   s += sig.distDays <= 2 ? 6 : sig.distDays <= 4 ? 3 : 0; // few distribution days
   s += sig.pocketPivot ? 5 : 0;                           // constructive volume signature
   if (sig.dollarVol && sig.dollarVol < 3e6) s *= 0.85;    // illiquidity penalty

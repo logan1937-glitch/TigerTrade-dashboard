@@ -318,7 +318,14 @@ function MarketHealth({ market }) {
     ? {
         trend: market.trend, trendNote: market.trendNote,
         distDays: market.distDays, distMax: market.distMax, lastFTD: market.lastFTD || "—",
-        indexes: market.indexes.map((ix) => ({ k: ix.k, v: fmtIdx(ix.price), chg: ix.chg != null ? +ix.chg.toFixed(2) : 0, above50: !!ix.above50, above200: !!ix.above200, spark: ix.spark })),
+        // `chg` stays null when the feed had none — mapping it to 0 printed a
+        // green +0.00% for an index nobody measured. `above50/200` stay tri-state
+        // for the same reason: computeMarketHealth returns null for "not enough
+        // history to say", and `!!null` collapsed that into "below the average",
+        // which is a claim about the market rather than about the data.
+        indexes: market.indexes.map((ix) => ({ k: ix.k, v: fmtIdx(ix.price),
+          chg: ix.chg != null ? +ix.chg.toFixed(2) : null,
+          above50: ix.above50, above200: ix.above200, spark: ix.spark })),
         breadth: market.breadth,
       }
     : TT.MKT;
@@ -352,9 +359,14 @@ function MarketHealth({ market }) {
                 <span className="mh-iname">{ix.k}</span>
                 {ix.spark && ix.spark.length > 2 && <span className="mh-ispark"><Spark data={ix.spark} /></span>}
                 <span className="mono mh-iv">{ix.v}</span>
-                <span className="mono mh-ichg" data-up={ix.chg >= 0}>{ix.chg >= 0 ? "+" : ""}{ix.chg}%</span>
-                <span className="mh-ima" data-on={ix.above50}>50d</span>
-                <span className="mh-ima" data-on={ix.above200}>200d</span>
+                {ix.chg == null
+                  ? <span className="mono mh-ichg" data-na="true" title="No change figure for this index in the snapshot">—</span>
+                  : <span className="mono mh-ichg" data-up={ix.chg >= 0}>{ix.chg >= 0 ? "+" : ""}{ix.chg}%</span>}
+                {/* three states, not two: on / below / not enough history to say */}
+                <span className="mh-ima" data-on={ix.above50 === true || undefined} data-na={ix.above50 == null || undefined}
+                  title={ix.above50 == null ? "Not enough history to compare with the 50-day average" : ix.above50 ? "Above its 50-day average" : "Below its 50-day average"}>50d</span>
+                <span className="mh-ima" data-on={ix.above200 === true || undefined} data-na={ix.above200 == null || undefined}
+                  title={ix.above200 == null ? "Not enough history to compare with the 200-day average" : ix.above200 ? "Above its 200-day average" : "Below its 200-day average"}>200d</span>
               </div>
             ))}
           </div>

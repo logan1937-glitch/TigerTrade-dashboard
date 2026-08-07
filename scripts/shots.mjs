@@ -194,7 +194,18 @@ function fixture() {
     // and market health needs its `breadth` block (the screener reads it)
     market: {
       trend: "Confirmed Uptrend", trendNote: "Above 50-DMA", distDays: 2, distMax: 6, lastFTD: day(-28),
-      indexes: [], stages: { counts: { 1: 2, 2: 7, 3: 2, 4: 1 }, n: 12 },
+      // The Index Health card was rendering EMPTY in every shot because this was
+      // `[]`. The Dow row deliberately carries a null change and a null 200-day
+      // read: those are the paths that used to print a green +0.00% and an
+      // indistinguishable "below the average" chip, and a fixture without them
+      // is how that shipped in the first place.
+      indexes: [
+        { k: "S&P 500", price: 5820.44, chg: 0.62, above50: true, above200: true, spark: series.slice(-30).map((r) => r.v) },
+        { k: "Nasdaq", price: 18944.10, chg: 0.91, above50: true, above200: true, spark: series.slice(-30).map((r) => r.v * 1.02) },
+        { k: "Russell 2000", price: 2288.73, chg: -0.34, above50: false, above200: true, spark: series.slice(-30).map((r) => r.v * 0.98) },
+        { k: "Dow", price: 43110.28, chg: null, above50: true, above200: null, spark: [] },
+      ],
+      stages: { counts: { 1: 2, 2: 7, 3: 2, 4: 1 }, n: 12 },
       breadth: { n: 12, newHighs: 3, newLows: 0, pctAbove50: 78, advDec: 2.4, upVolPct: 63 },
       asOf: 1767225600000,
     },

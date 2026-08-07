@@ -2198,3 +2198,11 @@ body { background: #0a0b0d; }
   .mm-etf-row > *:nth-child(4) { display: none; }
   .mm-etf-sec { font-size: 11px; }
 }
+
+/* the drawer takes focus on open so Tab stays inside it; it is a container, not
+   a control, so the ring would be noise */
+.drawer:focus { outline: none; }
+/* no change figure for an index — quiet, never a green +0.00% */
+.mh-ichg[data-na="true"] { color: var(--dim); }
+/* the 50d/200d chips are tri-state: on, below, or not enough history to say */
+.mh-ima[data-na="true"] { border-style: dashed; opacity: 0.55; }
