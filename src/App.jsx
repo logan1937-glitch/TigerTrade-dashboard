@@ -239,6 +239,18 @@ export default function App() {
       const sg = hist.sig?.[s.tk] || customData[s.tk]?.sig;
       if (sg) {
         r = { ...r, off52: sg.off52 != null ? sg.off52 : r.off52, sig: sg, _eod: true };
+        /* The session's change comes off the BARS, not the quote.
+           `quote.changePercentage` is a last price against a prior close — a
+           different clock from the daily series — and it has already been caught
+           collapsing to null or 0.00 across the whole universe, which is what
+           emptied the Volume tab's direction filters and left the stock tape with
+           no percentage on most names. `chgD` (compact records) and `chgPct` (the
+           full bundle custom lookups get) are both the completed session measured
+           from the same adjusted closes as every other figure on the row. The
+           quote stays as the fallback for a record computed before those existed. */
+        const sessionChg = sg.chgD != null ? sg.chgD
+          : (sg.chgPct != null && Number.isFinite(sg.chgPct) ? +sg.chgPct.toFixed(2) : null);
+        if (sessionChg != null) r = { ...r, chg: sessionChg };
         // full-array signals (custom / live-fallback names) power the drawer chart;
         // compact snapshot records carry none — the drawer fetches those on demand
         // `_synthetic` is about THESE arrays — tt.js seeds every curated row with an
@@ -663,7 +675,7 @@ export default function App() {
      live strip, so it carries its own clock and the board below stays uniformly
      as-of the snapshot. Yahoo only — this must never touch the FMP quota. */
   const tapeSyms = useMemo(() => tapePicks(csData.list).map((r) => r.tk).join(","), [csData.list]);
-  const [tapeQ, setTapeQ] = useState({ quotes: {}, asOf: null });
+  const [tapeQ, setTapeQ] = useState({ quotes: {}, asOf: null, tried: 0, ok: 0 });
   useEffect(() => {
     // the radar product shows the catalyst tape, which has no quotes to refresh.
     // Gate on that, not on a positive id — the screener's product key is "canslim".
@@ -684,11 +696,12 @@ export default function App() {
     };
     const run = async () => {
       const out = {};
-      let i = 0;
+      let i = 0, tried = 0;
       // 4-wide, same shape as the other pooled fetches here
       await Promise.all(Array.from({ length: 4 }, async () => {
         while (i < syms.length) {
           const t = syms[i++];
+          tried++;
           try {
             // 5d so the proxy has a prior session to difference against; 1d leaves
             // it leaning on meta.previousClose, which is the field that goes null
@@ -699,8 +712,18 @@ export default function App() {
           } catch { /* a name that won't quote keeps the snapshot's figure */ }
         }
       }));
-      if (!alive || !Object.keys(out).length) return;
-      setTapeQ((s) => ({ quotes: { ...s.quotes, ...out }, asOf: Date.now() }));
+      if (!alive) return;
+      /* Record the attempt even when nothing came back. /api/yahoo goes through
+         `bulkFetch`, which only routes via the residential proxy when
+         MASSIVE_PROXY_BULK=1 — otherwise these are unkeyed calls from a Vercel
+         datacenter IP, which is exactly what Yahoo rate-limits. When they are all
+         refused the tape silently kept showing snapshot figures and looked
+         broken; now it can say so. */
+      setTapeQ((s) => ({
+        quotes: { ...s.quotes, ...out },
+        asOf: Object.keys(out).length ? Date.now() : s.asOf,
+        tried, ok: Object.keys(out).length,
+      }));
     };
     const loop = async () => {
       if (!document.hidden) await run();
@@ -757,7 +780,8 @@ export default function App() {
           mode={mode} onToggleMode={() => setMode((m) => (m === "light" ? "dark" : "light"))} />
         {product === "radar"
           ? <CatalystTape events={upcoming} onSelect={openEvent} />
-          : <StockTape rows={csData.list} quotes={tapeQ.quotes} asOf={tapeQ.asOf} onPick={openStock} />}
+          : <StockTape rows={csData.list} quotes={tapeQ.quotes} asOf={tapeQ.asOf}
+              tried={tapeQ.tried} ok={tapeQ.ok} onPick={openStock} />}
         {product === "radar" ? (
           <>
             <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showBoards={SHOW_BOARDS} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />

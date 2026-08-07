@@ -38,6 +38,11 @@ placeholder that could be mistaken for a measurement.
   field, check what it renders as when its input is absent — and remember that
   `null <= 6` is **true** and `null >= 0` is **false**, so a null flows through
   comparisons as a confident answer in whichever direction hurts most.
+- **The session's change comes from `sig.chgD` (the adjusted daily bars), never
+  from `quote.changePercentage`.** The quote field is a last price against a
+  prior close — a different clock from the daily series — and it has twice been
+  caught collapsing to null or 0.00 across the whole universe. `csData` sets
+  `r.chg` from the bars for exactly this reason.
 - A projected date carries `~` and a tooltip saying who projected it.
 - A date the *user* typed carries a `yours` tag so it never reads as confirmed.
 - Demo/illustrative data must be labelled loudly (`DEMO — NOT LIVE`).
@@ -82,7 +87,12 @@ presentational.
   price on the page is as-of the last cron. The stock tape is the one exception:
   it refreshes its own ~14 names every 60s via `/api/yahoo` (never FMP) inside
   9:25–16:15 ET, holds them in `tapeQ` rather than merging into `live.quotes`,
-  and carries its own clock. That split is deliberate — refreshing 14 of 500
+  and carries its own clock. **That refresh fails in production unless
+  `MASSIVE_PROXY_BULK=1`** — `/api/yahoo` goes through `bulkFetch`, which only
+  routes via the residential proxy when that is set, and Yahoo rate-limits
+  unkeyed calls from Vercel's datacenter IPs. When every symbol is refused the
+  tape says so rather than quietly showing yesterday. `SHOTS_YAHOO_DOWN=1`
+  reproduces it. That split is deliberate — refreshing 14 of 500
   rows would leave the screener with two price times and nothing saying which
   row had which. If you widen the refresh, widen the labelling with it.
 

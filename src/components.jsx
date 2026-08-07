@@ -349,15 +349,25 @@ export function tapePicks(rows) {
   return (rows || []).filter((r) => r.px != null && r.score).sort((a, b) => b.score - a.score).slice(0, TAPE_N);
 }
 
-export function StockTape({ rows, quotes, asOf, onPick }) {
+export function StockTape({ rows, quotes, asOf, tried = 0, ok = 0, onPick }) {
   // top of the leaderboard, live prices — the screener's answer to the catalyst tape
   const items = useMemo(() => tapePicks(rows), [rows]);
   if (items.length < 2) return null;
   const fmt = (n) => (n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2));
   let stamp = null;
   try { if (asOf) stamp = new Date(asOf).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); } catch {}
+  // Every intraday quote was refused. The figures below are still real — they are
+  // the last completed session from the snapshot — but they are not today's, and
+  // a tape that silently shows yesterday reads as a broken tape.
+  const refreshDown = tried > 0 && ok === 0;
   return (
     <Tape label="Top leaders — live prices">
+      {refreshDown && (
+        <span className="tick-item tick-stale mono"
+          title="The intraday quote endpoint refused every request. Yahoo rate-limits unkeyed calls from datacenter IPs — setting MASSIVE_PROXY_BULK=1 routes them through the residential proxy. Prices and changes below are the last completed session from the nightly snapshot.">
+          <i className="tick-dot" />SESSION CLOSE · intraday quotes unavailable
+        </span>
+      )}
       {[0, 1].map((copy) => items.map((r) => {
         // the intraday refresh, when it has answered for this name; otherwise the
         // snapshot's own figures

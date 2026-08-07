@@ -8,6 +8,13 @@
 //   npm run shots -- --scroll 700      shoot a section below the fold
 //   npm run shots -- --live            hit the real /api/* instead of the fixture
 //
+//   SHOTS_YAHOO_DOWN=1 npm run shots -- --views screener
+//     makes /api/yahoo answer 429 for every symbol. The intraday quote path is
+//     the one that degrades in production (Yahoo rate-limits unkeyed calls from
+//     datacenter IPs unless MASSIVE_PROXY_BULK routes them), and the degraded
+//     render — the tape's "intraday quotes unavailable" banner plus its fall back
+//     to the snapshot's session figures — is otherwise impossible to photograph.
+//
 // WHY THIS EXISTS. Most of this UI only tells the truth when it renders: CSS
 // specificity traps, media-query overrides, panels that skeleton forever when a
 // feed is empty. Reading the diff cannot catch those; a screenshot can. Output
@@ -137,6 +144,10 @@ function fixture() {
         mom: +(100 + ((i % 7) - 3) * 1.3 + k * (((i % 4) - 1.5) * 0.3)).toFixed(2),
       })),
       ret: { d1: ((i % 7) - 3) * 0.9, w1: (i % 5) + 1, m1: (i % 11) + 2, m3: (i % 23) + 4, y1: 15 + i * 6 },
+      // DELIBERATELY different from quotes[t].changePercentage above. The row's
+      // session change must come from the bars, and a fixture where the two
+      // agreed could not show which one the merge actually picked.
+      chgD: +(((i % 7) - 3) * 0.9 + 0.07).toFixed(2),
       // 60 points, matching sampleSpark's real resolution, with a different
       // trajectory and amplitude per name — an identical shape on every row
       // would hide exactly the flatness the real chart is meant to reveal
@@ -357,6 +368,8 @@ for (const theme of themes) {
         if (u.includes("/api/snapshot")) body = SNAP;
         // /api/yahoo backs the peak-since-entry lookup for held positions
         else if (u.includes("/api/yahoo")) {
+          // SHOTS_YAHOO_DOWN=1 — see the header. Exercises the degraded path.
+          if (process.env.SHOTS_YAHOO_DOWN) return r.fulfill({ status: 429, contentType: "application/json", body: '{"error":"rate limited"}' });
           const sym = (u.match(/symbol=([^&]+)/) || [])[1] || "X";
           body = JSON.stringify(yahooBars(decodeURIComponent(sym)));
         }

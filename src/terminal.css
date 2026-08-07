@@ -2206,3 +2206,6 @@ body { background: #0a0b0d; }
 .mh-ichg[data-na="true"] { color: var(--dim); }
 /* the 50d/200d chips are tri-state: on, below, or not enough history to say */
 .mh-ima[data-na="true"] { border-style: dashed; opacity: 0.55; }
+/* the tape is showing the last completed session, not today */
+.tick-stale { color: var(--sev-high); letter-spacing: var(--track-meta); font-weight: 600; }
+.tick-stale .tick-dot { background: var(--sev-high); }
