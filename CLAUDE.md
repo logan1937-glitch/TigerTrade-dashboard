@@ -127,6 +127,15 @@ trail is anchored to where the name *is* (`mult × ATR` below the last price), s
 it always has a width and always sizes. Defaulting to one silently would answer
 a different question than the user asked; the picker states both.
 
+**Open risk** is the portfolio's headline number and it is NOT `shares × trail
+width`. Once `peakSince` knows the peak the trail has already ratcheted, so the
+real level is `peak − width` and the exposure from today's price is smaller than
+the width — using the width alone would overstate risk on exactly the positions
+that are working. A position whose trail already sits above price is counted as
+**breached and excluded**, never netted: subtracting it from a healthy position's
+risk would flatter the total. Sized positions with no ATR are counted as
+`unmeasured` and said so, rather than silently treated as risking nothing.
+
 `peakSince(bars, entryDate)` gives the high-water mark a trail actually follows.
 A position carries an optional **`entry`** date; when set, `App.jsx` fetches that
 holding's daily bars once per session (`/api/yahoo`, so no FMP quota) and the
@@ -175,7 +184,7 @@ each feature degrades to a stated-unavailable state without its key.
 `tt_custom`, `tt_disclaimer_ack_v1`, and the Playbook's `tt_pb_filters`,
 `tt_pb_sort`, `tt_pb_seen` (the explainer auto-opens on the first visit only),
 `tt_pb_risk` (account size + risk % for sizing) and `tt_pb_basis` (which stop
-the sizing box divides by), plus `tt_pf_atr` — the ATR multiple, **shared** by
+the sizing box divides by), the portfolio's `tt_pf_sort`, plus `tt_pf_atr` — the ATR multiple, **shared** by
 the portfolio's trailing-stop column and the Playbook's sizing box on purpose,
 so a position sized in one is monitored on the same number in the other.
 
@@ -295,9 +304,13 @@ directions, so a shared-state regression shows up as both panels moving together
 was an options-desk answer to a momentum-trader question — contango is a fact
 with no decision attached unless you trade options — so it now shows where
 capital actually traded. **There is no options flow anywhere in this app and it
-is not an oversight:** neither FMP nor Yahoo exposes chains, put/call ratios or
-unusual-options activity at any reachable tier, the page says so, and inventing
-it would be the worst thing this codebase could ship. `tt_tab` still holds `"playbook"` on
+is not an oversight.** FMP has no options endpoints at any tier here. Yahoo
+*does* serve chains and the crumb handshake in `api/earnings.js` could reach
+them — but no retail feed carries the SIDE of the trade, so volume and open
+interest can say contracts changed hands and never whether they were bought or
+sold. Anything labelled "flow" off that data is inferring a direction it cannot
+see. If a real source is ever wired in, expected move (ATM straddle ÷ spot) is
+the piece worth having: it prices the earnings dates this app already tracks. `tt_tab` still holds `"playbook"` on
 any device that last used the old tab, so `App.jsx` migrates that id on mount;
 an unknown id renders nothing at all under the subnav. The screener's Playbook
 is a different view (swing setups) and keeps its name.

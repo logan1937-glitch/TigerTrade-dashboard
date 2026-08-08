@@ -104,6 +104,9 @@ const click = async (p, label) => {
 /* ── deterministic fixture ───────────────────────────────────────────────
    Shaped exactly like /api/snapshot so the client's real merge path runs. */
 const day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+// the fixture prices every name at 80 + 37i; the bar series has to agree
+let TK_ORDER = [];
+const TK_INDEX = (sym) => { const i = TK_ORDER.indexOf(sym); return i >= 0 ? i : 0; };
 // [sector, [industry groups]] — mirrors the shape normSector() produces
 const FIX_SECTORS = [
   ["Technology", ["Semiconductors", "Software - Infrastructure", "Software - Application"]],
@@ -122,6 +125,7 @@ function fixture() {
     ...TT.CANSLIM.slice(0, 40).map((s) => s.tk),
     "NVDA", "AVGO", "CRDO", "APP", "GEV", "HOOD", "MU", "ANET", "MRVL", "VRT", "NFLX", "AXON",
   ])];
+  TK_ORDER = TK;                       // so yahooBars can price a symbol the same way
   const quotes = {}, sig = {}, meta = {}, earnings = {};
   TK.forEach((t, i) => {
     const px = 80 + i * 37;
@@ -276,9 +280,19 @@ function fixture() {
 // mid-window so the peak-since-entry lookup has something real to find.
 function yahooBars(sym) {
   const n = 120, bars = [];
+  // Scaled to the SAME price the snapshot quotes for this symbol. A flat 60–100
+  // series against a $339 quote made the portfolio's trail read "74% room" — the
+  // arithmetic was right and the inputs were incoherent, which is the harder kind
+  // of wrong to spot in a screenshot. The shape ENDS at the quoted price and
+  // peaks ~2% above it, so a trail has a real high-water mark to follow and a
+  // little room left: overshoot the peak and every holding reads "stop hit".
+  const px = 80 + TK_INDEX(sym) * 37;
   for (let i = 0; i < n; i++) {
     const t = i / (n - 1);
-    const close = 60 + 40 * Math.sin(t * Math.PI);            // rises, peaks, eases
+    // peakSince() follows bar HIGHS, and highs are close×1.012 below — so the
+    // bump has to stay under the trail width (~3.6% of price) or the peak lands
+    // above price+width and every holding reads "stop hit"
+    const close = px * (0.78 + 0.22 * t + 0.05 * Math.sin(t * Math.PI));
     bars.push({
       date: new Date(Date.UTC(2026, 3, 1) + i * 864e5).toISOString().slice(0, 10),
       open: +close.toFixed(2), high: +(close * 1.012).toFixed(2),

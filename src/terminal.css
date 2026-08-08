@@ -1305,7 +1305,9 @@ body { background: #0a0b0d; }
 /* ============================== PORTFOLIO ============================== */
 .subtab-n { margin-left: 6px; font-size: 9.5px; padding: 1px 5px; border-radius: 999px;
   background: color-mix(in oklch, var(--accent) 18%, transparent); color: var(--accent); vertical-align: middle; }
-.pf-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+/* auto-fit, not a fixed 4: adding the open-risk tile made a 5th wrap onto its
+   own row with three empty cells beside it */
+.pf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--border);
   border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin: 4px 0 16px; }
 .pf-tile { background: var(--surface); padding: 14px 16px 15px; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .pf-tk { font-size: 9.5px; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
@@ -2209,3 +2211,34 @@ body { background: #0a0b0d; }
 /* the tape is showing the last completed session, not today */
 .tick-stale { color: var(--sev-high); letter-spacing: var(--track-meta); font-weight: 600; }
 .tick-stale .tick-dot { background: var(--sev-high); }
+
+/* ── portfolio: open risk, stage mix, CSV backup ── */
+.pf-tile .pf-tv[data-risk="true"] { color: var(--sev-high); }
+.pf-io { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+/* standalone, not inside a `.seg` pill group, so they need their own edge or
+   they read as two words of muted label rather than as controls */
+.pf-io .seg-btn { padding: 8px 12px; border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm); background: var(--surface); color: var(--muted); }
+.pf-io .seg-btn:hover { color: var(--text); border-color: var(--muted); }
+.pf-io .seg-btn:disabled { opacity: .45; cursor: not-allowed; }
+/* a file input styled as a button — the native control cannot be */
+.pf-io-imp { position: relative; overflow: hidden; cursor: pointer; }
+.pf-io-imp input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.pf-io-msg { font-size: 10px; color: var(--muted); }
+.pf-th { justify-self: start; }
+.pf-th[data-right] { justify-self: end; }
+.pf-sec i[data-risk="true"] { background: color-mix(in oklch, var(--sev-high) 55%, transparent); }
+.pf-risk-share { margin-left: 7px; font-size: 9.5px; font-style: normal; color: var(--dim); }
+.pf-stage { display: flex; align-items: center; gap: 9px; padding: 6px 0; }
+.pf-stage-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; background: var(--muted); }
+.pf-stage[data-stage="2"] .pf-stage-dot { background: var(--cat-growth); }
+.pf-stage[data-stage="1"] .pf-stage-dot { background: var(--muted); }
+.pf-stage[data-stage="3"] .pf-stage-dot { background: var(--sev-high); }
+.pf-stage[data-stage="4"] .pf-stage-dot { background: var(--sev-extreme); }
+.pf-stage-k { font-size: 11.5px; color: var(--muted); }
+.pf-stage-v { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--text); }
+@media (max-width: 640px) {
+  .pf-io { margin-left: 0; width: 100%; }
+  /* five tiles in a 2-up grid leaves the last one alone next to a hole */
+  .pf-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}

@@ -58,6 +58,46 @@ const atrTitle = (t, r) => {
                 : "a stop-out at today's level would still cost you that much from entry.");
 };
 
+/* What the book actually stands to lose from HERE if every trail triggers.
+   Not `shares × width`: once we know the peak since entry the trail has already
+   ratcheted, so the real level is `peak − width` and the exposure from today's
+   price is smaller than the width. Falling back to the width alone would
+   overstate risk on exactly the positions that are working. A position whose
+   trail already sits above price has no remaining downside to this stop — it is
+   counted as breached rather than as a negative, because netting it against a
+   healthy position's risk would flatter the total. */
+const riskOf = (r, t) => {
+  if (r.shares == null || t.dist == null || r.px == null) return null;
+  const sp = stopFromPeak(r, t);
+  const level = sp ? sp.level : t.trail;
+  if (level == null) return null;
+  const perShare = r.px - level;
+  return { level, perShare, usd: perShare * r.shares, breached: perShare <= 0, fromPeak: !!sp };
+};
+
+/* Positions live in localStorage and nowhere else — the disclaimer at the bottom
+   of this view says so, and until now the app offered no way to act on that
+   warning. Round-trips through the same five fields `pos.add` takes. */
+const CSV_HEAD = "ticker,shares,cost,entry,reports";
+const toCsv = (list) => [CSV_HEAD, ...list.map((p) =>
+  [p.tk, p.shares ?? "", p.cost ?? "", p.entry ?? "", p.ern ?? ""].join(","))].join("\n");
+
+// Tolerant on purpose: a header row is optional, blank cells stay blank rather
+// than becoming 0, and a row whose ticker is unusable is skipped rather than
+// aborting the whole import.
+function parseCsv(text) {
+  const out = [];
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || /^ticker\s*,/i.test(t)) continue;
+    const [tk, sh, cost, entry, ern] = t.split(",").map((x) => (x || "").trim());
+    const sym = (tk || "").toUpperCase().replace(/[^A-Z0-9.\-]/g, "");
+    if (!sym) continue;
+    out.push({ tk: sym, shares: sh, cost, entry, ern });
+  }
+  return out;
+}
+
 export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null }) {
   // the ATR multiple for the trailing stop. 1.5 is the default; it is a
   // portfolio-wide setting rather than per-position because it is a rule you
@@ -127,7 +167,82 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
   const impliedUsd = impliedPct != null && tot.value != null ? (tot.value * impliedPct) / 100 : null;
   const nextEvents = (events || []).filter((e) => !e.past).slice(0, 4);
 
-  const sorted = useMemo(() => [...rows].sort((a, b) => (b.value || 0) - (a.value || 0)), [rows]);
+  /* ── open risk, book health, sorting, backup ─────────────────────────── */
+  // One pass: every row's trail and its remaining downside, so the tile, the
+  // panel and the table all read the same numbers rather than each recomputing.
+  const risk = useMemo(() => {
+    const per = rows.map((r) => ({ r, t: trail(r), k: riskOf(r, trail(r)) }));
+    const live = per.filter((x) => x.k && !x.k.breached);
+    const breached = per.filter((x) => x.k && x.k.breached);
+    const usd = live.reduce((n, x) => n + x.k.usd, 0);
+    return {
+      per, usd: live.length ? usd : null, n: live.length, breached: breached.length,
+      // sized positions we could NOT measure — stated rather than silently excluded
+      unmeasured: rows.filter((r) => r.shares != null && !riskOf(r, trail(r))).length,
+      top: [...live].sort((a, b) => b.k.usd - a.k.usd),
+    };
+  }, [rows, atrMult]);
+
+  // A momentum book's health is its stage mix: names that have rolled out of
+  // Stage 2 are the ones the method says to be out of, whatever the P&L says.
+  const health = useMemo(() => {
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0, unknown: 0 };
+    for (const r of rows) {
+      const st = r.row && r.row.sig ? r.row.sig.stage : null;
+      if (st === 1 || st === 2 || st === 3 || st === 4) counts[st]++; else counts.unknown++;
+    }
+    return { counts, measured: rows.length - counts.unknown };
+  }, [rows]);
+
+  const [sort, setSort] = useStored("tt_pf_sort", { k: "value", dir: "desc" });
+  const SORTS = {
+    tk: (r) => r.tk, value: (r) => r.value, pl: (r) => r.pl, plPct: (r) => r.plPct,
+    chg: (r) => r.chg, shares: (r) => r.shares,
+    risk: (r) => { const k = riskOf(r, trail(r)); return k && !k.breached ? k.usd : null; },
+    ern: (r) => (r.ern && r.ern.days != null ? r.ern.days : null),
+  };
+  const sorted = useMemo(() => {
+    const get = SORTS[sort.k] || SORTS.value;
+    const sgn = sort.dir === "asc" ? 1 : -1;
+    // Nulls sink in BOTH directions — a position we cannot measure is not the
+    // smallest one, and letting it sort as 0 would put it above real losses.
+    return [...rows].sort((a, b) => {
+      const x = get(a), y = get(b);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return typeof x === "string" ? sgn * x.localeCompare(y) : sgn * (x - y);
+    });
+  }, [rows, sort, atrMult]);
+  const hit = (k) => setSort((p) => ({ k, dir: p.k === k ? (p.dir === "desc" ? "asc" : "desc") : (k === "tk" ? "asc" : "desc") }));
+  const Th = ({ k, children, right }) => (
+    <button className="cs-th pf-th" data-active={sort.k === k || undefined} data-right={right || undefined}
+      onClick={() => hit(k)} title={`Sort by ${k}`}>
+      {children}<span className="cs-th-ar" aria-hidden="true">{sort.k === k ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}</span>
+    </button>
+  );
+
+  const [ioMsg, setIoMsg] = useState("");
+  const exportCsv = () => {
+    const blob = new Blob([toCsv(pos.list)], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `tigertrade-positions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setIoMsg(`Exported ${pos.list.length} position${pos.list.length === 1 ? "" : "s"}.`);
+  };
+  const importCsv = async (file) => {
+    if (!file) return;
+    try {
+      const parsed = parseCsv(await file.text());
+      if (!parsed.length) { setIoMsg("No usable rows in that file."); return; }
+      // adds and updates, never deletes — an import should not silently drop a
+      // position that simply is not in the file
+      for (const p of parsed) pos.add(p.tk, p.shares, p.cost, p.ern, p.entry);
+      setIoMsg(`Imported ${parsed.length} row${parsed.length === 1 ? "" : "s"} — existing tickers were updated, none removed.`);
+    } catch { setIoMsg("Could not read that file."); }
+  };
 
   return (
     <div className="wrap">
@@ -142,6 +257,14 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
           <span className="pf-tv" data-up={tot.pl == null ? undefined : tot.pl >= 0}>{compact(tot.pl)}</span>
           <span className="pf-ts mono">{tot.plN ? `${pctS(tot.plPct)} · ${tot.plN} of ${rows.length} with cost basis`
             : tot.costNoSize ? "add share counts for dollar P&L" : "add a cost basis to track"}</span></div>
+        <div className="pf-tile" title="Sum over every sized position of (today's price − where its trail actually sits) × shares. Positions whose trail has already been breached are excluded, not netted.">
+          <span className="pf-tk mono">Open risk</span>
+          <span className="pf-tv" data-risk={risk.usd != null || undefined}>{risk.usd == null ? "—" : `−${compact(risk.usd).replace("−", "")}`}</span>
+          <span className="pf-ts mono">{risk.usd == null
+            ? (rows.length ? "needs share counts and ATR" : "no positions")
+            : <>{tot.value ? `${((risk.usd / tot.value) * 100).toFixed(1)}% of book` : `${risk.n} position${risk.n === 1 ? "" : "s"}`}
+              {risk.breached ? ` · ${risk.breached} breached` : ""}
+              {risk.unmeasured ? ` · ${risk.unmeasured} unmeasured` : ""}</>}</span></div>
         <div className="pf-tile"><span className="pf-tk mono">Expected 1-day move</span>
           <span className="pf-tv">{impliedUsd == null ? "—" : `±${compact(impliedUsd).replace("−", "")}`}</span>
           <span className="pf-ts mono">{impliedPct != null ? `±${impliedPct.toFixed(2)}% · VIX-implied` : "awaiting VIX"}</span></div>
@@ -179,6 +302,17 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
           the trail width to set per position — as a percent and in points. A broker trailing stop
           applies it to the running peak of your holding period, so it follows the position up
         </span>
+        {/* The disclaimer below warns that clearing site data wipes the book. It
+            was a warning with nothing to act on until this existed. */}
+        <span className="pf-io">
+          <button className="seg-btn" onClick={exportCsv} disabled={!pos.list.length}
+            title="Download the book as CSV — ticker, shares, cost, entry date, report date">Export CSV</button>
+          <label className="seg-btn pf-io-imp" title="Load a CSV back in. Tickers already in the book are updated; nothing is removed.">
+            Import
+            <input type="file" accept=".csv,text/csv" onChange={(e) => { importCsv(e.target.files && e.target.files[0]); e.target.value = ""; }} />
+          </label>
+          {ioMsg && <span className="pf-io-msg mono">{ioMsg}</span>}
+        </span>
       </div>
 
       {rows.length === 0 ? (
@@ -190,11 +324,14 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
         <>
           <div className="cs-panel pf-table">
             <div className="cs-head pf-head">
-              <span>Position</span><span style={{ textAlign: "right" }}>Shares</span><span style={{ textAlign: "right" }}>Price · Δ</span>
-              <span style={{ textAlign: "right" }}>Value</span><span style={{ textAlign: "right" }}>P&amp;L</span>
+              <Th k="tk">Position</Th>
+              <Th k="shares" right>Shares</Th>
+              <Th k="chg" right>Price · Δ</Th>
+              <Th k="value" right>Value</Th>
+              <Th k="pl" right>P&amp;L</Th>
               <span style={{ textAlign: "right" }}>Weight</span>
-              <span style={{ textAlign: "right" }}>ATR trail</span>
-              <span style={{ textAlign: "right" }}>Next ern</span><span />
+              <Th k="risk" right>ATR trail</Th>
+              <Th k="ern" right>Next ern</Th><span />
             </div>
             {sorted.map((r) => {
               const w = tot.value && r.value != null ? (r.value / tot.value) * 100 : null;
@@ -305,6 +442,74 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="pf-panel">
+              <div className="pf-ph mono">Open risk · by position</div>
+              {risk.usd == null
+                ? <p className="pf-pempty mono">Needs a share count and an ATR. ATR arrives with the nightly
+                    snapshot; add sizes to the positions you actually hold and this ranks what each one is
+                    risking from here.</p>
+                : (
+                  <>
+                    <p className="pf-plead mono">
+                      If every trail triggered from today's prices the book gives back <b>−{compact(risk.usd).replace("−", "")}</b>
+                      {tot.value ? <>, or <b>{((risk.usd / tot.value) * 100).toFixed(1)}%</b> of its value</> : null}.
+                      {risk.breached > 0 && <> <b>{risk.breached}</b> position{risk.breached === 1 ? " is" : "s are"} already
+                        past its trail and excluded from that figure.</>}
+                    </p>
+                    <div className="pf-plist">
+                      {risk.top.slice(0, 6).map(({ r, k }) => (
+                        <div className="pf-sec" key={r.tk}
+                          title={`${r.tk}: ${money(k.perShare)} a share to ${money(k.level)}${k.fromPeak ? " (the trail's real level, from the peak since entry)" : " (the trail measured from today's price — set an entry date to follow the actual peak)"} × ${r.shares.toLocaleString()} shares`}>
+                          <span className="pf-sec-k">{r.tk}</span>
+                          <span className="pf-sec-v mono">{compact(k.usd).replace("−", "")}
+                            <i className="pf-risk-share mono">{((k.usd / risk.usd) * 100).toFixed(0)}%</i></span>
+                          <i data-risk="true" style={{ width: `${(k.usd / risk.top[0].k.usd) * 100}%` }} />
+                        </div>
+                      ))}
+                    </div>
+                    {risk.unmeasured > 0 && (
+                      <p className="pf-pnote mono">{risk.unmeasured} sized position{risk.unmeasured === 1 ? "" : "s"} could
+                        not be measured — no ATR yet, so {risk.unmeasured === 1 ? "it is" : "they are"} left out rather than
+                        counted as risking nothing.</p>
+                    )}
+                  </>
+                )}
+            </div>
+
+            <div className="pf-panel">
+              <div className="pf-ph mono">Book health · stage mix</div>
+              {health.measured === 0
+                ? <p className="pf-pempty mono">No stage read for these names yet — it comes from daily history
+                    in the nightly snapshot.</p>
+                : (
+                  <>
+                    <p className="pf-plead mono">
+                      <b>{health.counts[2]}</b> of {health.measured} still advancing.
+                      {health.counts[3] + health.counts[4] > 0
+                        ? <> <b>{health.counts[3] + health.counts[4]}</b> {health.counts[3] + health.counts[4] === 1 ? "has" : "have"} rolled
+                          over — the method says be out of {health.counts[3] + health.counts[4] === 1 ? "it" : "those"}, whatever the P&amp;L reads.</>
+                        : <> Nothing in the book has rolled over.</>}
+                    </p>
+                    <div className="pf-plist">
+                      {[[2, "Advancing", "uptrend — where leaders live"], [1, "Basing", "bottoming — building a base"],
+                        [3, "Topping", "distribution — rolling over"], [4, "Declining", "downtrend — avoid"]]
+                        .filter(([k]) => health.counts[k] > 0)
+                        .map(([k, label, note]) => (
+                          <div className="pf-stage" key={k} data-stage={k} title={note}>
+                            <i className="pf-stage-dot" />
+                            <span className="pf-stage-k">S{k} {label}</span>
+                            <span className="pf-stage-v mono">{health.counts[k]}</span>
+                          </div>
+                        ))}
+                    </div>
+                    {health.counts.unknown > 0 && (
+                      <p className="pf-pnote mono">{health.counts.unknown} name{health.counts.unknown === 1 ? "" : "s"} without
+                        a stage read — off-universe or not enough history.</p>
+                    )}
+                  </>
+                )}
             </div>
 
             <div className="pf-panel">

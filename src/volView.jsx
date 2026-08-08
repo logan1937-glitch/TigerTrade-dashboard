@@ -4,11 +4,14 @@
 // it — and heavy volume into DECLINING names is distribution, which is what
 // precedes a volatility expansion rather than merely describing one.
 //
-// NO OPTIONS FLOW. Neither FMP nor Yahoo exposes option chains, put/call ratios
-// or unusual-options activity at any tier this app can reach, so every figure
-// here is share and dollar volume off the same daily bars the rest of the
-// terminal uses. That is stated on the page too — a flow panel with invented
-// options data would be the worst thing this app could ship.
+// NO OPTIONS FLOW, and the reason is a choice rather than a hard wall. FMP has
+// no options endpoints at any tier here; Yahoo DOES serve chains, and the
+// cookie/crumb handshake in api/earnings.js could reach them. What no retail
+// feed serves is the side of the trade — volume and open interest say contracts
+// changed hands, never whether they were bought or sold — so anything labelled
+// "flow" off that data is inferring direction it cannot see. Every figure on
+// this page is share and dollar volume off the same daily bars the rest of the
+// terminal uses, and the page says so.
 //
 // Two panels side by side, because they answer different questions and the
 // comparison between them IS the read. Dollar volume is "who moved the index"
