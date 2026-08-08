@@ -2242,3 +2242,6 @@ body { background: #0a0b0d; }
   /* five tiles in a 2-up grid leaves the last one alone next to a hole */
   .pf-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
+/* Playbook detail header: logo, then the name block, then the action */
+.pb-dhead { display: flex; align-items: flex-start; gap: 13px; }
+.pb-dhead-t { flex: 1; min-width: 0; }

@@ -235,7 +235,7 @@ export default function App() {
       let r = quote ? mergeCanslim(s, quote) : s;
       // one taxonomy across the whole universe: the snapshot's classification wins
       const m = meta[s.tk];
-      if (m) r = { ...r, sector: m.sector || r.sector, group: m.industry || r.group };
+      if (m) r = { ...r, sector: m.sector || r.sector, group: m.industry || r.group, idx: m.idx || r.idx };
       const sg = hist.sig?.[s.tk] || customData[s.tk]?.sig;
       if (sg) {
         r = { ...r, off52: sg.off52 != null ? sg.off52 : r.off52, sig: sg, _eod: true };

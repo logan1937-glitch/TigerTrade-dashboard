@@ -134,7 +134,10 @@ function fixture() {
     // industry-group panel rendered a single group, so its scroller — and the
     // group ordering it exists to make navigable — were never in a shot.
     const sec = FIX_SECTORS[i % FIX_SECTORS.length];
-    meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][i % sec[1].length] };
+    // index tags: most names are S&P 500, a slice is also Nasdaq-100, a few are
+    // Dow — and some are in NO index, so "Any index" is visibly wider than "S&P 500"
+    const idx = i % 9 === 8 ? [] : ["sp500", ...(i % 3 === 0 ? ["ndx"] : []), ...(i % 11 === 0 ? ["dow"] : [])];
+    meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][i % sec[1].length], idx };
     earnings[t] = { d: day(2 + i * 3), t: i % 2 ? "amc" : "bmo", last: null };
     sig[t] = {
       stage: 2, stageLabel: "Advancing", off52: (i % 9) + 1, atHigh: i % 4 === 0, ret12m: 15 + i * 6,

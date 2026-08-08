@@ -14,7 +14,7 @@
 // its inputs stated (Chandelier: 22-day high − 3·ATR), not advice, and a name
 // with no computable metric shows "—" rather than a filled-in guess.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SearchIcon } from "./components.jsx";
+import { SearchIcon, Logo } from "./components.jsx";
 import { isLaunchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf, atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
@@ -378,7 +378,9 @@ function Detail({ row, onOpenStock }) {
   return (
     <>
       <div className="pb-dhead">
-        <div>
+        {/* same mark the stock drawer uses, so a name looks like itself in both */}
+        <Logo ticker={row.tk} size={38} />
+        <div className="pb-dhead-t">
           <div className="pb-dsym"><span className="dr-sym">{row.tk}</span>
             {spread != null && spread <= LAUNCHPAD_MAX_SPREAD && <span className="badge badge-cat" style={{ "--c": "var(--accent)" }}>Launchpad</span>}
             {row.ern && row.ern.days <= ERN_BLACKOUT_DAYS && (

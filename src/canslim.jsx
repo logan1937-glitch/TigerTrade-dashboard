@@ -151,6 +151,9 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
   const [sort, setSort] = useState("score");
   const [dir, setDir] = useState("desc");   // "desc" = high→low / Z→A, "asc" = the reverse
   const [statusF, setStatusF] = useState("all");
+  // index membership, tagged on every row by the snapshot. "All" is the whole
+  // universe including the curated names that belong to no index at all.
+  const [idxF, setIdxF] = useState("all");
   // Δ is the ranking window, not just a price-column format: RS, score and the
   // leadership L chip are all measured over it. 1Y is the default so the board
   // still opens on the classic 12-month leadership ranking.
@@ -168,6 +171,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
     let r = rows.filter((x) => (x.tk + " " + x.name + " " + x.group).toLowerCase().includes(q.toLowerCase()));
     if (sectorF) r = r.filter((x) => x.sector === sectorF);
     if (statusF !== "all") r = r.filter((x) => x.status === statusF);
+    if (idxF !== "all") r = r.filter((x) => Array.isArray(x.idx) && x.idx.includes(idxF));
     // every ranked quantity is resolved for the selected window before sorting,
     // so changing Δ re-orders the board on whichever factor is active — not just
     // the number in the price column
@@ -193,7 +197,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
     const dv = dir === "asc" ? 1 : -1;
     const cmp = sort === "ticker" ? (a, b) => dv * a.tk.localeCompare(b.tk) : (a, b) => dv * (val(a) - val(b));
     return [...r].sort(cmp);
-  }, [rows, q, sort, dir, statusF, tf, sectorF]);
+  }, [rows, q, sort, dir, statusF, idxF, tf, sectorF]);
 
   // sortable column header — clickable, shows the active sort arrow
   const Th = ({ label, k, right }) => (
@@ -220,6 +224,17 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           <div className="seg">
             {[["all", "All"], ["buy", "Buy zone"], ["ext", "Extended"], ["watch", "Watch"]].map(([id, l]) => (
               <button key={id} className="seg-btn" data-active={statusF === id} onClick={() => setStatusF(id)}>{l}</button>
+            ))}
+          </div>
+          {/* Membership, not reach. The Dow is a strict subset of the S&P 500 and
+              the Nasdaq-100 adds ~10–20 names to a 520-name universe, so this is
+              a lens on what is already here rather than a way to see more. */}
+          <div className="seg">
+            {[["all", "Any index", "Every name in the universe, index member or not"],
+              ["sp500", "S&P 500", "S&P 500 constituents"],
+              ["ndx", "Nasdaq 100", "Nasdaq-100 constituents — mostly a subset of the S&P 500"],
+              ["dow", "Dow 30", "Dow Jones Industrial Average — entirely inside the S&P 500"]].map(([id, l, t]) => (
+              <button key={id} className="seg-btn" data-active={idxF === id} onClick={() => setIdxF(id)} title={t}>{l}</button>
             ))}
           </div>
         </div>

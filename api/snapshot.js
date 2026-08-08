@@ -32,7 +32,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 9;
+const SCHEMA = 10;
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -146,6 +146,29 @@ async function fmpConstituents() {
     }
   }
   return SP500.map((x) => ({ ...x }));  // committed full-index fallback
+}
+
+/* The other two US large-cap indices, for membership rather than for reach.
+   MEASURED, so nobody expects otherwise: the Dow 30 is a strict subset of the
+   S&P 500, and of a 29-name Nasdaq-100 sample only 12 were outside the S&P and
+   only 8 outside the S&P plus this app's curated list. Fetching both grows a
+   520-name universe by roughly 10–20. What it actually buys is the `idx` tag on
+   every row, which is what lets the screener filter to an index — the real
+   expansion (mid- and small-caps) is a compute-budget problem, not a list one.
+   Best-effort: a failure leaves the tag absent, never wrong. */
+async function fmpIndexMembers(slug) {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return [];
+  for (const url of [`https://financialmodelingprep.com/stable/${slug}-constituent?apikey=${key}`,
+                     `https://financialmodelingprep.com/api/v3/${slug}_constituent?apikey=${key}`]) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (Array.isArray(j) && j.length >= 25) return j.filter((x) => x && x.symbol).map((x) => ({ tk: x.symbol, name: x.name || x.symbol, sector: x.sector || "—", industry: x.subSector || x.industry || "—" }));
+    } catch (e) { console.error(`fmp ${slug}:`, e); }
+  }
+  return [];
 }
 
 // earnings per universe ticker, from the FMP calendar: the NEXT confirmed report
@@ -538,12 +561,22 @@ async function compute() {
 
   // universe = S&P 500 constituents (live from FMP) ∪ curated names, deduped.
   // `meta` carries name + sector + industry for every ticker in one taxonomy.
-  const constituents = await fmpConstituents();
+  const [constituents, ndx, dow] = await Promise.all([
+    fmpConstituents(), fmpIndexMembers("nasdaq"), fmpIndexMembers("dowjones"),
+  ]);
   const meta = {};
-  for (const c of constituents) meta[c.tk] = { name: c.name, sector: c.sector, industry: c.industry };
+  for (const c of constituents) meta[c.tk] = { name: c.name, sector: c.sector, industry: c.industry, idx: ["sp500"] };
+  // Nasdaq-100 and Dow members the S&P list did not already carry — these ARE
+  // the net-new names, and there are not many of them
+  for (const [slug, list] of [["ndx", ndx], ["dow", dow]]) {
+    for (const c of list) {
+      if (meta[c.tk]) { if (!meta[c.tk].idx.includes(slug)) meta[c.tk].idx.push(slug); continue; }
+      meta[c.tk] = { name: c.name, sector: normSector(c.sector), industry: c.industry || "—", idx: [slug] };
+    }
+  }
   for (const s of TT.CANSLIM) {
     if (meta[s.tk]) continue;  // constituent classification wins for shared names
-    meta[s.tk] = { name: s.name, sector: normSector(s.sector), industry: s.group || "—" };
+    meta[s.tk] = { name: s.name, sector: normSector(s.sector), industry: s.group || "—", idx: [] };
   }
   const tickers = Object.keys(meta);
   const idxSyms = INDICES.map((x) => x.sym);
