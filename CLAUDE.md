@@ -206,8 +206,17 @@ so a position sized in one is monitored on the same number in the other.
 
 ## Design system
 
-`src/terminal.css` (~1,700 lines) is the whole design system: **106 CSS custom
-properties** across four themes.
+`src/terminal.css` (~2,350 lines) is the whole design system: 48 distinct custom
+properties across four themes.
+
+It implements the **Ember** brand handoff. One rule governs it: **amber is
+brand, jade is signal and interaction, green and red are P&L and nothing else.**
+Green/red are the only colours in the product that mean money moved, so spending
+them on a decorative success state costs them that meaning. `--pl-up` /
+`--pl-down` are the names to reach for; `--cat-growth` / `--sev-extreme` still
+resolve to them because the Growth event category and the Extreme severity band
+have always been drawn in those hues, and separating those two from P&L is the
+one piece of the rule still outstanding.
 
 **Everything hangs off one wrapper.** `App.jsx:642` renders:
 
@@ -228,11 +237,41 @@ wrapper or nothing will look right.
 **Token families** (read `src/terminal.css:34-165` for the real values):
 `--bg --panel --surface --surface-2` · `--border --border-2` ·
 `--text --muted --dim` · `--accent --accent-2 --accent-ink` ·
-`--brand --brand-ink` · `--cat-growth --sev-high --sev-extreme` ·
-`--radius --radius-sm` · `--font-ui --font-display --font-mono` ·
+`--brand --brand-ink` · `--pl-up --pl-down` · `--cat-growth --sev-high --sev-extreme` ·
+`--mark-tile --mark-tile-line --mark-ink` ·
+`--radius-sm 7px` (buttons, chips) · `--radius-md 11px` (inputs, logo tiles) ·
+`--radius 14px` (**cards and panels** — every rule that uses it is one, and the
+lone `calc(var(--radius) + 2px)` lands on the 16px the system gives large
+section containers) · `--font-ui --font-display --font-mono` ·
 `--track-display --track-label --track-meta --track-data --track-wide`
 
 Use tokens. Never hard-code a hex — it will be wrong in three of four themes.
+
+**The mark is three tapered slashes, and its geometry is fixed** (`BrandMark` in
+`components.jsx`, mirrored by `public/icon.svg`): a 10×10 grid in a `0 0 100 100`
+box, heads at y 52/38/22 stepping up 14 units, all feet on y 82, 13 units wide at
+the head and 5 at the tip. The 2.6:1 rake *is* the identity — never stretch it,
+and never mirror it, because flipped the rise reads as a sell-off. It draws in
+`currentColor`, and it keeps the **dark-mode** amber in both modes because it
+always sits on a dark tile (`--mark-tile` is `#241610` dark / `#1C120C` light);
+amber-deep `#A9531A` exists for text on paper, and putting it on near-black would
+throw the contrast away.
+
+**Two faces, and the split is by content, not by size.** Space Grotesk is the UI
+and display face; IBM Plex Mono carries **every number**, plus eyebrows and field
+labels. `.mono` sets it along with `tabular-nums` — a proportional face made
+price columns ripple as digits changed width, which is the exact scanning motion
+a tape exists to remove. The trap: `.mono` marks *data*, not *small text*. It
+was applied to sentence copy back when the mono token was also Space Grotesk and
+the distinction cost nothing; the moment it became a real monospace, fifteen
+rules of body prose turned into code blocks. Prose takes `--font-ui` at 1.6 —
+check what a `.mono` span actually contains before adding one.
+
+**Light mode is paper, not an inverted dark theme.** `#FAF6F1` warm paper with
+`#FFFFFF` cards — never pure white for the page, or the brand temperature is
+gone. Amber and jade are tuned to glow on black and fall under 3:1 there, so the
+hues stay and the values deepen: `#A9531A` and `#0B7A6E` are the only approved
+values for text on light surfaces.
 
 **Components** live in `src/`: `components.jsx` (shell, hero, tapes, macro board,
 VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`

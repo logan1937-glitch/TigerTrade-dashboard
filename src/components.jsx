@@ -3,14 +3,25 @@ import { TT } from "./tt.js";
 
 export const SEV_LABEL = { extreme: "Extreme", high: "High", medium: "Medium", low: "Low" };
 
-/* TigerTrade rising-bars mark — amber bars, tallest in jade (the signal) */
+/* The Ember mark: three tapered slashes — a tiger's claw rake and a rising tape
+   read as the same gesture. Geometry is fixed by the brand system: a 10×10 grid
+   in a 0 0 100 100 box, heads at y 52/38/22 stepping up 14 units, all feet on
+   y 82, 13 units wide at the head and 5 at the tip (the 2.6:1 rake IS the
+   identity — never stretch it, never mirror it; flipped, the rise reads as a
+   sell-off). `currentColor` so one path serves every theme, and the round
+   linejoin at 3.4 is what keeps the tips from looking chipped at 16px. */
+const MARK_SLASHES = [
+  "23.5,52 36.5,52 32.5,82 27.5,82",
+  "45.5,38 58.5,38 54.5,82 49.5,82",
+  "67.5,22 80.5,22 76.5,82 71.5,82",
+];
 export function BrandMark() {
   return (
     <span className="brand-mark">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="3" y="14" width="4.4" height="7" rx="1.3" fill="var(--brand)" />
-        <rect x="9.8" y="9" width="4.4" height="12" rx="1.3" fill="var(--brand)" />
-        <rect x="16.6" y="4" width="4.4" height="17" rx="1.3" fill="var(--accent)" />
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="currentColor" stroke="currentColor" strokeWidth="3.4" strokeLinejoin="round">
+          {MARK_SLASHES.map((pts) => <polygon key={pts} points={pts} />)}
+        </g>
       </svg>
     </span>
   );
@@ -158,7 +169,13 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
   const clock = useClock();
   return (
     <div className="topbar">
-      <div className="brand"><BrandMark /><span className="brand-tx"><span className="b1">Tiger</span><span className="b2">Trade</span></span></div>
+      <div className="brand">
+        <BrandMark />
+        <span className="brand-tx">
+          <span className="brand-word"><span className="b1">Tiger</span><span className="b2">Trade</span></span>
+          <span className="brand-sub mono">TERMINAL</span>
+        </span>
+      </div>
       <div className="nav-pills">
         <button className="navpill" data-active={product === "radar"} onClick={() => setProduct("radar")}>Volatility · Momentum Radar</button>
         <button className="navpill" data-active={product === "canslim"} onClick={() => setProduct("canslim")}>Leadership Screener</button>
@@ -430,7 +447,7 @@ export function MacroBoard({ macro, settled }) {
       return (
         <div className="macroboard mb-out">
           <div className="mb-h mono">Macro board</div>
-          <p className="mb-outmsg mono">No rates, FX, commodity or inflation data came back from the market-data
+          <p className="mb-outmsg">No rates, FX, commodity or inflation data came back from the market-data
             feed. These come from FMP — check that <b>FMP_API_KEY</b> is set and that the plan's quota isn't spent.</p>
         </div>
       );
@@ -541,7 +558,7 @@ export function VixPanel({ vix, settled }) {
       return (
         <div className="vixpanel vix-out" style={{ "--reg": "var(--muted)" }}>
           <div className="vix-head"><span className="vix-kicker mono">CBOE Volatility · VIX</span></div>
-          <p className="mb-outmsg mono">No VIX quote or history came back from the market-data feed. This panel is
+          <p className="mb-outmsg">No VIX quote or history came back from the market-data feed. This panel is
             fed by FMP — check that <b>FMP_API_KEY</b> is set and that the plan's quota isn't spent.</p>
           <span className="vix-foot mono">52-week range · fear gauge</span>
         </div>

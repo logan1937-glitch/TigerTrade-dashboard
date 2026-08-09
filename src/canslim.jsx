@@ -335,7 +335,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
         ))}
        </div>
       </div>
-      <p className="mono" style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "-46px 2px 64px", maxWidth: "70ch" }}>
+      <p style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "-46px 2px 64px", maxWidth: "70ch" }}>
         The <b style={{ color: "var(--muted)", fontWeight: 600 }}>TigerTrade Leadership Model (LEADERS)</b> is our own 7-factor
         relative-strength growth framework. Its factors follow classic leadership-investing principles popularized by William
         J. O'Neil. TigerTrade is independent and not affiliated with, sponsored by, or endorsed by Investor's Business Daily;
