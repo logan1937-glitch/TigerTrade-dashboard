@@ -11,6 +11,14 @@
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 const label = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/* A live release's id has to be its IDENTITY, not its position in today's list.
+   These used to be `1000 + i` off a filtered, date-sorted slice — so tomorrow's
+   1003 was a different release than today's, and a watchlist star saved against
+   it would silently point at some unrelated event. Date + name is stable across
+   sessions and resolves to nothing once the release leaves the window, which is
+   the honest outcome: better absent than confidently wrong. */
+const econId = (e) => `econ:${isoOf(e.date)}:${String(e.event).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48)}`;
 const daysFromToday = (d) => {
   const now = new Date();
   const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -93,14 +101,14 @@ export function mergeEcon(events, econ) {
     .filter((e) => !/fed(eral)? (funds|interest) rate|non ?farm|(^|\s)cpi|ism (manufacturing|services)|pce|personal consumption|personal income|retail sales|gross domestic product|\bgdp\b/i.test(e.event))
     .sort((a, b) => a.date - b.date)
     .slice(0, 12)
-    .map((e, i) => {
+    .map((e) => {
       const days = daysFromToday(e.date);
       const desc = [
         e.previous != null ? `Prev ${e.previous}${e.unit}` : null,
         e.estimate != null ? `Cons ${e.estimate}${e.unit}` : null,
       ].filter(Boolean).join(" · ") || "High-impact US economic release.";
       return {
-        id: 1000 + i, date: label(e.date), approx: false, range: "", live: true,
+        id: econId(e), date: label(e.date), approx: false, range: "", live: true,
         t: -days, sort: days + 0.5, sev: "medium", cat: "data",
         title: e.event, desc,
         econ: { previous: e.previous, estimate: e.estimate, actual: e.actual, unit: e.unit, name: e.event },

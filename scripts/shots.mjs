@@ -34,6 +34,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { TT } from "../src/tt.js";
+import { mergeEcon } from "../src/econ.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
@@ -63,6 +64,29 @@ const HOLDINGS = [
   { tk: "NBIS", shares: null, cost: null, ern: new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10), at: 1767225600000 },
 ];
 
+/* A live economic calendar. The radar merges these in as extra events, and they
+   exist ONLY in that merge — which is exactly why starring one used to vanish
+   from the watchlist. The fixture carries them so the merged path is in a shot
+   rather than only the curated template. */
+const ECON_FEED = [
+  { date: new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10) + " 14:00:00", event: "Michigan Consumer Sentiment Prel", country: "US", impact: "High", previous: 61.2, estimate: 62, actual: null, unit: "" },
+  { date: new Date(Date.now() + 6 * 864e5).toISOString().slice(0, 10) + " 12:30:00", event: "Housing Starts", country: "US", impact: "High", previous: 1.32, estimate: 1.35, actual: null, unit: "M" },
+];
+// derived through mergeEcon itself, so the star key can never drift from the id
+// the app actually assigns
+const LIVE_EV = mergeEcon(TT.EVENTS, ECON_FEED.map((e) => ({
+  date: new Date(e.date.replace(" ", "T") + "Z"), event: e.event, country: e.country,
+  impact: e.impact.toLowerCase(), previous: e.previous, estimate: e.estimate, actual: e.actual, unit: e.unit,
+}))).events.find((e) => e.live && String(e.id).startsWith("econ:"));
+const WATCHED = [
+  { key: "ev:2", kind: "event", ref: 2, name: "FOMC Rate Decision", at: 1767225600000 },
+  ...(LIVE_EV ? [{ key: "ev:" + LIVE_EV.id, kind: "event", ref: LIVE_EV.id, name: LIVE_EV.title, at: 1767225600001 }] : []),
+  // a star whose release has left the calendar window — kept and stated, not
+  // dropped, and the row that proves it is in the shot
+  { key: "ev:econ:2020-01-02:retired-release", kind: "event", ref: "econ:2020-01-02:retired-release", name: "Retired Release", at: 1767225600002 },
+  { key: "tk:NVDA", kind: "stock", ref: "NVDA", at: 1767225600003 },
+];
+
 const VIEWS = [
   { id: "radar",     state: { tt_product: "radar",   tt_tab: "radar" } },
   { id: "timeline",  state: { tt_product: "radar",   tt_tab: "timeline" } },
@@ -79,6 +103,10 @@ const VIEWS = [
       await p.locator('[data-panel="rvol"] button', { hasText: /^Advancing/ }).first().click();
       await p.waitForTimeout(400);
     } },
+  // the watchlist has never been in a screenshot, and it is where a starred live
+  // economic release silently disappeared for as long as the feature has existed
+  { id: "watch", state: { tt_product: "radar", tt_tab: "radar", tt_watch: WATCHED },
+    act: async (p) => { await p.locator(".watch-btn").first().click(); await p.waitForTimeout(500); } },
   { id: "screener",  state: { tt_product: "canslim" } },
   // the extended tier: a second payload, fetched only when this filter is picked.
   // Worth its own shot because "nothing happened" and "it merged" look identical
@@ -424,7 +452,8 @@ for (const theme of themes) {
         // tier=ext BEFORE the core test — the ext URL contains "/api/snapshot"
         // too, and answering it with the core payload would make the widened
         // universe look like it merged when nothing new arrived at all
-        if (u.includes("tier=ext")) body = SNAP_EXT;
+        if (u.includes("endpoint=economic")) body = JSON.stringify(ECON_FEED);
+        else if (u.includes("tier=ext")) body = SNAP_EXT;
         else if (u.includes("/api/snapshot")) body = SNAP;
         // /api/yahoo backs the peak-since-entry lookup for held positions
         else if (u.includes("/api/yahoo")) {

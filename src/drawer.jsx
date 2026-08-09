@@ -149,7 +149,7 @@ export function EventDrawerBody({ ev, onClose, onPick, vix }) {
       </div>
 
       <div className="dr-actions">
-        <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} label />
+        <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} name={ev.title} label />
         <button className="ed-btn">Add to calendar</button>
         <button className="ed-btn ed-btn-primary">Set alert</button>
       </div>
@@ -682,13 +682,29 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
 }
 
 /* ----------------------------- WATCHLIST ----------------------------- */
-export function WatchlistBody({ onClose, onPickEvent, onPickStock }) {
+export function WatchlistBody({ onClose, onPickEvent, onPickStock, events: allEvents = TT.EVENTS }) {
   const w = useWatch();
   const { byTicker } = useCanslim();
   const alerts = useAlerts();
   const statusMap = { buy: ["Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
   const statusOf = (st) => statusMap[st] || ["—", "var(--dim)"];   // signals-only names can have no status
-  const events = w.list.filter((x) => x.kind === "event").map((x) => TT.EVENTS.find((e) => e.id === x.ref)).filter(Boolean).sort((a, b) => a.sort - b.sort);
+  /* Resolve against the MERGED event list, not the curated template. The live
+     economic calendar appends releases that exist only in that merge, so
+     `TT.EVENTS.find` returned undefined for every one of them and `.filter`
+     dropped it — starring a live release put it in the badge count and nowhere
+     else. Ids are compared as strings because curated ones are numbers and live
+     ones are `econ:<date>:<name>` keys. */
+  const evById = useMemo(() => {
+    const m = {};
+    for (const e of allEvents) m[String(e.id)] = e;
+    return m;
+  }, [allEvents]);
+  /* An unresolvable star is KEPT and stated rather than dropped: a release that
+     has already happened leaves the calendar window, and a row silently
+     vanishing while the badge still counts it is indistinguishable from a bug. */
+  const events = w.list.filter((x) => x.kind === "event")
+    .map((x) => ({ star: x, ev: evById[String(x.ref)] || null }))
+    .sort((a, b) => (a.ev ? a.ev.sort : Infinity) - (b.ev ? b.ev.sort : Infinity));
   const stocks = w.list.filter((x) => x.kind === "stock").map((x) => byTicker[x.ref]).filter(Boolean).sort((a, b) => (b.score || 0) - (a.score || 0));
   const empty = events.length === 0 && stocks.length === 0;
   return (
@@ -710,14 +726,24 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock }) {
             <div className="dr-sec">
               <div className="dr-sec-h"><h3>Events</h3><span className="dr-sec-sub mono">{events.length}</span></div>
               <div className="wl-list">
-                {events.map((ev) => {
+                {events.map(({ star, ev }) => {
+                  if (!ev) {
+                    return (
+                      <div className="wl-row wl-gone" key={star.key}>
+                        <span className="wl-date mono">—<small>off calendar</small></span>
+                        <span className="wl-name">{star.name || "Tracked event"}<small className="mono">no longer in the calendar window</small></span>
+                        <StarBtn wkey={star.key} kind="event" refId={star.ref} name={star.name} />
+                      </div>
+                    );
+                  }
                   const cat = TT.CAT_MAP[ev.cat];
                   return (
-                    <div className="wl-row" key={ev.id} style={{ "--c": cat.color }} onClick={() => onPickEvent(ev)} role="button" tabIndex={0}>
+                    <div className="wl-row" key={star.key} style={{ "--c": cat.color }} onClick={() => onPickEvent(ev)} role="button" tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPickEvent(ev); } }}>
                       <span className="wl-date mono">{ev.approx ? "~" : ""}{ev.date}<small>{ev.past ? `T+${ev.t}d` : `T${ev.t}d`}</small></span>
                       <span className="wl-name">{ev.title}<small className="mono">{cat.label}</small></span>
                       <span className="badge badge-sev" data-sev={ev.sev}>{SEV_LABEL[ev.sev]}</span>
-                      <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} />
+                      <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} name={ev.title} />
                     </div>
                   );
                 })}

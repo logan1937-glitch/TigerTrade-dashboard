@@ -38,6 +38,19 @@ placeholder that could be mistaken for a measurement.
   field, check what it renders as when its input is absent — and remember that
   `null <= 6` is **true** and `null >= 0` is **false**, so a null flows through
   comparisons as a confident answer in whichever direction hurts most.
+- **An id that encodes a position is not an identity.** Live econ events were
+  appended with `id: 1000 + i` — an index into a filtered, date-sorted slice of
+  *today's* calendar — so tomorrow's `1003` was a different release. Anything
+  persisted against one (a watchlist star) either resolved to the wrong event or
+  to nothing. They are now `econ:<date>:<slug>`. The same rule applies to any id
+  a user's stored state can point at: derive it from what the thing *is*.
+- **`TT.EVENTS` is the curated template, `allEvents` is what the radar shows.**
+  `mergeEcon` appends live releases that exist only in the merge, so anything
+  resolving an event by id must use the merged list — `WatchlistBody` used
+  `TT.EVENTS.find`, and every starred live release came back `undefined` and was
+  dropped by a `.filter(Boolean)`, present in the badge count and nowhere else.
+  Ids are compared with `String(...)`: curated ones are numbers, live ones are
+  `econ:` keys, and `?ev=` deep links are always strings.
 - **The session's change comes from `sig.chgD` (the adjusted daily bars), never
   from `quote.changePercentage`.** The quote field is a last price against a
   prior close — a different clock from the daily series — and it has twice been
@@ -294,7 +307,13 @@ npm run shots -- --views radar --live                   # against real APIs
 
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
-`vol`, `volsort`, `screener`, `screenerext`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+`vol`, `volsort`, `watch`, `screener`, `screenerext`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+The `watch` shot seeds all four watchlist row states — a curated event, a **live
+econ** event, a star whose release has left the calendar window, and a ticker —
+and the fixture now answers `/api/fmp?endpoint=economic-calendar`, so the merged
+event list is exercised rather than only the curated template. Its star keys are
+derived by calling `mergeEcon` itself, so they cannot drift from the ids the app
+assigns.
 `screenerext` clicks "Beyond index" so the extended tier's second payload
 actually merges in a shot — `?tier=ext` is routed to its own fixture, and the
 route test checks it **before** the core one because the ext URL contains

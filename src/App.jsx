@@ -76,9 +76,11 @@ export default function App() {
     list: watchArr,
     count: watchArr.length,
     has: (key) => watchSet.has(key),
+    // `name` is persisted with the star so a live economic release can still be
+    // named after it drops out of the calendar window and its id stops resolving
     toggle: (key, meta) => setWatchArr((prev) => prev.some((w) => w.key === key)
       ? prev.filter((w) => w.key !== key)
-      : [...prev, { key, kind: meta.kind, ref: meta.ref, at: Date.now() }]),
+      : [...prev, { key, kind: meta.kind, ref: meta.ref, name: meta.name || null, at: Date.now() }]),
   }), [watchArr, watchSet]);
 
   // price alerts: armed from the drawer, persisted, evaluated against live
@@ -687,7 +689,10 @@ export default function App() {
   }, []);
   useEffect(() => {                  // open a deep-linked drawer once its data is available
     const p = pendingUrl.current; if (!p) return;
-    if (p.ev) { const e = allEvents.find((x) => x.id === p.ev); if (e) { pendingUrl.current = null; openEvent(e); } return; }
+    // `String(...)`: ids off the query string are always strings, curated event
+    // ids are numbers, and live econ ids are `econ:` keys — a strict compare
+    // matched none of them, so ?ev= deep links silently opened nothing
+    if (p.ev) { const e = allEvents.find((x) => String(x.id) === p.ev); if (e) { pendingUrl.current = null; openEvent(e); } return; }
     if (p.tk && (csData.byTicker[p.tk] || live.status !== "loading")) { pendingUrl.current = null; openStock({ tk: p.tk }); }
   }, [allEvents, csData, live.status]);
   useEffect(() => {                  // write the URL whenever the view changes
@@ -712,7 +717,7 @@ export default function App() {
       const tk = q.get("tk"), ev = q.get("ev");
       if (!tk && !ev) { setStockDrawer(null); setEvDrawer(null); setWatchOpen(false); prevOpen.current = false; return; }
       if (tk) { if (!stockDrawer || stockDrawer.tk !== tk) openStock({ tk }); }
-      else if (ev && (!evDrawer || evDrawer.id !== ev)) { const e = allEvents.find((x) => x.id === ev); if (e) openEvent(e); }
+      else if (ev && (!evDrawer || String(evDrawer.id) !== ev)) { const e = allEvents.find((x) => String(x.id) === ev); if (e) openEvent(e); }
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -864,7 +869,7 @@ export default function App() {
             onOpenPlaybook={(tk) => { setStockDrawer(null); setProduct("canslim"); setPbFocus(tk); }} />}
         </Drawer>
         <Drawer open={watchOpen} onClose={() => setWatchOpen(false)} label="Watchlist">
-          {watchOpen && <WatchlistBody onClose={() => setWatchOpen(false)} onPickEvent={openEvent} onPickStock={openStock} />}
+          {watchOpen && <WatchlistBody onClose={() => setWatchOpen(false)} onPickEvent={openEvent} onPickStock={openStock} events={allEvents} />}
         </Drawer>
 
         <Disclaimer />

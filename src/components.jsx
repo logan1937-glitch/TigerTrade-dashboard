@@ -53,13 +53,18 @@ export function StarIcon({ filled }) {
     </svg>
   );
 }
-export function StarBtn({ wkey, kind, refId, label }) {
+/* `name` is stored alongside the star. A live economic release leaves the
+   calendar window once it has happened, so its id stops resolving — and a
+   watchlist row that silently disappears while the badge still counts it reads
+   as a bug. With the name saved, the row can say what it was and offer to
+   remove itself. */
+export function StarBtn({ wkey, kind, refId, label, name }) {
   const w = useWatch();
   const on = w.has(wkey);
   return (
     <button className={"star" + (label ? " star-lbl" : "")} data-on={on || undefined} aria-pressed={on}
       aria-label={on ? "Remove from watchlist" : "Add to watchlist"}
-      onClick={(e) => { e.stopPropagation(); w.toggle(wkey, { kind, ref: refId }); }}>
+      onClick={(e) => { e.stopPropagation(); w.toggle(wkey, { kind, ref: refId, name }); }}>
       <StarIcon filled={on} />{label && <span>{on ? "Watching" : "Watch"}</span>}
     </button>
   );
@@ -721,7 +726,7 @@ function EventRow({ ev, index, open, onToggle, flash, onOpenFull, vix }) {
     <div className={"event reveal" + (open ? " is-open" : "")} style={{ "--c": cat.color, "--i": index }}
          data-flash={flash || undefined} data-open={open || undefined} onClick={onToggle}>
       <div className="event-head">
-        <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} />
+        <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} name={ev.title} />
         <div className="event-date">
           <span className="event-d">{ev.approx && <span className="approx">~</span>}{ev.date}{ev.live && <span className="live-tag mono" title="Live-dated from the economic calendar">●</span>}</span>
           <span className="event-t mono">{ev.past ? `T+${ev.t}d` : `T${ev.t}d`}</span>
@@ -771,7 +776,7 @@ function EventRow({ ev, index, open, onToggle, flash, onOpenFull, vix }) {
                 <div className="ed-bar"><i style={{ width: (em != null ? Math.min(em / 3, 1) * 100 : 0) + "%" }} /></div>
               </div>
               <div className="ed-actions">
-                <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} label />
+                <StarBtn wkey={"ev:" + ev.id} kind="event" refId={ev.id} name={ev.title} label />
                 <button className="ed-btn ed-btn-primary" onClick={(e) => { e.stopPropagation(); onOpenFull && onOpenFull(ev); }}>Full analysis →</button>
               </div>
             </div>

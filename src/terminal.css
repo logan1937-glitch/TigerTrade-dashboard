@@ -931,6 +931,13 @@ body { background: #0a0b0d; }
 .wl-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13.5px; color: var(--text); }
 .wl-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wl-name small { font-size: 10.5px; color: var(--dim); letter-spacing: var(--track-meta); }
+/* A star whose event has left the calendar window. It is shown rather than
+   dropped — a row disappearing while the badge still counts it reads as a bug —
+   but it is not a link, because there is nothing left to open. */
+.wl-row.wl-gone { grid-template-columns: auto 1fr 26px; cursor: default; --c: var(--border-2); opacity: .72; }
+.wl-row.wl-gone:hover { background: var(--surface); border-color: var(--border); transform: none; }
+.wl-row.wl-gone .wl-date, .wl-row.wl-gone .wl-name { color: var(--muted); }
+.wl-row.wl-gone .wl-date small { color: var(--dim); }
 /* stock rows gain a live price column */
 .wl-row.wl-stock { grid-template-columns: auto 1fr auto auto 26px; }
 .wl-px { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
