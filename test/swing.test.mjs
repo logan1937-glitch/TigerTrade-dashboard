@@ -8,6 +8,7 @@
 import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT, peakSince,
   computeSignals, compactSig } from "../src/signals.js";
 import { quoteFromChart } from "../api/_quote.js";
+import { extUniverse } from "../api/snapshot.js";
 
 let pass = 0, fail = 0;
 const eq = (label, got, want) => {
@@ -236,6 +237,41 @@ console.log("\n— peak since entry —");
   eq("a single bar yields a null change", quoteFromChart({ regularMarketPrice: 100 }, bars([100])).changePercentage, null);
   eq("no bars and no meta yields a null change", quoteFromChart({}, []).changePercentage, null);
   eq("a zero previous close does not divide", quoteFromChart({ regularMarketPrice: 10, previousClose: 0 }, []).changePercentage, null);
+}
+
+/* ── extended universe selection ───────────────────────────────────────────
+   The screen picks which names the second nightly pass will even try, and its
+   budget is finite — so what it drops, and in what order, is the whole design.
+*/
+{
+  const row = (symbol, marketCap, extra = {}) => ({ symbol, marketCap, companyName: `${symbol} Inc`, sector: "Technology", industry: "Software - Application", ...extra });
+  const core = new Set(["AAPL", "MSFT"]);
+
+  const picked = extUniverse([row("AAPL", 4e12), row("ZZZ", 9e9), row("MSFT", 3e12), row("YYY", 40e9)], core);
+  eq("core names are not paid for twice", picked.some((p) => p.tk === "AAPL" || p.tk === "MSFT"), false);
+  eq("everything outside the core survives", picked.length, 2);
+  eq("largest first, so a truncation cuts the smallest", picked[0].tk, "YYY");
+
+  // FMP's foreign/preferred listings carry a dot and Yahoo does not resolve them;
+  // including one costs a fetch and returns a name that can never have bars
+  eq("dotted symbols are dropped", extUniverse([row("BRK.B", 9e11)], core).length, 0);
+  // no market cap means no place in a cap-ordered list — position it at zero and
+  // it would silently outrank nothing while occupying a slot
+  eq("an unmeasured cap is dropped, not sorted as zero", extUniverse([row("NOCAP", null)], core).length, 0);
+
+  // the cap is a budget, not a preference: exceeding it does not buy coverage
+  const many = Array.from({ length: 12 }, (_, i) => row(`T${i}`, (12 - i) * 1e9));
+  eq("the ceiling truncates", extUniverse(many, core, 5).length, 5);
+  eq("and it truncates from the bottom", extUniverse(many, core, 5).map((p) => p.tk).join(","), "T0,T1,T2,T3,T4");
+
+  // the two exchange calls can return the same name; a duplicate would be
+  // fetched twice and land in the payload twice
+  eq("duplicates collapse", extUniverse([row("DUP", 5e9), row("DUP", 5e9)], core).length, 1);
+
+  eq("sector comes through the same normaliser as the core", extUniverse([row("FIN", 5e9, { sector: "Financials" })], core)[0].sector, "Financial Services");
+  eq("a missing industry is an em dash, not an empty label", extUniverse([row("X", 5e9, { industry: null })], core)[0].industry, "—");
+  eq("an empty screen yields an empty list", extUniverse([], core).length, 0);
+  eq("a failed screen (null) does not throw", extUniverse(null, core).length, 0);
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);

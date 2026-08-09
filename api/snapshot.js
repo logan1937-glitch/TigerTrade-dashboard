@@ -46,12 +46,13 @@ const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
    compute instead of each paying for their own. */
 let memSnap = null;                     // { at, body }
 let computeJob = null;                  // in-flight compute, shared by a burst
+let memExt = null, extJob = null;       // same, for the extended tier
 const MEM_TTL = 30 * 60 * 1000;
 
-async function readBlob() {
+async function readBlob(key = BLOB_KEY) {
   if (!hasBlob) return null;
   try {
-    const { blobs } = await list({ prefix: BLOB_KEY, limit: 1 });
+    const { blobs } = await list({ prefix: key, limit: 1 });
     if (!blobs.length) return null;
     const r = await fetch(blobs[0].url, { cache: "no-store" });
     if (!r.ok) return null;
@@ -59,10 +60,10 @@ async function readBlob() {
   } catch (e) { console.error("blob read:", e); return null; }
 }
 
-async function writeBlob(obj) {
+async function writeBlob(obj, key = BLOB_KEY) {
   if (!hasBlob) return;
   try {
-    await put(BLOB_KEY, JSON.stringify(obj), { access: "public", contentType: "application/json", addRandomSuffix: false, allowOverwrite: true });
+    await put(key, JSON.stringify(obj), { access: "public", contentType: "application/json", addRandomSuffix: false, allowOverwrite: true });
   } catch (e) { console.error("blob write:", e); }
 }
 
@@ -169,6 +170,74 @@ async function fmpIndexMembers(slug) {
     } catch (e) { console.error(`fmp ${slug}:`, e); }
   }
   return [];
+}
+
+/* ── Extended universe ───────────────────────────────────────────────────────
+   The core snapshot is the S&P 500 plus this app's curated names — roughly 520.
+   Momentum leaders, though, are usually mid-caps that have not been added to the
+   S&P yet, so the screener was blind to exactly the stage of a company it exists
+   to find. The extended tier fixes that with a second nightly pass.
+
+   It is a SEPARATE payload on a SEPARATE blob, fetched only when the user asks
+   for it, for two reasons that both matter more than the convenience of one
+   file. Compute: one invocation has 60s, and the core pass already spends ~50 of
+   them on ~530 symbols — a single run cannot cover 1,400 names, so the tiers are
+   two crons. Transfer: a compact record costs ~1.5KB, so folding these names in
+   would roughly triple the payload every visitor downloads before seeing a
+   single row, to serve a filter most sessions never touch.
+
+   Breadth, flow and market health stay computed on the CORE universe on purpose.
+   They are stated as measurements of a specific universe, and silently widening
+   what they measure would change what yesterday's number meant without saying
+   so. RS does widen — it is explicitly a percentile "vs the tracked universe",
+   and the screener says which universe is loaded. */
+const EXT_BLOB_KEY = "snapshot-ext.json";
+const EXT_MIN_CAP = 2e9;         // $2B — below this, a name is not institutionally tradable
+const EXT_MIN_VOL = 400e3;       // shares/day; a coarse gate, real dollar volume comes from bars
+const EXT_EXCHANGES = ["NASDAQ", "NYSE"];
+/* Ceiling on names the pass will TRY. Sized so a normal night finishes rather
+   than truncating: the pool runs 20-wide against a 50s soft deadline, and a name
+   the deadline cuts off is simply absent from the payload. Raising this without
+   raising the budget does not buy coverage, it buys a bigger denominator. */
+const EXT_MAX = 900;
+
+// US common stocks above a size/liquidity floor, largest first. One FMP call per
+// exchange. Returns [] on any failure — the tier then reports itself unavailable
+// rather than serving a partial list as if it were the screen.
+async function fmpScreener() {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return [];
+  const out = [];
+  for (const ex of EXT_EXCHANGES) {
+    const url = `https://financialmodelingprep.com/stable/company-screener?marketCapMoreThan=${EXT_MIN_CAP}`
+      + `&volumeMoreThan=${EXT_MIN_VOL}&isEtf=false&isFund=false&isActivelyTrading=true`
+      + `&country=US&exchange=${ex}&limit=2000&apikey=${key}`;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) { console.error(`fmp screener ${ex}: ${r.status}`); continue; }
+      const j = await r.json();
+      if (Array.isArray(j)) out.push(...j);
+    } catch (e) { console.error(`fmp screener ${ex}:`, e); }
+  }
+  return out;
+}
+
+/* Pure: screener rows → the extended ticker list. Exported for the tests.
+   Drops anything the core pass already covers (paying twice would cost coverage
+   at the far end of the list), anything with a dot in the symbol (FMP's foreign
+   and preferred listings, which Yahoo does not resolve), and sorts by market cap
+   so a truncation at EXT_MAX cuts the smallest names rather than an arbitrary
+   slice of the alphabet. */
+export function extUniverse(rows, coreSet, max = EXT_MAX) {
+  const seen = new Set();
+  return (rows || [])
+    .filter((x) => x && typeof x.symbol === "string" && !x.symbol.includes(".")
+      && !coreSet.has(x.symbol) && fin(x.marketCap) != null)
+    .sort((a, b) => (+b.marketCap || 0) - (+a.marketCap || 0))
+    .filter((x) => (seen.has(x.symbol) ? false : (seen.add(x.symbol), true)))
+    .slice(0, max)
+    .map((x) => ({ tk: x.symbol, name: x.companyName || x.symbol,
+      sector: normSector(x.sector), industry: x.industry || "—", mktCap: +x.marketCap }));
 }
 
 // earnings per universe ticker, from the FMP calendar: the NEXT confirmed report
@@ -556,11 +625,10 @@ function detectChanges(prev, curSig, meta) {
   return any ? out : null;
 }
 
-async function compute() {
-  const prev = await readBlob();   // yesterday's snapshot — for day-over-day change detection
-
-  // universe = S&P 500 constituents (live from FMP) ∪ curated names, deduped.
-  // `meta` carries name + sector + industry for every ticker in one taxonomy.
+/* The core universe's `meta`: S&P 500 constituents (live from FMP) ∪ the two
+   other large-cap index lists ∪ curated names, deduped, in one taxonomy. Shared
+   with the extended pass, which needs exactly this set to subtract. */
+async function coreMeta() {
   const [constituents, ndx, dow] = await Promise.all([
     fmpConstituents(), fmpIndexMembers("nasdaq"), fmpIndexMembers("dowjones"),
   ]);
@@ -578,6 +646,12 @@ async function compute() {
     if (meta[s.tk]) continue;  // constituent classification wins for shared names
     meta[s.tk] = { name: s.name, sector: normSector(s.sector), industry: s.group || "—", idx: [] };
   }
+  return meta;
+}
+
+async function compute() {
+  const prev = await readBlob();   // yesterday's snapshot — for day-over-day change detection
+  const meta = await coreMeta();
   const tickers = Object.keys(meta);
   const idxSyms = INDICES.map((x) => x.sym);
   const all = [...tickers, "SPY", ...idxSyms];
@@ -628,11 +702,96 @@ async function compute() {
   return { schema: SCHEMA, generatedAt: new Date().toISOString(), source: "Yahoo+FMP", count, total: tickers.length, asOf: asOf ? asOf * 1000 : null, quotes, sig, meta: metaOut, market, changes, earnings, macro, vix, vol, flow, sectors };
 }
 
+/* The extended pass. Same signal math on the same adjusted bars as the core — a
+   name has to be rankable against the core universe on identical terms or the RS
+   percentile it lands in is meaningless.
+
+   Yahoo only, no FMP bars fallback: this pass touches up to 900 symbols and the
+   fallback is per-name, so one bad night would drain the whole FMP quota that
+   the macro board, VIX and the earnings calendar depend on. A name Yahoo denied
+   is absent from this payload, and `count` vs `total` says how many. */
+async function computeExt() {
+  const core = await coreMeta();
+  const coreSet = new Set(Object.keys(core));
+  const picks = extUniverse(await fmpScreener(), coreSet);
+  if (!picks.length) {
+    // no screen means no list — say so rather than emit an empty universe that
+    // reads on screen as "there is nothing out there"
+    return { schema: SCHEMA, tier: "ext", generatedAt: new Date().toISOString(),
+      status: "unavailable", reason: process.env.FMP_API_KEY ? "SCREEN_EMPTY" : "NO_FMP_KEY",
+      count: 0, total: 0, quotes: {}, sig: {}, meta: {} };
+  }
+
+  const meta = {};
+  for (const p of picks) meta[p.tk] = { name: p.name, sector: p.sector, industry: p.industry, idx: ["ext"], mktCap: p.mktCap };
+  const tickers = picks.map((p) => p.tk);
+
+  const data = {};
+  // 20-wide rather than the core pass's 12: nearly twice the names in the same
+  // 60s envelope. The soft deadline still governs — this degrades to partial
+  // coverage, never to a function timeout.
+  await pool(["SPY", ...tickers], async (t) => { const d = await yahooBars(t); if (d) data[t] = d; }, 20, 50000);
+
+  const spy = data.SPY && data.SPY.rows;
+  const quotes = {}, sig = {};
+  for (const t of tickers) {
+    const d = data[t];
+    if (!d || d.quote.price == null) continue;
+    const cs = compactSig(computeSignals(d.rows, spy), d.quote.changePercentage, d.quote.price);
+    if (!cs) continue;                 // not enough history to measure — drop, don't pad
+    quotes[t] = d.quote;
+    sig[t] = cs;
+  }
+  const metaOut = {};
+  for (const t of Object.keys(quotes)) metaOut[t] = meta[t];
+  let asOf = 0;
+  for (const t of Object.keys(quotes)) { const ts = quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts); }
+
+  return { schema: SCHEMA, tier: "ext", generatedAt: new Date().toISOString(), source: "Yahoo",
+    status: "ok", count: Object.keys(quotes).length, total: tickers.length,
+    asOf: asOf ? asOf * 1000 : null,
+    screen: { minCap: EXT_MIN_CAP, minVol: EXT_MIN_VOL, exchanges: EXT_EXCHANGES, cap: EXT_MAX },
+    quotes, sig, meta: metaOut };
+}
+
+// the extended tier is its own blob, its own cron and its own read path — see
+// the block comment above EXT_BLOB_KEY for why it is not folded into the core
+async function handleExt(req, res, refresh) {
+  if (!refresh) {
+    const stored = await readBlob(EXT_BLOB_KEY);
+    if (stored && stored.schema === SCHEMA) {
+      res.setHeader("Cache-Control", "s-maxage=900, stale-while-revalidate=86400");
+      return res.status(200).json({ ...stored, blob: hasBlob, served: "blob" });
+    }
+    if (memExt && Date.now() - memExt.at < MEM_TTL) {
+      res.setHeader("Cache-Control", "s-maxage=900, stale-while-revalidate=86400");
+      return res.status(200).json({ ...memExt.body, blob: hasBlob, served: "memory" });
+    }
+    /* Deliberately NOT computed on demand, on ANY read path — including a schema
+       mismatch, which is the one the core tier does recompute on. A cold extended
+       pass is ~900 upstream fetches and 50 seconds; serving that to a user who
+       flipped a filter would time out their request and spend the night's budget
+       at the same time. Until the cron has run, the tier reports itself pending
+       and the screener says so, instead of quietly falling back to the core list
+       under a label that claims to be wider than it is. */
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({ tier: "ext", status: "pending",
+      reason: stored ? "SCHEMA_STALE" : "NOT_YET_COMPUTED",
+      count: 0, total: 0, quotes: {}, sig: {}, meta: {}, blob: hasBlob, served: "none" });
+  }
+  if (!extJob) extJob = computeExt().finally(() => { extJob = null; });
+  const body = await extJob;
+  if (body.count > 0) { memExt = { at: Date.now(), body }; await writeBlob(body, EXT_BLOB_KEY); }
+  res.setHeader("Cache-Control", body.count > 0 ? "s-maxage=900, stale-while-revalidate=86400" : "no-store");
+  return res.status(200).json({ ...body, blob: hasBlob, served: "compute" });
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
 
   const refresh = req.query.refresh != null || !!req.headers["x-vercel-cron"];
+  if (req.query.tier === "ext") return handleExt(req, res, refresh);
 
   // normal read: serve the stored snapshot instantly (no recompute) — but only
   // while its shape still matches what this build emits

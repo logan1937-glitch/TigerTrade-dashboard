@@ -146,7 +146,7 @@ const SORT_LABEL = { score: "score", rs: "RS", pass: "pass", chg: "% change", ti
 // the RS test, which moves with the window
 const TF_SCOPED = { chg: true, rs: true, score: true, pass: true };
 
-function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector, changes }) {
+function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector, changes, ext = { status: "idle" }, onLoadExt }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
   const [dir, setDir] = useState("desc");   // "desc" = high→low / Z→A, "asc" = the reverse
@@ -226,17 +226,39 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
               <button key={id} className="seg-btn" data-active={statusF === id} onClick={() => setStatusF(id)}>{l}</button>
             ))}
           </div>
-          {/* Membership, not reach. The Dow is a strict subset of the S&P 500 and
-              the Nasdaq-100 adds ~10–20 names to a 520-name universe, so this is
-              a lens on what is already here rather than a way to see more. */}
+          {/* The first three are membership, not reach: the Dow is a strict subset
+              of the S&P 500 and the Nasdaq-100 adds ~10–20 names, so they are a
+              lens on what is already here. "Beyond index" is the one that adds
+              names — it loads a second payload on demand. */}
           <div className="seg">
-            {[["all", "Any index", "Every name in the universe, index member or not"],
+            {[["all", "Any index", "Every name loaded — index member or not"],
               ["sp500", "S&P 500", "S&P 500 constituents"],
               ["ndx", "Nasdaq 100", "Nasdaq-100 constituents — mostly a subset of the S&P 500"],
-              ["dow", "Dow 30", "Dow Jones Industrial Average — entirely inside the S&P 500"]].map(([id, l, t]) => (
-              <button key={id} className="seg-btn" data-active={idxF === id} onClick={() => setIdxF(id)} title={t}>{l}</button>
+              ["dow", "Dow 30", "Dow Jones Industrial Average — entirely inside the S&P 500"],
+              ["ext", "Beyond index", "The largest US names outside the S&P 500 — mid-caps, where leaders usually are before they are added. Loaded on demand."]].map(([id, l, t]) => (
+              <button key={id} className="seg-btn" data-active={idxF === id}
+                onClick={() => { if (id === "ext" && onLoadExt) onLoadExt(); setIdxF(id); }} title={t}>{l}</button>
             ))}
           </div>
+          {/* The extended tier's state is stated, never inferred from an empty
+              table: "no rows" here could mean loading, not-yet-computed, or a
+              failed fetch, and those are three different things to a user
+              deciding whether the screen they are looking at is complete. */}
+          {idxF === "ext" && ext.status !== "ok" && (
+            <span className="cs-ext-note mono" data-bad={ext.status === "error" || undefined}>
+              {ext.status === "loading" ? "loading the wider universe…"
+                : ext.status === "pending" ? (ext.reason === "SCHEMA_STALE"
+                  ? "rebuilding after a deploy — ready after tonight's pass"
+                  : "not computed yet — the nightly pass runs after the close")
+                : ext.status === "error" ? `unavailable (${ext.reason || "error"})`
+                : "—"}
+            </span>
+          )}
+          {idxF === "ext" && ext.status === "ok" && (
+            <span className="cs-ext-note mono">
+              {ext.count}{ext.total > ext.count ? ` of ${ext.total}` : ""} names ≥ ${Math.round((ext.screen?.minCap || 2e9) / 1e9)}B outside the S&P 500
+            </span>
+          )}
         </div>
         <div className="filters-right">
           <span className="minwt-lab" title="The window everything is measured and ranked over — price change, RS and score">Window</span>
@@ -443,7 +465,7 @@ function StageBreadth({ stages }) {
 
 /* ------------------------------ SHELL ------------------------------ */
 export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr,
-  posRows = [], events = [], vix = null, sectors = null, pbFocus = null, onPbFocused }) {
+  posRows = [], events = [], vix = null, sectors = null, ext = { status: "idle" }, onLoadExt, pbFocus = null, onPbFocused }) {
   const [tab, setTab] = useState("screener");
   // the drawer's "Open in Playbook" lands here: switch tabs, then let the view
   // consume the ticker and clear it so a later tab visit doesn't re-select it
@@ -516,7 +538,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
       <div key={tab}>
         {tab === "screener" && <Screener rows={rows} onOpenStock={onOpenStock} onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr}
-          sectorF={sectorF} onClearSector={() => setSectorF(null)} changes={changes} />}
+          sectorF={sectorF} onClearSector={() => setSectorF(null)} changes={changes} ext={ext} onLoadExt={onLoadExt} />}
         {tab === "map" && <MarketMap rows={rows} live={live} onOpenStock={onOpenStock}
           onSelectSector={(s) => { setSectorF(s); setTab("screener"); }} sectors={sectors} />}
         {tab === "health" && <MarketHealth market={market} />}

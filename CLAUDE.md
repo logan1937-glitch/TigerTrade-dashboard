@@ -168,7 +168,9 @@ the post-filter one, so they don't move as you stack.
 |---|---|
 | `snapshot.js` | Nightly precompute of the whole universe. Cron: weekdays 22:00 UTC. Serves from Vercel Blob when `BLOB_READ_WRITE_TOKEN` is set — **without it every request recomputes**, which burns the FMP quota fast. Check `"blob"` / `"served"` in its response. **Adding a field to the payload means bumping `SCHEMA`** — Blob serves the stored copy verbatim, so without a bump the new field is simply absent until the next cron, with nothing on screen to explain why. A mismatch recomputes on the first request after deploy. `?refresh=1` forces it by hand. |
 | `earnings.js` | Report dates for names outside the S&P 500. Finnhub (keyed) → Yahoo chart (crumb-free) → Yahoo quoteSummary (crumb) → stale cache. FMP is deliberately absent — verified incapable for these names. |
-| `snapshot.js` also tags every name with its index membership (`meta[tk].idx` — `sp500` / `ndx` / `dow`), which is what the screener's index filter reads. **This is membership, not reach:** measured against the committed S&P list, the Dow 30 is a strict subset and of a 29-name Nasdaq-100 sample only 12 sat outside the S&P and only 8 outside the S&P plus the curated list. Fetching both grows a 520-name universe by ~10–20. The real expansion is mid- and small-caps, and that is a **compute-budget** problem, not a list one: `maxDuration` is 60s and the bars pool already runs 12-wide against a 50s soft deadline for ~530 symbols, so it degrades to partial coverage rather than timing out. Going past ~600 names needs the snapshot sharded across cron invocations or a longer `maxDuration` — do not just lengthen the ticker list. |
+| `snapshot.js` also tags every name with its index membership (`meta[tk].idx` — `sp500` / `ndx` / `dow` / `ext`), which is what the screener's index filter reads. The first three are **membership, not reach:** measured against the committed S&P list, the Dow 30 is a strict subset and of a 29-name Nasdaq-100 sample only 12 sat outside the S&P and only 8 outside the S&P plus the curated list. Fetching both grows a 520-name universe by ~10–20. `ext` is the one that adds names — see the extended tier below. |
+| `snapshot.js?tier=ext` | **The extended universe: a second nightly pass, a second blob, a second cron** (weekdays 22:20 UTC, 20 min after the core so the two never contend upstream). ~900 US names ≥ $2B and ≥ 400k shares/day on NYSE/NASDAQ, from FMP's `company-screener`, minus everything the core pass already covers. Two reasons it is not folded into the core payload, and both matter: **compute** — one invocation has 60s and the core pass already spends ~50 of them on ~530 symbols, so a single run cannot cover 1,400 names; and **transfer** — a compact record is ~1.5KB, so folding these in would roughly triple the bytes every visitor downloads before seeing one row, to serve a filter most sessions never open. The client fetches it only when "Beyond index" is picked, then merges it into `meta` / `live.quotes` / `hist.sig` so an extended name is indistinguishable downstream. **It is never computed on demand** — not even on a schema mismatch, which the core tier does recompute on: a cold pass is ~900 upstream fetches and would time the user's request out while spending the night's budget. Until the cron has run it answers `status: "pending"` and the screener says so. Yahoo only, no FMP bars fallback — a per-name fallback across 900 symbols would drain the quota the macro board, VIX and the earnings calendar run on. |
+| | **Breadth, flow and market health stay measured on the CORE universe** even when the extended tier is loaded. They are stated as measurements of a specific universe; widening what they measure without saying so would change what yesterday's number meant. RS *does* widen — it is explicitly a percentile "vs the tracked universe", so the L-factor note names the field size and says loading the wider universe re-ranks it. |
 | `snapshot.js` also fetches the **11 SPDR sector ETFs** (Yahoo, no FMP quota) for the Market Map's tracker. Its `sector` labels must match what `normSector()` produces, or a row's tap-to-screen filters to a bucket the universe isn't in. |
 | `_quote.js` | **The only place a Yahoo chart response becomes a quote.** Both `/api/yahoo` and the snapshot had their own copy and drifted into the same bug: they decided "is the last bar the current session?" with a float-exact price comparison (`< 1e-9`), and Yahoo's bar closes carry float32 precision, so every symbol took the wrong branch and got its OWN close as the denominator — a change of ±0.00% across the whole universe. It now prefers `meta.previousClose` (unadjusted, paired with the unadjusted `regularMarketPrice`) and falls back to bar-over-bar (adjusted against adjusted). Never mix the two, and never use `chartPreviousClose` as a denominator — it is the close before the *range*. |
 | `yahoo.js` | Yahoo chart proxy — quotes + adjusted daily history. Also backs the stock tape's intraday refresh (`range=5d`), so that path costs no FMP quota. |
@@ -244,6 +246,19 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 - **Mobile breakpoints hide columns.** `.pf-row` / `.cs-row` drop columns below
   880px. Adding a control to a table cell means checking it's still reachable on
   a phone — a control in a hidden column doesn't exist.
+- **The document itself was 626px wide at a 390px viewport, and nothing looked
+  wrong until something scrolled it.** Two causes, both measured with Playwright
+  (`document.documentElement.scrollWidth` vs `clientWidth`, then every element
+  whose `right` exceeds the viewport): the hero `InfoDot` tooltip — absolutely
+  positioned, `left: 0` off a dot at x≈285, `max-width: 340px`, and an absolute
+  box still counts toward `scrollWidth` — and the filter row, whose two 240px
+  search inputs plus ＋Add give it ~490px of max-content that a flex item is
+  under no obligation to shrink below. The tooltip is now anchored to
+  `.hero-title` rather than to the dot; each `.seg` is its own `overflow-x: auto`
+  strip so an overflowing filter row scrolls under the thumb instead of dragging
+  the topbar sideways. **Adding a control to a filter row means re-measuring
+  `scrollWidth` at 390px** — a page that slides sideways reads as broken, and a
+  screenshot taken before anything scrolls it looks perfect.
 - **On a phone the bottom tab bar owns product/search/watch, and the topbar must
   not duplicate them.** `.nav-pills`, `.cmdk-btn` and `.watch-btn` are hidden
   ≤640px — six controls in a 390px bar left the product switcher rendering as a
@@ -279,7 +294,12 @@ npm run shots -- --views radar --live                   # against real APIs
 
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
-`vol`, `volsort`, `screener`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+`vol`, `volsort`, `screener`, `screenerext`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+`screenerext` clicks "Beyond index" so the extended tier's second payload
+actually merges in a shot — `?tier=ext` is routed to its own fixture, and the
+route test checks it **before** the core one because the ext URL contains
+`/api/snapshot` too; answering it with the core payload would make a merge that
+never happened look like a success.
 The fixture gives every name a sector AND an industry from `FIX_SECTORS`, and a
 6-point `rrg` tail. Both were flat for a long time, and the cost was silent: one
 industry meant the group panel rendered a single group, and a missing `rrg` left

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { TT } from "./tt.js";
 import { fetchQuotes, mergeCanslim } from "./liveData.js";
 import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings, computeMarketHealth, peakSince } from "./signals.js";
@@ -51,6 +51,13 @@ export default function App() {
   const [vol, setVol] = useState(null);         // { level, chg, pct1y, hist } — VIX context for the Volume tab
   const [flow, setFlow] = useState(null);       // { heavy, unusual, upShare, totDv } — the session's volume
   const [sectors, setSectors] = useState(null); // { rows: sector ETFs vs SPY, spy } — the Market Map's tracker
+  /* Extended universe — the ~900 largest US names outside the core list. Its own
+     nightly pass and its own payload (see api/snapshot.js), fetched only when the
+     screener asks, because it is roughly three times the bytes of everything else
+     the page loads and most sessions never filter to it. Status is explicit
+     rather than inferred: "pending" means the cron has not run, and the screener
+     says that instead of showing the core list under an extended label. */
+  const [ext, setExt] = useState({ status: "idle" });
   // Whether the data load has finished, win or lose. macro/vix/earnings only
   // ever arrive with the snapshot; without this the panels cannot tell "still
   // coming" from "never coming" and skeleton forever on a feed that failed.
@@ -287,6 +294,10 @@ export default function App() {
     // `rs`/`score` stay the 12-month values every other surface expects.
     const rsMaps = {};
     for (const tf of RANK_TFS) rsMaps[tf] = rsRatings(list, tf);
+    // RS is a percentile, so loading the extended tier legitimately MOVES every
+    // name's rating — a bigger field means a different rank. The note names the
+    // field size rather than letting the number appear to change on its own.
+    const rankable = list.filter((r) => r.sig).length;
     // same resolution as signals.js sampleSpark — a fallback that drew a coarser
     // line than the snapshot's would make custom names look like different data
     const sampleSpark = (c) => (c && c.length ? c.filter((_, i) => i % Math.max(1, Math.floor(c.length / 60)) === 0) : null);
@@ -344,7 +355,7 @@ export default function App() {
         const g = r.sig;
         breakdown = [
           { key: "f1", letter: "L", name: "Leadership (RS)", value: `RS ${rs}`, pass: rs >= 85,
-            note: "Relative-strength rank vs the tracked universe — leaders score ≥ 85." },
+            note: `Relative-strength rank vs the ${rankable} names currently loaded — leaders score ≥ 85. Loading the wider universe re-ranks the field.` },
           { key: "f2", letter: "E", name: "Earnings momentum", value: "needs data", pass: null,
             note: "Latest-quarter EPS vs a year ago (≥ 25%). Loads from real filings in the full analysis." },
           { key: "f3", letter: "A", name: "Accumulation", value: g.pocketPivot ? "Pocket pivot" : `DD ${g.distDays ?? "—"}/25`, pass: !!(g.pocketPivot || (g.distDays != null && g.distDays <= 2)),
@@ -491,6 +502,49 @@ export default function App() {
     })().catch(() => {});
     return () => { alive = false; };
   }, [customSyms, positions, meta]);
+
+  /* Pull the extended tier in and fold it into the same three slices the core
+     snapshot fills — `meta` (which is what `universe` enumerates), `live.quotes`
+     and `hist.sig`. Everything downstream then treats an extended name exactly
+     like an S&P one, which is the point: same bars, same signal math, same RS
+     percentile. Called once; a second call while loaded is a no-op.
+
+     Breadth, flow and market health are NOT recomputed here. They arrived
+     precomputed over the core universe and are labelled as such; widening what
+     they measure without saying so would quietly change what the number means. */
+  // a ref, not the state value: React may run a state updater twice, and this
+  // guard has to hold across that or the fetch fires twice
+  const extOnce = useRef(false);
+  const loadExt = useCallback(() => {
+      if (extOnce.current) return;
+      extOnce.current = true;
+      setExt({ status: "loading" });
+      (async () => {
+        try {
+          const r = await fetch("/api/snapshot?tier=ext");
+          const j = r.ok ? await r.json() : null;
+          if (!j || !j.quotes || !Object.keys(j.quotes).length) {
+            // no rows is a state to report, not a silent fallback to the core list
+            setExt({ status: j && j.status === "pending" ? "pending" : "error",
+              reason: (j && j.reason) || (r.ok ? "EMPTY" : `HTTP_${r.status}`) });
+            extOnce.current = false;      // a failed load is worth retrying
+            return;
+          }
+          setMeta((m) => ({ ...m, ...j.meta }));
+          setHist((h) => ({ ...h, sig: { ...h.sig, ...j.sig } }));
+          // count/total describe the loaded universe, which is what the coverage
+          // line under the screener claims to be reporting
+          setLive((l) => (l.status === "live"
+            ? { ...l, quotes: { ...l.quotes, ...j.quotes },
+                count: (l.count || 0) + j.count, total: (l.total || 0) + j.total }
+            : l));
+          setExt({ status: "ok", count: j.count, total: j.total, screen: j.screen || null, asOf: j.asOf || null });
+        } catch {
+          setExt({ status: "error", reason: "NETWORK" });
+          extOnce.current = false;
+        }
+      })();
+  }, []);
 
   // Data feed, in priority order:
   //  1) /api/snapshot — the nightly precompute (one cached request, all signals)
@@ -796,6 +850,7 @@ export default function App() {
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr}
             posRows={posRows} events={upcoming} vix={vix} sectors={sectors}
+            ext={ext} onLoadExt={loadExt}
             pbFocus={pbFocus} onPbFocused={() => setPbFocus(null)} />
         )}
 

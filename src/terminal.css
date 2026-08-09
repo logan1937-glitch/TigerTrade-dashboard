@@ -1648,6 +1648,11 @@ body { background: #0a0b0d; }
 .cs-lookup { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .cs-lookup-err { font-size: 11px; color: var(--sev-extreme); white-space: nowrap; }
 
+/* coverage/state line for the extended tier. 600 weight because 10px tracked
+   caps read as ghosted at 400 however good the contrast ratio is. */
+.cs-ext-note { font-size: 10.5px; font-weight: 600; letter-spacing: var(--track-meta); color: var(--muted); white-space: nowrap; }
+.cs-ext-note[data-bad] { color: var(--sev-extreme); }
+
 /* ============================ MOBILE TAB BAR ============================ */
 .mobile-tabbar { display: none; }
 @media (max-width: 640px) {
@@ -2077,6 +2082,42 @@ body { background: #0a0b0d; }
   .linkbtn, .subtab { padding-top: 12px; padding-bottom: 12px; }
   .topbar button { min-width: 40px; min-height: 40px; }
   .flow-ctl .seg-btn, .pb-fchip { min-height: 40px; }
+
+  /* A segmented row wider than the phone used to push the DOCUMENT sideways —
+     the whole page, topbar and hero included, slid left to reveal the last
+     button. Each group gets its own scroll strip instead, so an overflowing
+     filter row scrolls where the thumb already is and the page never moves.
+     `flex-shrink: 0` matters: without it the buttons compress to fit and the
+     labels wrap into two lines rather than scrolling. */
+  .filters .seg, .filters-right .seg {
+    max-width: 100%; overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .filters .seg::-webkit-scrollbar, .filters-right .seg::-webkit-scrollbar { display: none; }
+  .filters .seg-btn, .filters-right .seg-btn { flex: 0 0 auto; white-space: nowrap; }
+  /* Two 240px search boxes and a ＋Add button add up to ~490px of max-content,
+     and a flex item is not obliged to shrink below that — so the filter block
+     widened the document by 115px on a 390px phone. Each group takes the full
+     row and the inputs size to it instead of to a desktop pixel count. */
+  .filters > div, .filters-right { flex: 1 1 100%; min-width: 0; max-width: 100%; }
+  .filters .search-wrap { flex: 1 1 100%; min-width: 0; }
+  .filters .search-wrap .search { width: 100%; min-width: 0; }
+  /* the lookup form's input + button are a pair; let them share the row rather
+     than the input claiming a fixed 150px and pushing ＋Add off the edge */
+  .cs-lookup { flex: 1 1 100%; min-width: 0; }
+  .cs-lookup .search { flex: 1 1 auto; width: auto !important; min-width: 0; }
+
+  /* MEASURED: at 390px the document was 626px wide, and the whole 236px of
+     overflow was this tooltip. It anchors to a 17px dot sitting at x≈285 on both
+     hero titles, so `left: 0; max-width: 340px` put its right edge at 626 — and
+     an absolutely-positioned box still counts toward scrollWidth. The symptom
+     was the entire page (topbar and hero included) sliding sideways the moment
+     anything scrolled it into view. Anchoring to the TITLE rather than the dot
+     spans the content column and cannot leave it. Clipping it was tried once
+     before and is the wrong answer — the sentence is the point. */
+  .hero-title { position: relative; }
+  .hero-title .infodot { position: static; }
+  .hero-title .infodot-pop { left: 0; right: 0; width: auto; max-width: none; }
 
   /* one scroll surface: stop the page rubber-banding the whole document when an
      inner list reaches its end */

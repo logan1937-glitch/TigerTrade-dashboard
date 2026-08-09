@@ -4,6 +4,7 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/snapshot?refresh=1", "schedule": "0 22 * * 1-5" }
+    { "path": "/api/snapshot?refresh=1", "schedule": "0 22 * * 1-5" },
+    { "path": "/api/snapshot?refresh=1&tier=ext", "schedule": "20 22 * * 1-5" }
   ]
 }

@@ -80,6 +80,13 @@ const VIEWS = [
       await p.waitForTimeout(400);
     } },
   { id: "screener",  state: { tt_product: "canslim" } },
+  // the extended tier: a second payload, fetched only when this filter is picked.
+  // Worth its own shot because "nothing happened" and "it merged" look identical
+  // in a diff — the coverage line beside the filter is the visible proof.
+  { id: "screenerext", state: { tt_product: "canslim" }, act: async (p) => {
+      await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
+      await p.waitForTimeout(700);
+    } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
   { id: "portfolio", state: { tt_product: "canslim", tt_positions: HOLDINGS }, act: (p) => click(p, "Portfolio") },
@@ -116,27 +123,23 @@ const FIX_SECTORS = [
   ["Energy", ["Oil & Gas E&P"]],
   ["Industrials", ["Aerospace & Defense", "Specialty Industrial Machinery"]],
 ];
-function fixture() {
-  // The real snapshot covers the S&P 500 union the curated list, so nearly every
-  // screener row arrives with signals. A fixture of 12 unrelated symbols left the
-  // visible rows falling back to tt.js's editorial seeded curves — which made the
-  // shots show the *fallback* while claiming to show the feature.
-  const TK = [...new Set([
-    ...TT.CANSLIM.slice(0, 40).map((s) => s.tk),
-    "NVDA", "AVGO", "CRDO", "APP", "GEV", "HOOD", "MU", "ANET", "MRVL", "VRT", "NFLX", "AXON",
-  ])];
-  TK_ORDER = TK;                       // so yahooBars can price a symbol the same way
-  const quotes = {}, sig = {}, meta = {}, earnings = {};
-  TK.forEach((t, i) => {
+/* The extended tier's names — mid-caps outside the S&P, which is exactly what
+   `?tier=ext` serves in production. Kept short: the point of the shot is that a
+   second payload merges in and the coverage line states its size, not breadth. */
+const EXT_TK = ["ALAB", "CELH", "DUOL", "RBLX", "TOST", "IOT", "CAVA", "ONON", "OKLO", "GRAL"];
+
+/* One name's worth of snapshot record. Factored out because the extended tier is
+   a SECOND payload of the same shape (api/snapshot.js?tier=ext), and a fixture
+   that built it differently would stop testing the merge path the client
+   actually runs on it. */
+function nameRecord(t, i, idx) {
     const px = 80 + i * 37;
+    const quotes = {}, sig = {}, meta = {}, earnings = {};
     quotes[t] = { price: px, changePercentage: ((i % 7) - 3) * 0.9, timestamp: 1767225600 };
     // Sector AND industry vary. Every name sharing one industry meant the
     // industry-group panel rendered a single group, so its scroller — and the
     // group ordering it exists to make navigable — were never in a shot.
     const sec = FIX_SECTORS[i % FIX_SECTORS.length];
-    // index tags: most names are S&P 500, a slice is also Nasdaq-100, a few are
-    // Dow — and some are in NO index, so "Any index" is visibly wider than "S&P 500"
-    const idx = i % 9 === 8 ? [] : ["sp500", ...(i % 3 === 0 ? ["ndx"] : []), ...(i % 11 === 0 ? ["dow"] : [])];
     meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][i % sec[1].length], idx };
     earnings[t] = { d: day(2 + i * 3), t: i % 2 ? "amc" : "bmo", last: null };
     sig[t] = {
@@ -195,6 +198,41 @@ function fixture() {
         };
       })(),
     };
+  return { quote: quotes[t], sig: sig[t], meta: meta[t], earn: earnings[t] };
+}
+
+/* Shaped like api/snapshot.js's ext payload: quotes/sig/meta only. No market,
+   flow or macro — those stay measured on the core universe on purpose, and a
+   fixture that carried them here would be testing a merge the app never does. */
+function extFixture() {
+  const quotes = {}, sig = {}, meta = {};
+  EXT_TK.forEach((t, k) => {
+    const r = nameRecord(t, TK_ORDER.indexOf(t), ["ext"]);
+    quotes[t] = r.quote; sig[t] = r.sig; meta[t] = r.meta;
+  });
+  return { schema: 10, tier: "ext", generatedAt: new Date(1767225600000).toISOString(), source: "fixture",
+    status: "ok", count: EXT_TK.length, total: EXT_TK.length, asOf: 1767225600000,
+    screen: { minCap: 2e9, minVol: 4e5, exchanges: ["NASDAQ", "NYSE"], cap: 900 },
+    quotes, sig, meta };
+}
+
+function fixture() {
+  // The real snapshot covers the S&P 500 union the curated list, so nearly every
+  // screener row arrives with signals. A fixture of 12 unrelated symbols left the
+  // visible rows falling back to tt.js's editorial seeded curves — which made the
+  // shots show the *fallback* while claiming to show the feature.
+  const TK = [...new Set([
+    ...TT.CANSLIM.slice(0, 40).map((s) => s.tk),
+    "NVDA", "AVGO", "CRDO", "APP", "GEV", "HOOD", "MU", "ANET", "MRVL", "VRT", "NFLX", "AXON",
+  ])];
+  TK_ORDER = [...TK, ...EXT_TK];       // so yahooBars can price a symbol the same way
+  const quotes = {}, sig = {}, meta = {}, earnings = {};
+  TK.forEach((t, i) => {
+    // index tags: most names are S&P 500, a slice is also Nasdaq-100, a few are
+    // Dow — and some are in NO index, so "Any index" is visibly wider than "S&P 500"
+    const idx = i % 9 === 8 ? [] : ["sp500", ...(i % 3 === 0 ? ["ndx"] : []), ...(i % 11 === 0 ? ["dow"] : [])];
+    const r = nameRecord(t, i, idx);
+    quotes[t] = r.quote; sig[t] = r.sig; meta[t] = r.meta; earnings[t] = r.earn;
   });
   // VIX history is [{d, v}] — the chart reads p.v, so an array of bare numbers
   // makes every point undefined, NaN the path and render an EMPTY chart with no
@@ -366,6 +404,7 @@ const chromium = await loadChromium();
 const { server, port } = await serve();
 const browser = await launch(chromium);
 const SNAP = JSON.stringify(fixture());
+const SNAP_EXT = JSON.stringify(extFixture());
 let shot = 0, failed = 0;
 
 for (const theme of themes) {
@@ -382,7 +421,11 @@ for (const theme of themes) {
       await page.route("**/api/**", (r) => {
         const u = r.request().url();
         let body = "{}";
-        if (u.includes("/api/snapshot")) body = SNAP;
+        // tier=ext BEFORE the core test — the ext URL contains "/api/snapshot"
+        // too, and answering it with the core payload would make the widened
+        // universe look like it merged when nothing new arrived at all
+        if (u.includes("tier=ext")) body = SNAP_EXT;
+        else if (u.includes("/api/snapshot")) body = SNAP;
         // /api/yahoo backs the peak-since-entry lookup for held positions
         else if (u.includes("/api/yahoo")) {
           // SHOTS_YAHOO_DOWN=1 — see the header. Exercises the degraded path.
