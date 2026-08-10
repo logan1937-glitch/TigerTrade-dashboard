@@ -2431,11 +2431,12 @@ body { background: #0a0b0d; }
    surely as a proportional face does. */
 .figpct {
   display: inline-grid;
-  /* 0.62em for the sign, then a fixed value track so the sign sits at the same x
-     down the column. The width is a variable because the track has to match what
-     the column can actually hold: 5.4em survives "9999.99%", but in a 96px cell
-     holding at most "255.00%" that leaves a gap wide enough to read as a bug. */
-  grid-template-columns: 0.62em var(--figpct-w, 5.4em);
+  /* 0.62em for the sign, then a value track. The DEFAULT is auto, because a
+     fixed track only earns its keep in a column: it is what puts the sign at the
+     same x on every row. Used inline — beside a price in a header — a fixed
+     track strands the sign an em away from its own digits and reads as a bug.
+     Column contexts set --figpct-w to what that column can actually hold. */
+  grid-template-columns: 0.62em var(--figpct-w, auto);
   align-items: baseline;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

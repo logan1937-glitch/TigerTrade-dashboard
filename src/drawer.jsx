@@ -1,10 +1,14 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
-import { StarBtn, StarIcon, Logo, useWatch, useCanslim, useAlerts, usePositions, SEV_LABEL } from "./components.jsx";
+import { StarBtn, StarIcon, Logo, NA, Chip, FigPct, useWatch, useCanslim, useAlerts, usePositions, SEV_LABEL } from "./components.jsx";
 import { fetchProfile } from "./profile.js";
 
 const fmtPx2 = (n) => (n == null || Number.isNaN(+n) ? "—" : n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : (+n).toFixed(2));
+/* Same split as the Playbook: the formatters keep returning a string dash where
+   a value is spliced into a sentence, and this yields the primitive where the
+   value stands alone as the answer and the reader deserves the reason. */
+const val = (v, fmt, why) => (v == null || Number.isNaN(+v) ? <NA why={why} /> : fmt(v));
 
 function CloseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>;
@@ -112,10 +116,12 @@ export function EventDrawerBody({ ev, onClose, onPick, vix }) {
 
       {ev.econ && (ev.econ.previous != null || ev.econ.estimate != null || ev.econ.actual != null) && (
         <div className="dr-tiles" style={{ marginBottom: 0 }}>
-          <div className="dr-tile"><span className="dr-tk mono">Previous</span><span className="dr-tv mono">{ev.econ.previous != null ? `${ev.econ.previous}${ev.econ.unit}` : "—"}</span></div>
-          <div className="dr-tile"><span className="dr-tk mono">Consensus</span><span className="dr-tv mono">{ev.econ.estimate != null ? `${ev.econ.estimate}${ev.econ.unit}` : "—"}</span></div>
+          <div className="dr-tile"><span className="dr-tk mono">Previous</span><span className="dr-tv mono">{val(ev.econ.previous, (x) => `${x}${ev.econ.unit}`, "The calendar carried no prior reading for this release")}</span></div>
+          <div className="dr-tile"><span className="dr-tk mono">Consensus</span><span className="dr-tv mono">{val(ev.econ.estimate, (x) => `${x}${ev.econ.unit}`, "No consensus estimate published for this release yet")}</span></div>
           <div className="dr-tile"><span className="dr-tk mono">Actual</span><span className="dr-tv mono" data-neg={ev.econ.actual != null && ev.econ.estimate != null && ev.econ.actual >= ev.econ.estimate}>{ev.econ.actual != null ? `${ev.econ.actual}${ev.econ.unit}` : "pending"}</span></div>
-          <div className="dr-tile"><span className="dr-tk mono">Surprise</span><span className="dr-tv mono">{ev.econ.actual != null && ev.econ.estimate != null ? `${(ev.econ.actual - ev.econ.estimate) > 0 ? "+" : ""}${+(ev.econ.actual - ev.econ.estimate).toFixed(2)}${ev.econ.unit}` : "—"}</span></div>
+          <div className="dr-tile"><span className="dr-tk mono">Surprise</span><span className="dr-tv mono">{ev.econ.actual != null && ev.econ.estimate != null
+            ? `${(ev.econ.actual - ev.econ.estimate) > 0 ? "+" : ""}${+(ev.econ.actual - ev.econ.estimate).toFixed(2)}${ev.econ.unit}`
+            : <NA why="A surprise needs both the print and the consensus — this release has not reported" />}</span></div>
         </div>
       )}
 
@@ -130,8 +136,8 @@ export function EventDrawerBody({ ev, onClose, onPick, vix }) {
           <div className="dr-meta-row">
             <div title="Expected 1-day S&P 500 move implied by the current VIX (VIX ÷ √252) — the market's live volatility read">
               <span className="dr-mk mono">Expected move <span style={{ opacity: .6 }}>· VIX-implied</span></span>
-              <div className="dr-mv mono">{em != null ? `±${em.toFixed(1)}%` : "—"}</div>
-              <BarMeter value={em != null ? Math.min(em / 3, 1) * 100 : 0} c="var(--accent)" />
+              <div className="dr-mv mono">{val(em, (x) => `±${x.toFixed(1)}%`, "The expected move is derived from the VIX level — no VIX quote in this snapshot")}</div>
+              {em != null && <BarMeter value={Math.min(em / 3, 1) * 100} c="var(--accent)" />}
             </div>
           </div>
         </div>
@@ -305,9 +311,12 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
   const t2 = hasBase ? +(s.pivot * 1.25).toFixed(2) : null;
   const riskPerShare = hasBase ? +(s.px - stop).toFixed(2) : null;
   const rewardPerShare = hasBase ? +(t1 - s.px).toFixed(2) : null;
-  const rr = hasBase && riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : "—";
-  const posValue = (qty * (s.px || 0));
-  const riskValue = qty * Math.max(0, riskPerShare || 0);
+  const rr = hasBase && riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : null;
+  // NOT `s.px || 0`: a name with no quote printed "$0" as a position value, and
+  // "$0" is an answer — it says the position is worth nothing rather than that we
+  // cannot price it. Same for the risk figure sitting beside it.
+  const posValue = s.px != null ? qty * s.px : null;
+  const riskValue = riskPerShare != null && riskPerShare > 0 ? qty * riskPerShare : null;
   const money = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
   return (
@@ -322,13 +331,16 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
       <div className="dr-head dr-stockhead">
         <div>
           <div className="dr-symrow"><Logo ticker={s.tk} size={34} /><span className="dr-sym">{s.tk}</span>
+            {/* "Signals-only" is a stated GAP — this name has price history but no
+                editorial coverage — so it takes the absent tone rather than a
+                colour that would read as a category it belongs to. */}
             {stLabel ? <span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span>
-              : signalsOnly && <span className="badge badge-cat" style={{ "--c": "var(--dim)" }}>Signals-only</span>}</div>
+              : signalsOnly && <Chip tone="absent" title="Real price history and signals, but no editorial coverage for this name">Signals-only</Chip>}</div>
           <h2 className="dr-title dr-stockname">{s.name}</h2>
           <div className="dr-pxrow">
-            <span className="dr-px mono">{s.px != null ? "$" + s.px.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}</span>
-            {s.chg != null && <span className="dr-chg mono" data-up={s.chg >= 0}>{s.chg >= 0 ? "+" : ""}{(+s.chg).toFixed(2)}%</span>}
-            <span className="dr-grp mono">Mkt cap {fmtCap(cap)}</span>
+            <span className="dr-px mono">{val(s.px, (x) => "$" + x.toLocaleString(undefined, { maximumFractionDigits: 2 }), "No quote for this name in the nightly snapshot")}</span>
+            <span className="dr-chg mono" data-up={s.chg == null ? undefined : s.chg >= 0}><FigPct v={s.chg} /></span>
+            <span className="dr-grp mono">Mkt cap {val(cap, fmtCap, "Market cap comes from the company profile, which has not loaded for this name")}</span>
             {s.rs != null && <span className="dr-rs mono">RS {s.rs}</span>}
             {s.groupRank != null && <span className="dr-grp mono">Group #{s.groupRank}</span>}
           </div>
@@ -451,7 +463,9 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
               <div className="dr-bp"><span className="dr-bpk mono">Target +20%</span><span className="dr-bpv mono">${t1}</span></div>
               <div className="dr-bp"><span className="dr-bpk mono">Target +25%</span><span className="dr-bpv mono">${t2}</span></div>
               <div className="dr-bp"><span className="dr-bpk mono">Risk / share</span><span className="dr-bpv mono" data-up={riskPerShare < 0}>${riskPerShare}</span></div>
-              <div className="dr-bp"><span className="dr-bpk mono">Reward : risk</span><span className="dr-bpv mono">{rr}:1</span></div>
+              <div className="dr-bp"><span className="dr-bpk mono">Reward : risk</span><span className="dr-bpv mono">{rr == null
+                ? <NA why="Reward:risk needs a measurable base to price the pivot against" />
+                : `${rr}:1`}</span></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
               <span className="dr-bpk mono">Shares</span>
@@ -459,7 +473,11 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
                 onChange={(e) => setQty(Math.max(0, parseInt(e.target.value, 10) || 0))}
                 style={{ width: 110, paddingLeft: 12 }} />
               <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
-                Position <b style={{ color: "var(--text)" }}>${money(posValue)}</b> · Risk to stop <b style={{ color: "var(--sev-extreme)" }}>${money(riskValue)}</b>
+                Position <b style={{ color: "var(--text)" }}>{posValue == null
+                  ? <NA why="No quote for this name — a position cannot be valued without one" />
+                  : `$${money(posValue)}`}</b> · Risk to stop <b style={{ color: "var(--sev-extreme)" }}>{riskValue == null
+                  ? <NA why="Risk to stop needs a measurable base to price the stop against" />
+                  : `$${money(riskValue)}`}</b>
               </span>
             </div>
             <div className="dr-verdict neutral" style={{ marginTop: 12 }}>
@@ -512,13 +530,17 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
         <div className="dr-sec">
           <div className="dr-sec-h"><h3>Momentum signals</h3><span className="dr-sec-sub mono">computed from adjusted EOD · as of {s.sig.asOf}</span></div>
           <div className="dr-buygrid">
-            <div className="dr-bp"><span className="dr-bpk mono">Stage</span><span className="dr-bpv">{s.sig.stage ?? "—"} · {s.sig.stageLabel}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Stage</span><span className="dr-bpv">{s.sig.stage == null
+              ? <NA why="Stage needs 30 weeks of closes against their moving average" />
+              : <>{s.sig.stage} · {s.sig.stageLabel}</>}</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">RS line</span><span className="dr-bpv" data-up={s.sig.rsNewHigh}>{s.sig.rsLeads ? "New high (leads price)" : s.sig.rsNewHigh ? "New high" : "Below high"}</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">12-mo return</span><span className="dr-bpv mono" data-up={s.sig.ret12m >= 0}>{s.sig.ret12m >= 0 ? "+" : ""}{s.sig.ret12m}%</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">ADR%</span><span className="dr-bpv mono">{s.sig.adrPct}%</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">Distribution days</span><span className="dr-bpv mono" data-warn={s.sig.distDays >= 5}>{s.sig.distDays} / 25</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">$ volume</span><span className="dr-bpv mono">${(s.sig.dollarVol / 1e6).toFixed(0)}M</span></div>
-            <div className="dr-bp"><span className="dr-bpk mono">Off 52-wk high</span><span className="dr-bpv mono">{s.sig.atHigh ? "at high" : s.sig.off52 == null ? "—" : "−" + s.sig.off52 + "%"}</span></div>
+            <div className="dr-bp"><span className="dr-bpk mono">Off 52-wk high</span><span className="dr-bpv mono">{s.sig.atHigh ? "at high" : s.sig.off52 == null
+              ? <NA why="Distance from the 52-week high needs a full year of closes" />
+              : "−" + s.sig.off52 + "%"}</span></div>
             <div className="dr-bp"><span className="dr-bpk mono">Pocket pivot</span><span className="dr-bpv" data-up={s.sig.pocketPivot}>{s.sig.pocketPivot ? "Yes ✦" : "No"}</span></div>
           </div>
         </div>
@@ -529,8 +551,8 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
         <div className="dr-sec-h"><h3>Buy-point analysis</h3></div>
         <div className="dr-buygrid">
           <div className="dr-bp"><span className="dr-bpk mono">Base</span><span className="dr-bpv">{s.baseType}</span></div>
-          <div className="dr-bp"><span className="dr-bpk mono">Length</span><span className="dr-bpv">{s.baseWeeks ? s.baseWeeks + " wks" : "—"}</span></div>
-          <div className="dr-bp"><span className="dr-bpk mono">Depth</span><span className="dr-bpv">{s.baseDepth ? s.baseDepth + "%" : "—"}</span></div>
+          <div className="dr-bp"><span className="dr-bpk mono">Length</span><span className="dr-bpv">{s.baseWeeks ? s.baseWeeks + " wks" : <NA why="Base length needs a measurable base — not enough history for this name" />}</span></div>
+          <div className="dr-bp"><span className="dr-bpk mono">Depth</span><span className="dr-bpv">{s.baseDepth ? s.baseDepth + "%" : <NA why="Base depth needs a measurable base — not enough history for this name" />}</span></div>
           <div className="dr-bp"><span className="dr-bpk mono">Pivot</span><span className="dr-bpv mono">${s.pivot}</span></div>
           <div className="dr-bp"><span className="dr-bpk mono">Buy range</span><span className="dr-bpv mono">${s.buyLo}–{s.buyHi}</span></div>
           <div className="dr-bp" data-warn={s.pctExt > 5}><span className="dr-bpk mono">vs pivot</span><span className="dr-bpv mono" data-up={s.pctExt >= 0}>{s.pctExt > 0 ? "+" : ""}{s.pctExt}%</span></div>
@@ -687,7 +709,7 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock, events: allEv
   const { byTicker } = useCanslim();
   const alerts = useAlerts();
   const statusMap = { buy: ["Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
-  const statusOf = (st) => statusMap[st] || ["—", "var(--dim)"];   // signals-only names can have no status
+  const statusOf = (st) => statusMap[st] || [null, "var(--dim)"];   // signals-only names can have no status
   /* Resolve against the MERGED event list, not the curated template. The live
      economic calendar appends releases that exist only in that merge, so
      `TT.EVENTS.find` returned undefined for every one of them and `.filter`
@@ -757,24 +779,31 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock, events: allEv
                 {stocks.map((s) => {
                   const [stLabel, stColor] = statusOf(s.status);
                   const a = alerts.for(s.tk);
-                  const up = (s.chg || 0) >= 0;
+                  // NOT `(s.chg || 0) >= 0` — that made an unknown change render green
+                  const up = s.chg != null && s.chg >= 0;
                   return (
                     <div className="wl-row wl-stock" key={s.tk} style={{ "--c": a?.hitAt ? "var(--brand)" : "var(--cat-growth)" }}
                       onClick={() => onPickStock(s)} role="button" tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPickStock(s); } }}>
                       <span className="wl-sym">{s.tk}</span>
                       <span className="wl-name">{s.name}
-                        <small className="mono">RS {s.rs ?? "—"} · score {s.score ?? "—"}
+                        <small className="mono">RS {s.rs ?? <NA why="RS needs a 12-month return to rank against the universe" />}
+                          {" · score "}{s.score ?? <NA why="The momentum score needs a signal bundle — none in the snapshot for this name" />}
                           {a && (a.hitAt
                             ? <span className="wl-alert mono" data-hit>alert hit ${a.level}</span>
                             : <span className="wl-alert mono">alert ${a.level}</span>)}
                           {s.ern && s.ern.days <= 7 && <span className="wl-alert mono" data-ern>{s.ern.est ? "~" : ""}{s.ern.days === 0 ? "E·today" : `E-${s.ern.days}`}</span>}
                         </small>
                       </span>
-                      <span className="wl-px mono">{s.px != null ? "$" + fmtPx2(s.px) : "—"}
-                        <small data-up={up}>{s.chg != null ? `${up ? "+" : ""}${(+s.chg).toFixed(2)}%` : ""}</small>
+                      <span className="wl-px mono">{s.px != null ? "$" + fmtPx2(s.px) : <NA why="No quote for this name in the nightly snapshot" />}
+                        <small data-up={s.chg == null ? undefined : up}><FigPct v={s.chg} /></small>
                       </span>
-                      <span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span>
+                      {/* a signals-only name has no buy status to show, and an
+                          empty coloured pill reads as a status you cannot make
+                          out rather than one that does not exist */}
+                      {stLabel
+                        ? <span className="badge badge-cat" style={{ "--c": stColor }}>{stLabel}</span>
+                        : <Chip tone="absent" title="Real signals, but no editorial base to price a buy status against">No status</Chip>}
                       <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} />
                     </div>
                   );

@@ -131,7 +131,16 @@ const VIEWS = [
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
   { id: "portfolio", state: { tt_product: "canslim", tt_positions: HOLDINGS }, act: (p) => click(p, "Portfolio") },
-  { id: "playbook",  state: { tt_product: "canslim" }, act: (p) => click(p, "Playbook") },
+  /* `tt_pb_seen` matters: the explainer auto-opens on a first visit, so without
+     it every Playbook shot ever taken photographed the explainer and not the
+     split pane underneath — the tiles, the EMA rail and the sizing box were
+     never in a picture. `playbookhelp` keeps the explainer covered too. */
+  { id: "playbook",  state: { tt_product: "canslim", tt_pb_seen: 1 }, act: async (p) => {
+      await click(p, "Playbook");
+      await p.locator(".pb-row").first().click().catch(() => {});
+      await p.waitForTimeout(400);
+    } },
+  { id: "playbookhelp", state: { tt_product: "canslim" }, act: (p) => click(p, "Playbook") },
   // the stock drawer is where most of the component surface lives
   { id: "drawer",    state: { tt_product: "canslim" }, act: async (p) => {
       await p.locator(".cs-row").first().click();

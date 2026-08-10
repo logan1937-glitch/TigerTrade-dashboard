@@ -14,7 +14,7 @@
 // its inputs stated (Chandelier: 22-day high − 3·ATR), not advice, and a name
 // with no computable metric shows "—" rather than a filled-in guess.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SearchIcon, Logo } from "./components.jsx";
+import { SearchIcon, Logo, NA, Chip, FigPct } from "./components.jsx";
 import { isLaunchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf, atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
@@ -22,6 +22,11 @@ const px2 = (v) => (v == null ? "—" : `$${(+v).toLocaleString(undefined, { min
 const pct = (v, dp = 2) => (v == null ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(dp)}%`);
 const num = (v, dp = 2) => (v == null ? "—" : (+v).toFixed(dp));
 const usd = (v) => (v == null ? "—" : `$${Math.round(v).toLocaleString()}`);
+/* The formatters above return a STRING dash, which is right where the value is
+   spliced into a sentence. Where the value stands alone as the answer in a cell,
+   it goes through this instead: same dash, but hoverable and carrying the name
+   of the input that is missing. */
+const val = (v, fmt, why) => (v == null ? <NA why={why} /> : fmt(v));
 
 /* ── thresholds, named once ───────────────────────────────────────────────── */
 export const TIGHT_MAX_CX = 0.55;        // "coiling or tighter"
@@ -382,28 +387,32 @@ function Detail({ row, onOpenStock }) {
         <Logo ticker={row.tk} size={38} />
         <div className="pb-dhead-t">
           <div className="pb-dsym"><span className="dr-sym">{row.tk}</span>
-            {spread != null && spread <= LAUNCHPAD_MAX_SPREAD && <span className="badge badge-cat" style={{ "--c": "var(--accent)" }}>Launchpad</span>}
+            {spread != null && spread <= LAUNCHPAD_MAX_SPREAD && <Chip tone="signal">Launchpad</Chip>}
+            {/* caution, not the severity ramp: a report date ahead is a warning
+                about gap risk, and it can never borrow red — red means money moved */}
             {row.ern && row.ern.days <= ERN_BLACKOUT_DAYS && (
-              <span className="badge badge-cat" style={{ "--c": "var(--sev-high)" }}
-                title={`Reports ${row.ern.date} — a print gaps through trailing stops`}>E−{row.ern.days}</span>)}</div>
+              <Chip tone="caution" title={`Reports ${row.ern.date} — a print gaps through trailing stops`}>E−{row.ern.days}</Chip>)}</div>
           <h3 className="pb-dname">{row.name}</h3>
-          <div className="pb-dpx"><span className="dr-px mono">{px2(row.px)}</span>
-            {row.chg != null && <span className="dr-chg mono" data-up={row.chg >= 0}>{pct(row.chg)}</span>}
+          <div className="pb-dpx"><span className="dr-px mono">{val(row.px, px2, "No quote for this name in the nightly snapshot")}</span>
+            <span className="dr-chg mono" data-up={row.chg == null ? undefined : row.chg >= 0}><FigPct v={row.chg} /></span>
             <span className="dr-grp mono">{row.sector}</span></div>
         </div>
         {onOpenStock && <button className="ed-btn" onClick={() => onOpenStock(row)}>Full analysis →</button>}
       </div>
 
       <div className="pb-tiles">
-        <Tile k="ATR (14)" v={num(s.atr)} s={s.atrPct != null ? `${s.atrPct.toFixed(2)}% of price` : "—"} />
+        <Tile k="ATR (14)" v={val(s.atr, (x) => num(x), "ATR(14) needs 14 true ranges of history")}
+          s={s.atrPct != null ? `${s.atrPct.toFixed(2)}% of price` : "as a % of price, once ATR resolves"} />
         {/* a Chandelier stop ABOVE the price is a real state, not a glitch — the
             name has fallen far enough off its 22-day high that the trail is
             already breached. Say that rather than printing a negative distance. */}
-        <Tile k="Trailing stop" v={px2(s.stop)}
-          s={riskPct == null ? "—" : riskPct >= 0 ? `${riskPct.toFixed(1)}% below price` : `${Math.abs(riskPct).toFixed(1)}% above — breached`}
+        <Tile k="Trailing stop" v={val(s.stop, px2, "A Chandelier level needs a 22-day high and an ATR(14)")}
+          s={riskPct == null ? "distance from price, once the level resolves" : riskPct >= 0 ? `${riskPct.toFixed(1)}% below price` : `${Math.abs(riskPct).toFixed(1)}% above — breached`}
           title="Chandelier Exit (long): the 22-day highest high less 3 × ATR(14). An arithmetic level, not an order." />
-        <Tile k="Contraction" v={cxLabel} s={s.cx != null ? `ratio ${s.cx.toFixed(2)}` : "—"} title={cxNote} />
-        <Tile k="Impulse" v={pct(s.imp, 1)} s="prior 20-day move" title="The advance a contraction is only meaningful after." />
+        <Tile k="Contraction" v={s.cx == null ? <NA why="The contraction ratio needs 40 sessions of high-low range" /> : cxLabel}
+          s={s.cx != null ? `ratio ${s.cx.toFixed(2)}` : "10-day range ÷ 40-day range"} title={cxNote} />
+        <Tile k="Impulse" v={val(s.imp, (x) => pct(x, 1), "The 20-day return needs 20 sessions of closes")}
+          s="prior 20-day move" title="The advance a contraction is only meaningful after." />
       </div>
 
       <div className="pb-emas">
@@ -529,7 +538,7 @@ function Sizing({ px, stop, atr }) {
                 not measure it, which is the opposite of what happened. */}
             <Tile k="Shares" v={shares ? shares.toLocaleString() : "0"}
               s={shares ? "rounded down" : "budget < 1 share at this stop"} />
-            <Tile k="Position" v={usd(value)} s={value ? `${((value / account) * 100).toFixed(0)}% of account` : "—"} />
+            <Tile k="Position" v={usd(value)} s={value ? `${((value / account) * 100).toFixed(0)}% of account` : "no shares to value"} />
           </div>
           <p className="pb-note mono">
             Risking <b>{usd(budget)}</b> ({riskPct}% of {usd(account)}) at <b>{px2(dist)}</b> a share.
