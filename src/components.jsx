@@ -227,6 +227,65 @@ function RiskSpectrum({ vix, macro }) {
   );
 }
 
+/* ── the dash, given a design ─────────────────────────────────────────────
+   The product rule — a value we do not have renders as an em dash, never a
+   zero — had no form. It rendered in `--dim`, the same treatment as a column
+   label, so an answer looked like quiet chrome and there was nothing to
+   interrogate. This is that rule as one primitive, used everywhere a value can
+   be absent.
+
+   `why` names the missing INPUT, not the missing output: "Change needs two
+   adjusted daily bars" tells you the series is short, where "No change" tells
+   you nothing you could act on. `blocking` marks an absence that also stopped a
+   filter from measuring the row, which is a different fact from simply not
+   knowing — it is why the row is missing from a list you expected it in.
+
+   It is focusable and carries an aria-label mirroring `why`, because a screen
+   reader landing on a bare dash learns nothing at all. */
+export function NA({ why, blocking }) {
+  return (
+    <span className="na" data-blocking={blocking || undefined}
+      tabIndex={0} role="note" title={why} aria-label={why ? `Not available: ${why}` : "Not available"}>—</span>
+  );
+}
+
+/* ── one chip, five tones ─────────────────────────────────────────────────
+   `.cs-stage`, `.cs-ern`, `.subtab-n`, the status pills and the live tag were
+   the same object drawn five ways — three paddings, two radii, four sizes.
+   Tone carries the meaning: neutral · brand (amber, brand and primary) ·
+   signal (jade, live and interactive) · caution (amber-yellow, a warning that
+   is NOT a loss) · absent (dashed, a stated gap).
+
+   There is deliberately no "success" tone. Green means money moved. */
+export function Chip({ tone = "neutral", dot, children, ...rest }) {
+  return (
+    <span className="chip" data-tone={tone} {...rest}>
+      {dot && <i className="dot" />}{children}
+    </span>
+  );
+}
+
+/* ── a percentage that stacks down a column ───────────────────────────────
+   Tabular figures put every digit on the same advance, but the SIGN still sat
+   in the value's flow, so `+0.41%` and `−12.60%` started at different x and the
+   decimal points drifted apart down 500 rows. The sign gets its own track, the
+   value is right-aligned in a fixed one, and it is always two decimals — 7.4%
+   beside 13.10% breaks the stack as surely as a proportional face does.
+
+   This formats a value you HAVE. A value you do not have is <NA/>, not a zero
+   and not an empty string. */
+export function FigPct({ v, dp = 2 }) {
+  if (v == null || !Number.isFinite(+v)) return <NA why="No measurable change for this window" />;
+  const n = +v;
+  // exact zero takes no sign: "+0.00%" claims a direction the number does not have
+  const sign = n > 0 ? "+" : n < 0 ? "−" : "";
+  return (
+    <span className="figpct">
+      <i aria-hidden="true">{sign}</i><b>{Math.abs(n).toFixed(dp)}%</b>
+    </span>
+  );
+}
+
 /* small info affordance — holds the descriptive blurb off the main layout */
 export function InfoDot({ text }) {
   return (

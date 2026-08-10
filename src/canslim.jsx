@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
 import { PlaybookView } from "./playbook.jsx";
-import { SearchIcon, StarBtn, InfoDot } from "./components.jsx";
+import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct } from "./components.jsx";
 import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
 import { PortfolioView } from "./portfolio.jsx";
@@ -24,7 +24,7 @@ const SPARK_MIN_SPAN = 8;
 function Spark({ data }) {
   const w = 240, h = 40, pad = 3;
   const first = data[0], last = data[data.length - 1];
-  if (!first) return <span className="cs-sig-na mono">—</span>;
+  if (!first) return <NA why="No daily closes for this name in the latest snapshot" />;
   // Everything is measured against the window's opening price, so the vertical
   // middle is "unchanged" on every row and the rows are comparable to each other.
   const pcts = data.map((v) => (v / first - 1) * 100);
@@ -60,7 +60,9 @@ const OFF_CAP = 40;   // beyond 40% off the high the exact depth stops mattering
 function OffHigh({ off }) {
   // always the same element type — the mobile rule hides cells by
   // `div:nth-child(n)`, and a bare span here would survive into a 3-column layout
-  if (off == null) return <div className="cs-off"><span className="cs-sig-na mono">—</span></div>;
+  // still a <div>: the mobile rule hides cells by child index, and swapping the
+  // element type here would shift every column after it
+  if (off == null) return <div className="cs-off"><NA why="Distance from the 52-week high needs a full year of closes" /></div>;
   const tier = off <= 5 ? "near" : off <= 15 ? "mid" : "far";
   return (
     <div className="cs-off" data-tier={tier}
@@ -70,6 +72,16 @@ function OffHigh({ off }) {
     </div>
   );
 }
+
+/* A 1px hairline column at each of the three group boundaries. The nine columns
+   are four ideas — identity · price · strength · model — and at one even gap they
+   read as nine equally-weighted facts.
+
+   It is a <span> so it is obvious it holds no data, but note it still OCCUPIES A
+   CHILD INDEX: `div:nth-child(n)` counts every sibling, not just the divs, so the
+   ≤880px rule that collapses this table to three columns had to be re-indexed
+   around these. Verified in a browser, not assumed. */
+const Seam = () => <span className="cs-seam" aria-hidden="true" />;
 
 function StatusPill({ status }) {
   const map = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
@@ -154,6 +166,10 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
   // index membership, tagged on every row by the snapshot. "All" is the whole
   // universe including the curated names that belong to no index at all.
   const [idxF, setIdxF] = useState("all");
+  /* Which row you last opened. The jade left edge is otherwise a hover state, so
+     closing the drawer drops you back into 500 identical rows with nothing
+     marking where you were. Not persisted — it is within-session wayfinding. */
+  const [lastOpened, setLastOpened] = useState(null);
   // Δ is the ranking window, not just a price-column format: RS, score and the
   // leadership L chip are all measured over it. 1Y is the default so the board
   // still opens on the classic 12-month leadership ranking.
@@ -286,51 +302,60 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
        <div className="cs-panel cs-panel-scroll">
         <div className="cs-head" role="row">
           <Th label="Ticker" k="ticker" />
+          <Seam />
           <Th label={`Price · Δ${tf}`} k="chg" right />
           <Th label={tf === "1Y" ? "RS" : `RS · ${tf}`} k="rs" />
+          <Seam />
           {/* named 1y because it does NOT follow the Δ window — the snapshot ships
               one series per name, and a column that silently meant something else
               than its neighbours would be worse than one that says its scope */}
           <span>Trend · 1y</span>
           <span>Off high</span>
+          <Seam />
           <Th label="Leadership" k="pass" />
           <span>Signals</span>
           <Th label="Buy Status" k="status" right />
           <Th label={tf === "1Y" ? "Score" : `Score · ${tf}`} k="score" right />
         </div>
         {view.map((r, i) => (
-          <div className="cs-row reveal" key={r.tk} style={{ "--i": i }} onClick={() => onOpenStock(r)}
+          <div className="cs-row reveal" key={r.tk} style={{ "--i": i }}
+            data-last-opened={lastOpened === r.tk || undefined}
+            onClick={() => { setLastOpened(r.tk); onOpenStock(r); }}
             role="button" tabIndex={0} aria-label={`${r.tk} — open full analysis`}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock(r); } }}>
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLastOpened(r.tk); onOpenStock(r); } }}>
             <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
-            <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : "—"}</span>{r._ret == null
-                ? <span className="cs-chg mono" data-na="true" title={`No ${tf} return for this name in the snapshot`}>—</span>
-                : <span className="cs-chg mono" data-up={r._ret >= 0}>{r._ret >= 0 ? "+" : ""}{r._ret.toFixed(2)}%</span>}</div>
+            <Seam />
+            <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : <NA why="No quote for this name in the nightly snapshot" />}</span>
+              <span className="cs-chg" data-up={r._ret == null ? undefined : r._ret >= 0}><FigPct v={r._ret} /></span></div>
             <div className="cs-rs mono" title={tf === "1Y" ? "Relative-strength rank over 12 months" : `Relative-strength rank over the selected ${tf} window`}>
-              {r._rs != null ? r._rs : "—"}{r._rs != null && <i style={{ width: r._rs + "%" }} />}</div>
+              {r._rs != null ? r._rs : <NA why="RS is a percentile of return across the loaded universe — this name has no return to rank" />}{r._rs != null && <i style={{ width: r._rs + "%" }} />}</div>
+            <Seam />
             {/* `_sparkReal` = the snapshot answered for this name; without it the
                 row still holds tt.js's editorial curve, which is not its price */}
             <div>{r.spark && r.spark.length > 1 && r._sparkReal ? <Spark data={r.spark} />
-              : <span className="cs-sig-na mono" title="No daily history for this name in the latest snapshot">—</span>}</div>
+              : <NA why="No daily history for this name in the latest snapshot" />}</div>
             <OffHigh off={r.sig ? r.sig.off52 : null} />
+            <Seam />
             <div className="cs-letters">{r._breakdown && r._breakdown.length ? r._breakdown.map((b, j) => (
               <span key={j} className="cs-let" data-on={b.pass === true} data-na={b.pass == null || undefined} title={`${b.name}${b.pass == null ? " — needs data" : b.pass ? " ✓" : ""}`}>{b.letter}</span>
-            )) : <span className="cs-sig-na mono">—</span>}</div>
+            )) : <NA why="The LEADERS scorecard needs a signal bundle — none in the snapshot for this name" />}</div>
             <div className="cs-sig">
               {r.sig ? (
                 <>
-                  <span className="cs-stage" data-stage={r.sig.stage || 0} title={`Stage ${r.sig.stage || "?"} — ${r.sig.stageLabel || ""}`}>{r.sig.stage ? "S" + r.sig.stage : "—"}</span>
+                  {r.sig.stage
+                    ? <Chip tone="neutral" title={`Stage ${r.sig.stage} — ${r.sig.stageLabel || ""}`}>{"S" + r.sig.stage}</Chip>
+                    : <NA why="Stage needs 30 weeks of closes against their moving average" />}
                   {r.sig.rsNewHigh && <span className="cs-flag" data-lead={r.sig.rsLeads || undefined} title={r.sig.rsLeads ? "RS line at a new high before price" : "RS line at a new high"}>RS↑</span>}
                   {r.sig.pocketPivot && <span className="cs-flag" title="Pocket pivot">◆</span>}
-                  {r.ern && r.ern.days <= 7 && <span className="cs-ern mono" title={`Earnings ${r.ern.date}${r.ern.est ? " (projected date)" : ""}${r.ern.time === "bmo" ? " (before open)" : r.ern.time === "amc" ? " (after close)" : ""} — gap risk on new entries`}>
-                    {r.ern.est ? "~" : ""}{r.ern.days === 0 ? "E·today" : `E-${r.ern.days}`}</span>}
+                  {r.ern && r.ern.days <= 7 && <Chip tone="caution" title={`Earnings ${r.ern.date}${r.ern.est ? " (projected date)" : ""}${r.ern.time === "bmo" ? " (before open)" : r.ern.time === "amc" ? " (after close)" : ""} — gap risk on new entries`}>
+                    {r.ern.est ? "~" : ""}{r.ern.days === 0 ? "E·today" : `E-${r.ern.days}`}</Chip>}
                 </>
-              ) : <span className="cs-sig-na mono">—</span>}
+              ) : <NA why="No signal bundle for this name in the nightly snapshot" />}
             </div>
-            <div style={{ textAlign: "right" }}>{r.status ? <StatusPill status={r.status} /> : <span className="cs-sig-na mono">—</span>}</div>
+            <div style={{ textAlign: "right" }}>{r.status ? <StatusPill status={r.status} /> : <NA why="A buy status needs a measurable base — not enough history for this name" />}</div>
             <div className="cs-score mono" data-grade={r._grade || (r._score >= 93 ? "a" : "b")}
               title={tf === "1Y" ? undefined : `Leadership score over the selected ${tf} window`}>
-              {(r.sig || r.coverage === "full") ? r._score : "—"}</div>
+              {(r.sig || r.coverage === "full") ? r._score : <NA why="The momentum score needs a signal bundle — none in the snapshot for this name" />}</div>
           </div>
         ))}
        </div>

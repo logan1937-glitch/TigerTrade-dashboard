@@ -7,7 +7,15 @@
     <meta name="theme-color" content="#100A06" />
     <meta name="description" content="TigerTrade Terminal — Volatility &amp; Momentum Radar and a momentum-signal Leadership Screener." />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <!-- `currentColor` cannot resolve inside <link rel="icon">: the currentColor
+         mark renders as flat black there. These two are tiled and explicit, and
+         the media queries let the tab icon follow the OS theme. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon-dark.svg" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-light.svg" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-dark.svg" />
+    <!-- the 16px PNG carries the SINGLE slash: below 16px the 3.4 stroke closes
+         the gaps and the three slashes fuse into one wedge -->
+    <link rel="icon" type="image/png" href="/icon-16.png" sizes="16x16" />
     <link rel="icon" type="image/png" href="/icon-32.png" sizes="32x32" />
     <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
