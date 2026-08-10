@@ -115,6 +115,13 @@ const VIEWS = [
   // the extended tier: a second payload, fetched only when this filter is picked.
   // Worth its own shot because "nothing happened" and "it merged" look identical
   // in a diff — the coverage line beside the filter is the visible proof.
+  /* An index filter whose tag no name carries. It is a real production state —
+     the Nasdaq and Dow constituent endpoints are gated above FMP's Starter plan
+     — and it used to render as an empty board with nothing to explain it. */
+  { id: "screeneridx", state: { tt_product: "canslim" }, act: async (p) => {
+      await p.locator('.seg-btn', { hasText: /^Dow 30$/ }).first().click();
+      await p.waitForTimeout(500);
+    } },
   { id: "screenerext", state: { tt_product: "canslim" }, act: async (p) => {
       await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
       await p.waitForTimeout(700);
@@ -280,7 +287,9 @@ function fixture() {
   TK.forEach((t, i) => {
     // index tags: most names are S&P 500, a slice is also Nasdaq-100, a few are
     // Dow — and some are in NO index, so "Any index" is visibly wider than "S&P 500"
-    const idx = i % 9 === 8 ? [] : ["sp500", ...(i % 3 === 0 ? ["ndx"] : []), ...(i % 11 === 0 ? ["dow"] : [])];
+    // deliberately NO "dow" anywhere: the `screeneridx` view needs a filter whose
+    // tag nothing carries, which is exactly the production failure being covered
+    const idx = i % 9 === 8 ? [] : ["sp500", ...(i % 3 === 0 ? ["ndx"] : [])];
     const r = nameRecord(t, i, idx);
     quotes[t] = r.quote; sig[t] = r.sig; meta[t] = r.meta; earnings[t] = r.earn;
   });

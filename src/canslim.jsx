@@ -15,6 +15,9 @@ const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
 const SUBTABS = [["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"],
   ["playbook", "Playbook"], ["portfolio", "Portfolio"]];
 
+// so the empty-filter panel can name the lens the user actually picked
+const IDX_LABEL = { sp500: "S&P 500", ndx: "Nasdaq 100", dow: "Dow 30" };
+
 const fmtAsOf = (ms) => {
   try { return new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
   catch { return "—"; }
@@ -309,6 +312,22 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           count alone cannot tell them apart. The panel says which, in the space
           the rows would have occupied. Pending is neutral, a failure is amber:
           neither is red, because a feed being down is not a loss. */}
+      {/* An index filter with no members is not an empty result — it is an
+          unanswerable question, and it looked identical to "nothing matched".
+          The Nasdaq and Dow tags come from FMP constituent endpoints that are
+          gated above the Starter plan; without them no name is tagged and the
+          board went blank with nothing to explain it. Say which. */}
+      {idxF !== "all" && idxF !== "ext" && view.length === 0 && rows.length > 0 ? (
+        <div className="cs-state">
+          <FeedState kind="degraded" kicker={`${IDX_LABEL[idxF] || idxF} membership`}
+            headline="No name in the loaded universe carries this tag."
+            detail={<>Index membership is fetched per index at snapshot time and then falls back to a
+              committed list. If this is empty, neither answered — check the snapshot's logs for a
+              <b> constituent</b> line. The board itself is unaffected; only the lens is.</>}
+            actions={[{ label: "Back to any index", kind: "secondary", onClick: () => setIdxF("all") }]} />
+        </div>
+      ) : null}
+
       {idxF === "ext" && ext.status !== "ok" && view.length === 0 ? (
         <div className="cs-state">
           {ext.status === "loading" ? (

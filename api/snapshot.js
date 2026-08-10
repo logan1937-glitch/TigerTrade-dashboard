@@ -10,6 +10,7 @@
 import { TT } from "../src/tt.js";
 import { computeSignals, computeMarketHealth, compactSig } from "../src/signals.js";
 import { SP500 } from "../src/sp500.js";
+import { INDEX_FALLBACK } from "../src/indices.js";
 import { put, list } from "@vercel/blob";
 import { bulkFetch } from "./_upstream.js";
 import { quoteFromChart } from "./_quote.js";
@@ -32,7 +33,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 10;
+const SCHEMA = 11;   // 11: idx tags now populate from the committed index lists
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -159,17 +160,27 @@ async function fmpConstituents() {
    Best-effort: a failure leaves the tag absent, never wrong. */
 async function fmpIndexMembers(slug) {
   const key = process.env.FMP_API_KEY;
-  if (!key) return [];
-  for (const url of [`https://financialmodelingprep.com/stable/${slug}-constituent?apikey=${key}`,
-                     `https://financialmodelingprep.com/api/v3/${slug}_constituent?apikey=${key}`]) {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const j = await r.json();
-      if (Array.isArray(j) && j.length >= 25) return j.filter((x) => x && x.symbol).map((x) => ({ tk: x.symbol, name: x.name || x.symbol, sector: x.sector || "—", industry: x.subSector || x.industry || "—" }));
-    } catch (e) { console.error(`fmp ${slug}:`, e); }
+  if (key) {
+    for (const url of [`https://financialmodelingprep.com/stable/${slug}-constituent?apikey=${key}`,
+                       `https://financialmodelingprep.com/api/v3/${slug}_constituent?apikey=${key}`]) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) { console.log(`fmp ${slug}-constituent: ${r.status}`); continue; }
+        const j = await r.json();
+        if (Array.isArray(j) && j.length >= 25) return j.filter((x) => x && x.symbol).map((x) => ({ tk: x.symbol, name: x.name || x.symbol, sector: x.sector || "—", industry: x.subSector || x.industry || "—" }));
+      } catch (e) { console.error(`fmp ${slug}:`, e); }
+    }
   }
-  return [];
+  /* Committed fallback, exactly as fmpConstituents() has always had for the S&P.
+     Without it this returned [] on any plan below Premium — the constituent
+     endpoints are gated there — so no name was tagged and the screener's Nasdaq
+     and Dow filters produced zero rows with nothing on screen to explain it.
+     Only the ticker is carried: name, sector and industry come from the S&P or
+     curated record this name already has, and inventing them here would put a
+     second, worse classification into the same taxonomy. */
+  const fb = INDEX_FALLBACK[slug] || [];
+  if (fb.length) console.log(`fmp ${slug}-constituent unavailable — using the committed list (${fb.length})`);
+  return fb.map((tk) => ({ tk, name: tk, sector: "—", industry: "—", _fallback: true }));
 }
 
 /* ── Extended universe ───────────────────────────────────────────────────────
@@ -639,6 +650,11 @@ async function coreMeta() {
   for (const [slug, list] of [["ndx", ndx], ["dow", dow]]) {
     for (const c of list) {
       if (meta[c.tk]) { if (!meta[c.tk].idx.includes(slug)) meta[c.tk].idx.push(slug); continue; }
+      // A fallback entry carries a ticker and nothing else. Seeding a NEW name
+      // from one would put "—" into the sector and industry the Market Map and
+      // the group panel bucket on; tagging a name the S&P pass already
+      // classified is free, inventing one is not.
+      if (c._fallback) continue;
       meta[c.tk] = { name: c.name, sector: normSector(c.sector), industry: c.industry || "—", idx: [slug] };
     }
   }

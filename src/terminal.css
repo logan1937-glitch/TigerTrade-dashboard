@@ -860,7 +860,12 @@ body { background: #0a0b0d; }
 .cs-let[data-on="true"] { color: oklch(0.99 0.01 150); background: color-mix(in oklch, var(--cat-growth) 78%, transparent);
   border-color: transparent; }
 .cs-score { text-align: right; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-figure); }
-.cs-score[data-grade="a"] { color: var(--cat-growth); }
+/* Brand amber for the top tier, NOT P&L green. A leadership score is a model
+   output, not money — the landing page refuses the reference's green here for
+   exactly this reason, and the product disagreeing with its own marketing page
+   about the one rule it argues would be the worse of the two errors. The change
+   column keeps --pl-up / --pl-down; that one IS money moved. */
+.cs-score[data-grade="a"] { color: var(--brand); }
 .cs-score[data-grade="b"] { color: var(--muted); }
 
 /* signals column: Weinstein stage + RS-line-new-high + pocket pivot */
@@ -1381,8 +1386,12 @@ body { background: #0a0b0d; }
 .dr-fv { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
 
 /* ============================== PORTFOLIO ============================== */
-.subtab-n { margin-left: 6px; font-size: var(--fs-micro); padding: 1px 5px; border-radius: 999px;
-  background: color-mix(in oklch, var(--accent) 18%, transparent); color: var(--accent); vertical-align: middle; }
+/* item 04's remaining two: the sub-tab count and the live tag were the chip at
+   two more sizes and a third radius. Same object, same geometry now. */
+.subtab-n { margin-left: 6px; font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: var(--track-label); padding: 3px 7px; border-radius: 5px; vertical-align: middle;
+  background: color-mix(in oklch, var(--accent) 12%, transparent); color: var(--accent);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent); }
 /* auto-fit, not a fixed 4: adding the open-risk tile made a 5th wrap onto its
    own row with three empty cells beside it */
 .pf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--border);
@@ -1716,7 +1725,10 @@ body { background: #0a0b0d; }
 .mh-ispark svg { opacity: 0.9; }
 
 /* ============================ LIVE ECON DATA ============================ */
-.live-tag { color: var(--accent); font-size: var(--fs-micro); margin-left: 5px; vertical-align: 2px; }
+.live-tag { color: var(--accent); font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: var(--track-label); margin-left: 6px; padding: 2px 6px; border-radius: 5px; vertical-align: 1px;
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent); }
 .ed-econ { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: var(--fs-label); color: var(--dim); letter-spacing: var(--track-data); }
 .ed-econ b { color: var(--text); font-weight: 600; margin-left: 2px; }
 .ed-econ [data-beat="true"] b { color: var(--cat-growth); }
