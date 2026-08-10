@@ -88,6 +88,10 @@ const WATCHED = [
 ];
 
 const VIEWS = [
+  /* the landing page. It answers "/" only for a visitor who has NOT accepted the
+     disclaimer, so this view deliberately does not seed tt_disclaimer_ack_v1 —
+     seeding it is exactly what would route the shot to the terminal instead. */
+  { id: "landing", path: "/", noAck: true, state: { } },
   { id: "radar",     state: { tt_product: "radar",   tt_tab: "radar" } },
   { id: "timeline",  state: { tt_product: "radar",   tt_tab: "timeline" } },
   // seeded with a HELD off-universe name (NBIS, not in the S&P snapshot) carrying
@@ -465,14 +469,14 @@ for (const theme of themes) {
         return r.fulfill({ status: 200, contentType: "application/json", body });
       });
     }
-    await page.addInitScript(([state, theme]) => {
-      localStorage.setItem("tt_disclaimer_ack_v1", "1");      // skip the legal gate
+    await page.addInitScript(([state, theme, noAck]) => {
+      if (!noAck) localStorage.setItem("tt_disclaimer_ack_v1", "1");   // skip the legal gate
       localStorage.setItem("tt_mode", JSON.stringify(theme));
       for (const [k, val] of Object.entries(state)) localStorage.setItem(k, JSON.stringify(val));
-    }, [v.state || {}, theme]);
+    }, [v.state || {}, theme, !!v.noAck]);
 
     try {
-      await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
+      await page.goto(`http://127.0.0.1:${port}${v.path || "/terminal"}`, { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(1600);                        // let the feed settle
       if (v.act) await v.act(page);
       await page.waitForTimeout(400);

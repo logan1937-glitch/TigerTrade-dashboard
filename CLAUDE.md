@@ -407,6 +407,34 @@ For measuring rather than looking (element sizes, computed styles), drive
 Playwright directly — `scripts/shots.mjs` is a working reference for launching
 chromium and seeding state.
 
+## The landing page
+
+`/` answers with whichever surface the visitor came for, decided in `main.jsx`:
+an explicit path always wins (`/start` is the landing, `/terminal` the app), a
+URL carrying app state (`?ev=`, `?tk=`, `?p=`, `?tab=`) is a deep link and goes
+straight to the terminal, a visitor who has accepted the disclaimer has used this
+before and gets the terminal, and only a genuinely new visitor on a bare `/` sees
+the landing. `LANDING_FOR_NEW_VISITORS` flips that last rule in one line. The
+alternative — landing on `/`, terminal on `/terminal` — breaks every `?ev=` deep
+link the app writes and every bookmark anyone already has.
+
+`landing.jsx` renders its own `.app` wrapper, because a component mounted outside
+it gets no tokens at all. Its CSS is `landing.css`, all `lp-` prefixed.
+
+**The CRDO row in the hero panel is the argument, not filler.** Four cells that
+cannot be measured, rendered through the same `<NA>` primitive the screener uses,
+each naming its missing input. It is the only place on the site where the
+never-fabricate rule is *shown* rather than asserted — do not let a polish pass
+fill it in. Every other illustrative figure on the page carries `DEMO — NOT LIVE`.
+
+The handoff paints the Score column in P&L green; that is refused here. Green and
+red mean money moved, and a leadership score is not money — score renders in
+`--text` with `--brand` for the top tier, and the change column keeps the P&L
+pair. The hero panel bleeds off the right edge, so `.lp-hero-grid` is **not**
+`.wrap`: it reproduces the wrap gutter as a left padding and leaves the right at
+zero. On a phone the trend spark drops rather than the score, because the score
+is where the CRDO dash lands.
+
 ## Deploying
 
 `main` is what Vercel builds. Work happens on a feature branch; a change is not
