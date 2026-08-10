@@ -4,7 +4,7 @@
 // live quotes and the real earnings calendar; anything whose input is missing
 // (no price yet, no cost basis entered) renders as "—" rather than an estimate.
 import { useMemo, useState } from "react";
-import { usePositions } from "./components.jsx";
+import { usePositions, NA, Chip, FigPct } from "./components.jsx";
 import { atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
@@ -179,6 +179,9 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
       per, usd: live.length ? usd : null, n: live.length, breached: breached.length,
       // sized positions we could NOT measure — stated rather than silently excluded
       unmeasured: rows.filter((r) => r.shares != null && !riskOf(r, trail(r))).length,
+      // trails that have ratcheted above the cost basis: the position cannot now
+      // close for a loss at its stop, which is a different fact from being ahead
+      locked: per.filter((x) => x.t && x.t.locked).length,
       top: [...live].sort((a, b) => b.k.usd - a.k.usd),
     };
   }, [rows, atrMult]);
@@ -246,6 +249,42 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
 
   return (
     <div className="wrap">
+      {/* Open risk is the number that decides something — it is what the book
+          gives back if every trail triggers from today's prices — and it sat in a
+          row of five equal cards, indistinguishable from market value. It leads
+          now, at 2.2× the figure step, with the rest of the strip secondary.
+
+          The exclusions are stated INLINE rather than parked in a tooltip: a
+          breached trail is excluded from the total and never netted (subtracting
+          it would flatter the number), and a sized position with no ATR is
+          counted as unmeasured rather than as risking nothing. Both facts change
+          how you read the headline, so both have to be visible with it. */}
+      <div className="pf-risk">
+        <div>
+          <div className="pf-rk mono">Open risk · from today's price</div>
+          <div className="pf-risk-head">
+            <span className="pf-risk-v" data-risk={risk.usd != null || undefined}>
+              {risk.usd == null
+                ? <NA why={rows.length ? "Open risk needs a share count and an ATR — no position has both" : "No positions in the book"} />
+                : `−${compact(risk.usd).replace("−", "")}`}</span>
+            {risk.usd != null && tot.value ? <span className="pf-risk-of mono">{((risk.usd / tot.value) * 100).toFixed(1)}% of book</span> : null}
+          </div>
+          {(risk.breached > 0 || risk.unmeasured > 0) && (
+            <div className="pf-risk-flags">
+              {risk.breached > 0 && <Chip tone="caution" title="The trail already sits above price on these. They are excluded from the total, never netted — subtracting them would flatter it.">
+                {risk.breached} breached · excluded</Chip>}
+              {risk.unmeasured > 0 && <Chip tone="absent" title="Sized positions with no ATR. Counted and named rather than silently treated as risking nothing.">
+                {risk.unmeasured} unmeasured</Chip>}
+            </div>
+          )}
+        </div>
+        <div className="pf-risk-seam" aria-hidden="true" />
+        <div><div className="pf-rk mono">Positions</div><div className="pf-rv mono">{rows.length}</div></div>
+        <div><div className="pf-rk mono">Trail locked</div>
+          <div className="pf-rv mono" data-lock={risk.locked > 0 || undefined}>{risk.locked}</div></div>
+        <div><div className="pf-rk mono">ATR multiple</div><div className="pf-rv mono">{atrMult}×</div></div>
+      </div>
+
       <div className="pf-tiles">
         <div className="pf-tile"><span className="pf-tk mono">Market value</span><span className="pf-tv">{compact(tot.value)}</span>
           <span className="pf-ts mono">{rows.length} position{rows.length === 1 ? "" : "s"}
@@ -257,14 +296,6 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
           <span className="pf-tv" data-up={tot.pl == null ? undefined : tot.pl >= 0}>{compact(tot.pl)}</span>
           <span className="pf-ts mono">{tot.plN ? `${pctS(tot.plPct)} · ${tot.plN} of ${rows.length} with cost basis`
             : tot.costNoSize ? "add share counts for dollar P&L" : "add a cost basis to track"}</span></div>
-        <div className="pf-tile" title="Sum over every sized position of (today's price − where its trail actually sits) × shares. Positions whose trail has already been breached are excluded, not netted.">
-          <span className="pf-tk mono">Open risk</span>
-          <span className="pf-tv" data-risk={risk.usd != null || undefined}>{risk.usd == null ? "—" : `−${compact(risk.usd).replace("−", "")}`}</span>
-          <span className="pf-ts mono">{risk.usd == null
-            ? (rows.length ? "needs share counts and ATR" : "no positions")
-            : <>{tot.value ? `${((risk.usd / tot.value) * 100).toFixed(1)}% of book` : `${risk.n} position${risk.n === 1 ? "" : "s"}`}
-              {risk.breached ? ` · ${risk.breached} breached` : ""}
-              {risk.unmeasured ? ` · ${risk.unmeasured} unmeasured` : ""}</>}</span></div>
         <div className="pf-tile"><span className="pf-tk mono">Expected 1-day move</span>
           <span className="pf-tv">{impliedUsd == null ? "—" : `±${compact(impliedUsd).replace("−", "")}`}</span>
           <span className="pf-ts mono">{impliedPct != null ? `±${impliedPct.toFixed(2)}% · VIX-implied` : "awaiting VIX"}</span></div>
@@ -336,8 +367,12 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             {sorted.map((r) => {
               const w = tot.value && r.value != null ? (r.value / tot.value) * 100 : null;
               const t = trail(r);
+              const k = riskOf(r, t);
+              const sp = stopFromPeak(r, t);
+              const breached = !!((sp && sp.hit) || (k && k.breached));
               return (
                 <div className="cs-row pf-row" key={r.tk} role="button" tabIndex={0}
+                  data-breached={breached || undefined}
                   aria-label={`${r.tk} — open full analysis`}
                   onClick={() => onOpenStock && onOpenStock({ tk: r.tk })}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock && onOpenStock({ tk: r.tk }); } }}>
@@ -345,20 +380,33 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                     {r.name && r.name !== r.tk && <span className="cs-name">{r.name}</span>}</span></div>
                   <div className="pf-num mono">{r.shares != null ? r.shares.toLocaleString() : <span className="pf-untracked">tracking</span>}
                     {r.cost != null && <span className="pf-sub mono">@ {money(r.cost)}</span>}</div>
-                  <div className="pf-num mono">{r.px != null ? money(r.px) : "—"}
+                  <div className="pf-num mono">{r.px != null ? money(r.px) : <NA why="No quote for this name in the nightly snapshot" />}
                     {r.chg != null && <span className="pf-sub mono" data-up={r.chg >= 0}>{pctS(r.chg)}</span>}</div>
-                  <div className="pf-num mono">{compact(r.value)}</div>
-                  <div className="pf-num mono" data-up={r.pl == null ? undefined : r.pl >= 0}>{compact(r.pl)}
+                  <div className="pf-num mono">{r.value != null ? compact(r.value) : <NA why="Market value needs a share count and a price" />}</div>
+                  <div className="pf-num mono" data-up={r.pl == null ? undefined : r.pl >= 0}>
+                    {r.pl != null ? compact(r.pl) : <NA why="No cost basis on this position" />}
                     {r.plPct != null && <span className="pf-sub mono" data-up={r.plPct >= 0}>{pctS(r.plPct)}</span>}</div>
-                  <div className="pf-num mono">{w == null ? "—" : `${w.toFixed(1)}%`}
+                  <div className="pf-num mono">{w == null ? <NA why="Book weight needs a market value for this position and for the book" /> : `${w.toFixed(1)}%`}
                     {w != null && <i className="pf-wbar" style={{ width: `${Math.min(100, w)}%` }} />}</div>
+                  {/* Width, then room. Room is where the position's STATE is
+                      announced: a percentage while it is healthy, a caution chip
+                      when the trail has been breached, an absent chip when it
+                      cannot be measured at all. That chip is what explains the
+                      dash beside it without needing the tooltip — and the width
+                      stays visible on a breached row, because it is still a real
+                      measurement of where the trail sits. */}
                   <div className="pf-num mono" title={atrTitle(t, r)}>
-                    {t.belowPx == null ? "—" : `${t.belowPx.toFixed(2)}%`}
+                    {t.belowPx == null
+                      ? <NA why="The trail width needs an ATR(14), which needs 14 true ranges of history" />
+                      : `${t.belowPx.toFixed(2)}%`}
                     {t.dist != null && <span className="pf-sub mono">{money(t.dist)} pts</span>}
-                    {(() => { const sp = stopFromPeak(r, t); return sp
-                      ? <span className="pf-stopflag mono" data-hit={sp.hit || undefined}>
-                          {sp.hit ? "stop hit" : `${sp.room.toFixed(1)}% room`}</span>
-                      : null; })()}
+                    {sp
+                      ? (sp.hit
+                          ? <Chip tone="caution" title="The trail has ratcheted above today's price. This position is excluded from open risk, never netted against a healthy one.">Stop hit</Chip>
+                          : <span className="pf-stopflag mono">{sp.room.toFixed(1)}% room</span>)
+                      : (r.shares != null && t.belowPx == null
+                          ? <Chip tone="absent" title="Sized, but with no ATR to measure a trail against. Counted as unmeasured in open risk rather than as risking nothing.">Unmeasured</Chip>
+                          : null)}
                   </div>
                   <div className="pf-num mono pf-erncell" onClick={(e) => e.stopPropagation()}>
                     {ernEdit === r.tk ? (
