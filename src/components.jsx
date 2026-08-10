@@ -240,12 +240,18 @@ function RiskSpectrum({ vix, macro }) {
    filter from measuring the row, which is a different fact from simply not
    knowing — it is why the row is missing from a list you expected it in.
 
-   It is focusable and carries an aria-label mirroring `why`, because a screen
-   reader landing on a bare dash learns nothing at all. */
-export function NA({ why, blocking }) {
+   It carries an aria-label mirroring `why`, because a screen reader landing on a
+   bare dash learns nothing at all — and that works in reading order without a
+   tab stop. It is NOT focusable by default, and that is a correction rather than
+   a shortcut: with `tabIndex={0}` on every dash, 690 of the screener's 981 tab
+   stops were em dashes. Seventy percent of the keyboard path through the page
+   was punctuation. Pass `focusable` only where the dash stands alone in a region
+   nothing else can reach — inside a row that is already a button, it must not. */
+export function NA({ why, blocking, focusable }) {
   return (
     <span className="na" data-blocking={blocking || undefined}
-      tabIndex={0} role="note" title={why} aria-label={why ? `Not available: ${why}` : "Not available"}>—</span>
+      tabIndex={focusable ? 0 : undefined} role="note"
+      title={why} aria-label={why ? `Not available: ${why}` : "Not available"}>—</span>
   );
 }
 
@@ -283,6 +289,37 @@ export function FigPct({ v, dp = 2 }) {
     <span className="figpct">
       <i aria-hidden="true">{sign}</i><b>{Math.abs(n).toFixed(dp)}%</b>
     </span>
+  );
+}
+
+/* ── the dead feed, given a form ──────────────────────────────────────────
+   The code already refuses to leave a skeleton pulsing once the load has settled
+   — right, and rare. What it lacked was a shape: the failure was a sentence in
+   `--dim` where a panel of data used to be, which reads as the page giving up
+   rather than as a state with a cause.
+
+   Four beats, and the copy discipline matters as much as the layout. The kicker
+   names WHICH feed in two or three words with no verb of failure. The headline
+   is one complete sentence, past tense, no hedging. The detail says what the
+   numbers on screen now mean, then names the mechanism. The action is the one
+   thing that helps, or an acknowledgement when nothing does.
+
+   Neither state is red. A feed being down is not a loss, and red in this product
+   means money moved — `degraded` is amber, `pending` is neutral. */
+export function FeedState({ kind = "degraded", kicker, headline, detail, actions }) {
+  return (
+    <div className="state" data-kind={kind} role="status">
+      <div className="state-k mono">{kicker}</div>
+      <div className="state-t">{headline}</div>
+      <p className="state-d">{detail}</p>
+      {actions && actions.length > 0 && (
+        <div className="state-actions">
+          {actions.map((a) => (
+            <button key={a.label} className="state-btn" data-kind={a.kind || "tertiary"} onClick={a.onClick}>{a.label}</button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -505,9 +542,11 @@ export function MacroBoard({ macro, settled }) {
     if (settled) {
       return (
         <div className="macroboard mb-out">
-          <div className="mb-h mono">Macro board</div>
-          <p className="mb-outmsg">No rates, FX, commodity or inflation data came back from the market-data
-            feed. These come from FMP — check that <b>FMP_API_KEY</b> is set and that the plan's quota isn't spent.</p>
+          <FeedState kind="degraded" kicker="Macro board"
+            headline="Nothing came back from the market-data feed."
+            detail={<>Rates, FX, commodities and inflation all arrive on the same FMP call, which is why they
+              are absent together rather than one at a time. Check that <b>FMP_API_KEY</b> is set and that the
+              plan's quota has not been spent.</>} />
         </div>
       );
     }
@@ -616,10 +655,11 @@ export function VixPanel({ vix, settled }) {
     if (settled) {
       return (
         <div className="vixpanel vix-out" style={{ "--reg": "var(--muted)" }}>
-          <div className="vix-head"><span className="vix-kicker mono">CBOE Volatility · VIX</span></div>
-          <p className="mb-outmsg">No VIX quote or history came back from the market-data feed. This panel is
-            fed by FMP — check that <b>FMP_API_KEY</b> is set and that the plan's quota isn't spent.</p>
-          <span className="vix-foot mono">52-week range · fear gauge</span>
+          <FeedState kind="degraded" kicker="VIX panel"
+            headline="No quote or history came back for the VIX."
+            detail={<>This panel rides the same FMP call as the macro board and the S&amp;P earnings dates, so if
+              those are blank too the quota is the cause rather than the symbol. Check that <b>FMP_API_KEY</b> is
+              set.</>} />
         </div>
       );
     }

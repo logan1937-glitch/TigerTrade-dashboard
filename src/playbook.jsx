@@ -523,7 +523,12 @@ function Sizing({ px, stop, atr }) {
               title={def.id === "trail"
                 ? "Where the trail sits right now. It ratchets up as price rises — a broker applies the width to the running peak, not to your entry."
                 : "The Chandelier level. Arithmetic, not an order."} />
-            <Tile k="Shares" v={shares ? shares.toLocaleString() : "0"} s="rounded down" />
+            {/* Zero here is a real answer, not a missing one — the risk budget
+                does not cover a single share at this stop distance — so it stays
+                a number and the sub-line says which. A dash would claim we could
+                not measure it, which is the opposite of what happened. */}
+            <Tile k="Shares" v={shares ? shares.toLocaleString() : "0"}
+              s={shares ? "rounded down" : "budget < 1 share at this stop"} />
             <Tile k="Position" v={usd(value)} s={value ? `${((value / account) * 100).toFixed(0)}% of account` : "—"} />
           </div>
           <p className="pb-note mono">

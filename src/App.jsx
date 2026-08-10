@@ -26,7 +26,10 @@ export default function App() {
   // `playbook` was the retired Catalysts tab's id, and it is sitting in tt_tab on
   // every device that last used it. Nothing renders for an unknown id, so those
   // devices would open on a blank page under the subnav until they clicked away.
-  useEffect(() => { if (tab === "playbook") setTab("vol"); }, [tab, setTab]);
+  /* Scoped to the RADAR. `playbook` is also the screener's swing-setup view, and
+     an unscoped migration bounced anyone deep-linking that one to the radar's
+     Volume tab — a tab id is only unique within its product. */
+  useEffect(() => { if (product === "radar" && tab === "playbook") setTab("vol"); }, [product, tab, setTab]);
   const [mode, setMode] = useStored("tt_mode", "dark");
 
   const [cats, setCats] = useState(() => new Set());
@@ -855,7 +858,7 @@ export default function App() {
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr}
             posRows={posRows} events={upcoming} vix={vix} sectors={sectors}
-            ext={ext} onLoadExt={loadExt}
+            ext={ext} onLoadExt={loadExt} initialTab={tab} onTabChange={setTab}
             pbFocus={pbFocus} onPbFocused={() => setPbFocus(null)} />
         )}
 

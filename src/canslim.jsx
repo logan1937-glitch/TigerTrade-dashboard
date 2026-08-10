@@ -2,12 +2,18 @@ import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
 import { PlaybookView } from "./playbook.jsx";
-import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct } from "./components.jsx";
+import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct, FeedState } from "./components.jsx";
 import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
 import { PortfolioView } from "./portfolio.jsx";
 
 const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
+
+/* The five views under this product, in order. Named once because the sub-nav
+   renders it AND the URL validates against it — a `?tab=` value from the radar's
+   set must select nothing rather than land somewhere arbitrary. */
+const SUBTABS = [["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"],
+  ["playbook", "Playbook"], ["portfolio", "Portfolio"]];
 
 const fmtAsOf = (ms) => {
   try { return new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
@@ -260,7 +266,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
               table: "no rows" here could mean loading, not-yet-computed, or a
               failed fetch, and those are three different things to a user
               deciding whether the screen they are looking at is complete. */}
-          {idxF === "ext" && ext.status !== "ok" && (
+          {idxF === "ext" && ext.status !== "ok" && view.length > 0 && (
             <span className="cs-ext-note mono" data-bad={ext.status === "error" || undefined}>
               {ext.status === "loading" ? "loading the wider universe…"
                 : ext.status === "pending" ? (ext.reason === "SCHEMA_STALE"
@@ -297,6 +303,32 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
 
       <div className="listmeta"><span className="count"><b>{view.length}</b> leaders{sectorF && <> · <b>{sectorF}</b> <button className="linkbtn" style={{ fontSize: 9, padding: "2px 7px", marginLeft: 4 }} onClick={onClearSector}>clear ✕</button></>} · sorted by {SORT_LABEL[sort] || sort}{TF_SCOPED[sort] ? ` over ${tf === "1Y" ? "12 months" : tf}` : ""} {dir === "asc" ? "↑" : "↓"}</span>
         <span className="count mono" style={{ opacity: .8 }}>click a header to sort · a row for full analysis</span></div>
+
+      {/* An empty table under "Beyond index" is three different facts wearing the
+          same face — loading, not-computed-yet, or a failed fetch — and the row
+          count alone cannot tell them apart. The panel says which, in the space
+          the rows would have occupied. Pending is neutral, a failure is amber:
+          neither is red, because a feed being down is not a loss. */}
+      {idxF === "ext" && ext.status !== "ok" && view.length === 0 ? (
+        <div className="cs-state">
+          {ext.status === "loading" ? (
+            <FeedState kind="pending" kicker="Extended universe"
+              headline="Loading the wider tier."
+              detail="Roughly 900 names outside the S&P 500, on their own payload. It is fetched only when you ask for it, which is why this is not already here." />
+          ) : ext.status === "pending" ? (
+            <FeedState kind="pending" kicker="Extended universe"
+              headline="Tonight's pass hasn't run yet."
+              detail="The wider ~900-name tier is computed on its own schedule, twenty minutes after the core. Until then the board shows the tracked universe only, and RS is ranked against that field."
+              actions={[{ label: "Stay on the core universe", onClick: () => setIdxF("all") }]} />
+          ) : (
+            <FeedState kind="degraded" kicker="Extended universe"
+              headline="The wider tier could not be fetched."
+              detail={`The core board below is unaffected — it is a separate payload, already loaded. Reason given: ${ext.reason || "unknown"}.`}
+              actions={[{ label: "Try again", kind: "secondary", onClick: () => onLoadExt && onLoadExt() },
+                        { label: "Stay on the core universe", onClick: () => setIdxF("all") }]} />
+          )}
+        </div>
+      ) : null}
 
       <div className="cs-table">
        <div className="cs-panel cs-panel-scroll">
@@ -342,8 +374,17 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             <div className="cs-sig">
               {r.sig ? (
                 <>
+                  {/* Tone by stage, not one flat neutral. Collapsing all four to
+                      the same chip threw away the read the column exists for —
+                      stage 2 is the state this screener hunts for and stage 4 is
+                      the one the method says to be out of, and they looked
+                      identical. Jade for the constructive one, caution for
+                      topping and declining; the numeral carries the rest. Not
+                      red for stage 4, however tempting: a downtrend is a
+                      direction, and red here means money moved. */}
                   {r.sig.stage
-                    ? <Chip tone="neutral" title={`Stage ${r.sig.stage} — ${r.sig.stageLabel || ""}`}>{"S" + r.sig.stage}</Chip>
+                    ? <Chip tone={r.sig.stage === 2 ? "signal" : r.sig.stage >= 3 ? "caution" : "neutral"}
+                        title={`Stage ${r.sig.stage} — ${r.sig.stageLabel || ""}`}>{"S" + r.sig.stage}</Chip>
                     : <NA why="Stage needs 30 weeks of closes against their moving average" />}
                   {r.sig.rsNewHigh && <span className="cs-flag" data-lead={r.sig.rsLeads || undefined} title={r.sig.rsLeads ? "RS line at a new high before price" : "RS line at a new high"}>RS↑</span>}
                   {r.sig.pocketPivot && <span className="cs-flag" title="Pocket pivot">◆</span>}
@@ -490,8 +531,15 @@ function StageBreadth({ stages }) {
 
 /* ------------------------------ SHELL ------------------------------ */
 export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr,
-  posRows = [], events = [], vix = null, sectors = null, ext = { status: "idle" }, onLoadExt, pbFocus = null, onPbFocused }) {
-  const [tab, setTab] = useState("screener");
+  posRows = [], events = [], vix = null, sectors = null, ext = { status: "idle" }, onLoadExt,
+  initialTab, onTabChange, pbFocus = null, onPbFocused }) {
+  /* The sub-tab is addressable. It used to be purely local, which meant the five
+     views under this product had no URL — you could not link the Playbook, and
+     the landing page's nav had four labels that all did the same thing. It still
+     lives here rather than in App: only this component knows which ids are valid,
+     and an id from the radar's set must not select anything. */
+  const [tab, setTabRaw] = useState(() => (SUBTABS.some(([id]) => id === initialTab) ? initialTab : "screener"));
+  const setTab = (id) => { setTabRaw(id); if (onTabChange) onTabChange(id); };
   // the drawer's "Open in Playbook" lands here: switch tabs, then let the view
   // consume the ticker and clear it so a later tab visit doesn't re-select it
   useEffect(() => { if (pbFocus) setTab("playbook"); }, [pbFocus]);
@@ -554,7 +602,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
       <div className="wrap">
         <div className="subnav">
-          {[["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"], ["playbook", "Playbook"], ["portfolio", "Portfolio"]].map(([id, l]) => (
+          {SUBTABS.map(([id, l]) => (
             <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>{l}
               {id === "portfolio" && posRows.length > 0 && <span className="subtab-n mono">{posRows.length}</span>}</button>
           ))}

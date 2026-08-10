@@ -119,6 +119,15 @@ const VIEWS = [
       await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
       await p.waitForTimeout(700);
     } },
+  /* The dead-feed states. SHOTS_DEAD_FEED=1 empties the snapshot's macro and vix
+     blocks and makes ?tier=ext answer "pending" — the two panels and the screener
+     state that only ever render when something upstream has failed, and which are
+     therefore the least-looked-at surface in the app. */
+  { id: "dead", state: { tt_product: "radar", tt_tab: "radar" }, dead: true },
+  { id: "deadext", state: { tt_product: "canslim" }, dead: true, act: async (p) => {
+      await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
+      await p.waitForTimeout(700);
+    } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
   { id: "portfolio", state: { tt_product: "canslim", tt_positions: HOLDINGS }, act: (p) => click(p, "Portfolio") },
@@ -437,6 +446,12 @@ const { server, port } = await serve();
 const browser = await launch(chromium);
 const SNAP = JSON.stringify(fixture());
 const SNAP_EXT = JSON.stringify(extFixture());
+// the same payload minus the FMP-fed blocks: macro, vix and the earnings dates
+// go dark together because they ride one call, and that pairing is the thing the
+// degraded copy names
+const SNAP_DEAD = JSON.stringify({ ...fixture(), macro: null, vix: null, vol: null, earnings: null });
+const SNAP_EXT_PENDING = JSON.stringify({ tier: "ext", status: "pending", reason: "NOT_YET_COMPUTED",
+  count: 0, total: 0, quotes: {}, sig: {}, meta: {} });
 let shot = 0, failed = 0;
 
 for (const theme of themes) {
@@ -457,8 +472,8 @@ for (const theme of themes) {
         // too, and answering it with the core payload would make the widened
         // universe look like it merged when nothing new arrived at all
         if (u.includes("endpoint=economic")) body = JSON.stringify(ECON_FEED);
-        else if (u.includes("tier=ext")) body = SNAP_EXT;
-        else if (u.includes("/api/snapshot")) body = SNAP;
+        else if (u.includes("tier=ext")) body = v.dead ? SNAP_EXT_PENDING : SNAP_EXT;
+        else if (u.includes("/api/snapshot")) body = v.dead ? SNAP_DEAD : SNAP;
         // /api/yahoo backs the peak-since-entry lookup for held positions
         else if (u.includes("/api/yahoo")) {
           // SHOTS_YAHOO_DOWN=1 — see the header. Exercises the degraded path.

@@ -97,8 +97,18 @@ function PanelRow({ r }) {
   );
 }
 
+/* Every nav label points somewhere different, which it did not when they were
+   four links onto one handler — a menu whose items all do the same thing is a
+   menu that lies. The screener's sub-views are addressable for exactly this. */
+const NAV = [
+  ["Radar", "/terminal"],
+  ["Screener", "/terminal?p=canslim"],
+  ["Playbook", "/terminal?p=canslim&tab=playbook"],
+  ["Portfolio", "/terminal?p=canslim&tab=portfolio"],
+];
+
 export default function Landing({ mode = "dark", onEnter }) {
-  const go = (e) => { if (e) e.preventDefault(); if (onEnter) onEnter(); };
+  const go = (to) => (e) => { if (e) e.preventDefault(); if (onEnter) onEnter(to); };
   return (
     <div className="app lp" data-dir="obsidian" data-mode={mode} data-density="balanced"
       data-glow="on" data-motion="full" data-typeface="grotesk">
@@ -113,11 +123,11 @@ export default function Landing({ mode = "dark", onEnter }) {
         </div>
         <div className="topbar-spacer" />
         <nav className="lp-nav">
-          {["Radar", "Screener", "Playbook", "Portfolio"].map((n) => (
-            <a key={n} href="/terminal" onClick={go}>{n}</a>
+          {NAV.map(([n, href]) => (
+            <a key={n} href={href} onClick={go(href)}>{n}</a>
           ))}
         </nav>
-        <button className="lp-btn" data-kind="primary" onClick={go}>Open the terminal</button>
+        <button className="lp-btn" data-kind="primary" onClick={go("/terminal")}>Open the terminal</button>
       </header>
 
       <section className="lp-hero">
@@ -141,8 +151,8 @@ export default function Landing({ mode = "dark", onEnter }) {
               ))}
             </ol>
             <div className="lp-btns">
-              <button className="lp-btn" data-kind="primary" onClick={go}>Open the terminal</button>
-              <button className="lp-btn" data-kind="secondary" onClick={go}>See the screener</button>
+              <button className="lp-btn" data-kind="primary" onClick={go("/terminal")}>Open the terminal</button>
+              <button className="lp-btn" data-kind="secondary" onClick={go("/terminal?p=canslim")}>See the screener</button>
             </div>
           </div>
 
@@ -240,8 +250,10 @@ export default function Landing({ mode = "dark", onEnter }) {
             </p>
           </div>
           <div className="lp-btns">
-            <button className="lp-btn lp-btn-lg" data-kind="primary" onClick={go}>Open the terminal</button>
-            <button className="lp-btn lp-btn-lg" data-kind="secondary" onClick={go}>Read the model</button>
+            <button className="lp-btn lp-btn-lg" data-kind="primary" onClick={go("/terminal")}>Open the terminal</button>
+            {/* "the model" is the Playbook's explainer — the one page in the app
+                that documents the factors from the same objects that run them */}
+            <button className="lp-btn lp-btn-lg" data-kind="secondary" onClick={go("/terminal?p=canslim&tab=playbook")}>Read the model</button>
           </div>
         </div>
       </section>

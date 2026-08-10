@@ -44,8 +44,11 @@ function Root() {
   // a component outside that wrapper gets no tokens at all
   const [mode] = useStored("tt_mode", "dark");
 
-  const enter = useCallback(() => {
-    window.history.pushState({ s: "app" }, "", "/terminal");
+  /* `to` is a real destination, not a flag. The landing's nav has four labels and
+     they have to mean four different things — the URL is pushed BEFORE the swap
+     so App reads it on mount, which is the whole mechanism. */
+  const enter = useCallback((to = "/terminal") => {
+    window.history.pushState({ s: "app" }, "", to);
     setSurface("app");
     window.scrollTo(0, 0);
   }, []);

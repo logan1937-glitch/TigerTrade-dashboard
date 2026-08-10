@@ -865,11 +865,7 @@ body { background: #0a0b0d; }
 
 /* signals column: Weinstein stage + RS-line-new-high + pocket pivot */
 .cs-sig { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.cs-stage { font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 700; padding: 2px 6px; border-radius: 5px;
-  background: var(--panel); border: 1px solid var(--border); color: var(--dim); }
-.cs-stage[data-stage="2"] { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 42%, var(--border)); background: color-mix(in oklch, var(--accent) 12%, transparent); }
-.cs-stage[data-stage="4"] { color: var(--sev-extreme); border-color: color-mix(in oklch, var(--sev-extreme) 42%, var(--border)); }
-.cs-stage[data-stage="3"] { color: var(--sev-high); }
+/* `.cs-stage` lived here. It is now <Chip tone=…> — see canslim.jsx. */
 .cs-flag { font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 700; color: var(--accent); white-space: nowrap; }
 .cs-flag[data-lead="true"] { color: var(--brand); }
 .cs-sig-na { color: var(--dim); font-size: var(--fs-label); }
@@ -2332,8 +2328,10 @@ body { background: #0a0b0d; }
 /* the 50d/200d chips are tri-state: on, below, or not enough history to say */
 .mh-ima[data-na="true"] { border-style: dashed; opacity: 0.55; }
 /* the tape is showing the last completed session, not today */
-.tick-stale { color: var(--sev-high); letter-spacing: var(--track-meta); font-weight: 600; }
-.tick-stale .tick-dot { background: var(--sev-high); }
+/* caution, not --sev-high: the severity ramp is for events, and this is the same
+   "degraded feed" state the .state panel draws — one meaning, one colour */
+.tick-stale { color: var(--caution); letter-spacing: var(--track-meta); font-weight: 600; }
+.tick-stale .tick-dot { background: var(--caution); }
 
 /* ── portfolio: open risk, stage mix, CSV backup ── */
 .pf-tile .pf-tv[data-risk="true"] { color: var(--sev-high); }
@@ -2575,3 +2573,18 @@ body { background: #0a0b0d; }
   .pf-risk { padding: 20px 18px; }
   .pf-risk-v { font-size: calc(var(--fs-figure) * 1.7); }
 }
+
+/* ---- 06 · the actions on a feed-state panel ---------------------------- */
+.state-btn { font-family: var(--font-ui); font-weight: 600; font-size: var(--fs-body);
+  border-radius: var(--radius-sm); padding: 8px 15px; cursor: pointer;
+  transition: background .15s ease-out, border-color .15s ease-out; }
+.state-btn[data-kind="secondary"] { color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent); }
+.state-btn[data-kind="secondary"]:hover { background: color-mix(in oklch, var(--accent) 18%, transparent); }
+.state-btn[data-kind="tertiary"] { color: var(--muted); background: none; border: 1px solid var(--border); }
+.state-btn[data-kind="tertiary"]:hover { color: var(--text); border-color: var(--border-2); }
+/* the panel replaces a board, so it takes that board's room rather than
+   collapsing to a line of text where a grid used to be */
+.mb-out .state, .vix-out .state { border: 0; box-shadow: none; background: none; padding: 4px 0; }
+.cs-state { margin: 18px 0 40px; }
