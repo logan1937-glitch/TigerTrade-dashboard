@@ -279,6 +279,14 @@ gone. Amber and jade are tuned to glow on black and fall under 3:1 there, so the
 hues stay and the values deepen: `#A9531A` and `#0B7A6E` are the only approved
 values for text on light surfaces.
 
+**`glossary.js` defines every term the UI shows that a reader could take
+differently than we mean it**, and `<Term k="...">` renders one. It is a button,
+not a `title` — a title is mouse-only, and "what does this mean" is exactly the
+question a phone user has. The popup is **portalled into `.app`**: `position:
+fixed` resolves against the nearest *transformed* ancestor, and `.cs-row` carries
+one, so an in-place popup landed off-screen; portalling to `<body>` instead
+renders it unstyled, because every token lives on the `.app` wrapper.
+
 **Components** live in `src/`: `components.jsx` (shell, hero, tapes, macro board,
 VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 (screener + market health), `charts.jsx`, `marketMap.jsx`, `portfolio.jsx`,

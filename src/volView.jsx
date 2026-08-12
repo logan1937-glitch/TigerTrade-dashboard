@@ -29,6 +29,7 @@
 // only what was sold" next to "most unusual, but only what was bought" — which
 // is the comparison a single shared filter would take away.
 import { useMemo, useState } from "react";
+import { NA, Term } from "./components.jsx";
 
 const n2 = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : (+v).toFixed(dp));
 const sgn = (v, dp = 2) => (v == null || Number.isNaN(+v) ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(+v).toFixed(dp)}%`);
@@ -147,7 +148,7 @@ function FlowTable({ rows, all, mode, sortDef, onOpenStock }) {
         <span>Ticker</span>
         <span style={{ textAlign: "right" }}>Δ</span>
         <span>{sortDef.col}</span>
-        <span style={{ textAlign: "right" }}>{sortDef.alt}</span>
+        <span style={{ textAlign: "right" }}>{sortDef.alt === "RVOL" ? <Term k="rvol">RVOL</Term> : sortDef.alt}</span>
       </div>
       {rows.map((r) => {
         const v = mode === "rvol" ? (r.rvol || 0) : r.dv;
@@ -165,11 +166,44 @@ function FlowTable({ rows, all, mode, sortDef, onOpenStock }) {
                 style={{ width: `${max > 0 ? Math.max(2, (v / max) * 100) : 0}%` }} />
               <span className="flow-meter-v mono">{mode === "rvol" ? `${n2(r.rvol, 1)}×` : money(r.dv)}</span>
             </div>
-            <div className="flow-sec mono">{mode === "rvol" ? shares(r.vol) : (r.rvol != null ? `${n2(r.rvol, 1)}×` : "—")}</div>
+            {/* RVOL as a GAUGE, not just a number. On the dollar-volume panel it
+                was a bare multiple in the last column, which is the one figure
+                that tells you whether the biggest names on the list are merely
+                big or actually busy — and 1.4× versus 3.2× read identically at a
+                glance. Four steps, because the decision it feeds is coarse:
+                normal, busy, heavy, extreme. */}
+            <div className="flow-sec mono">
+              {mode === "rvol" ? shares(r.vol) : <Rvol v={r.rvol} />}
+            </div>
           </div>
         );
       })}
     </div>
+  );
+}
+
+/* Today's turnover against this name's own 50-day average, as four filled bars.
+   Scale-free by construction — a mid-cap at 3× and a mega-cap at 3× are the same
+   statement — which is exactly what the dollar-volume column cannot say, since
+   the largest names top it every session whether or not anything happened.
+
+   Tiers at 1.5 / 2.5 / 4. A name with no 50-day average to compare against gets
+   the dash, not an empty gauge: an unfilled meter reads as "normal volume",
+   which is a measurement we do not have. */
+const RVOL_TIERS = [1.5, 2.5, 4];
+function Rvol({ v }) {
+  if (v == null || !Number.isFinite(+v)) return <NA why="RVOL needs a 50-day average volume for this name" />;
+  const n = +v;
+  const lit = 1 + RVOL_TIERS.filter((t) => n >= t).length;   // 1–4
+  const tier = lit >= 4 ? "extreme" : lit === 3 ? "heavy" : lit === 2 ? "busy" : "normal";
+  return (
+    <span className="rvol" data-tier={tier}
+      title={`${n.toFixed(1)}× this name's own 50-day average volume — ${tier}`}>
+      <span className="rvol-bars" aria-hidden="true">
+        {[0, 1, 2, 3].map((i) => <i key={i} data-on={i < lit || undefined} />)}
+      </span>
+      <b>{n.toFixed(1)}×</b>
+    </span>
   );
 }
 

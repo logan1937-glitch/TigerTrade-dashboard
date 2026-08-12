@@ -1653,7 +1653,16 @@ body { background: #0a0b0d; }
   box-shadow: var(--lift-1); }
 /* rotation-graph text lives in an HTML overlay (crisp at any width; SVG text
    would scale up with the viewBox) */
-.rrg-plot { position: relative; }
+/* The container carries the viewBox's own 600:400 so the SVG fills it without
+   being stretched — the plot was rendering nearly square, which left six dots
+   floating in a void and squashed every rotation path. */
+/* Width capped rather than height: `max-height` with an aspect-ratio makes the
+   BOX a different shape from the viewBox, so the SVG letterboxes inside it and
+   the HTML overlay — whose labels are positioned in viewBox percentages — drifts
+   off the plot. Capping width keeps box and viewBox the same 600:400. */
+.rrg-plot { position: relative; aspect-ratio: 600 / 400; width: min(100%, 860px); margin-inline: auto; }
+.rrg-plot > svg { width: 100%; height: 100%; }
+@media (max-width: 640px) { .rrg-plot { aspect-ratio: 1 / 1; } }
 .rrg-overlay { position: absolute; inset: 0; pointer-events: none; }
 .rrg-cap { position: absolute; font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600;
   letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--dim); opacity: 0.85; }
@@ -1671,15 +1680,34 @@ body { background: #0a0b0d; }
 .rrg-toolbar .seg-btn { padding: 5px 12px; }
 /* quadrant tints stay a whisper — context, not four colored slabs */
 .rrg-q { opacity: 1; }
-.rrg-q[data-q="leading"]   { fill: color-mix(in oklch, var(--cat-growth) 3.5%, transparent); }
-.rrg-q[data-q="weakening"] { fill: color-mix(in oklch, var(--sev-high) 3.5%, transparent); }
-.rrg-q[data-q="lagging"]   { fill: color-mix(in oklch, var(--sev-extreme) 3.5%, transparent); }
-.rrg-q[data-q="improving"] { fill: color-mix(in oklch, var(--accent) 3.5%, transparent); }
-.rrg-tail { fill: none; stroke: var(--accent); stroke-width: 1.6; vector-effect: non-scaling-stroke; opacity: 0.4; stroke-linejoin: round; stroke-linecap: round; }
-.rrg-tail[data-active] { opacity: 0.9; }
-.rrg-tail-dot { fill: var(--accent); opacity: 0.45; }
-.rrg-head { fill: var(--accent); stroke: var(--surface); stroke-width: 2; transition: r .12s ease, filter .12s ease; }
-.rrg-head[data-active] { fill: var(--brand); filter: drop-shadow(0 0 4px color-mix(in oklch, var(--brand) 60%, transparent)); }
+/* 3.5% was invisible — four quadrants that all read as one empty box. These are
+   the four standard rotation states and the wash is the fastest way to know
+   which one you are looking at without reading a corner label. */
+.rrg-q[data-q="leading"]   { fill: color-mix(in oklch, var(--pl-up) 9%, transparent); }
+.rrg-q[data-q="weakening"] { fill: color-mix(in oklch, var(--caution) 8%, transparent); }
+.rrg-q[data-q="lagging"]   { fill: color-mix(in oklch, var(--pl-down) 7%, transparent); }
+.rrg-q[data-q="improving"] { fill: color-mix(in oklch, var(--accent) 8%, transparent); }
+/* stroke width and opacity ramp along the trail in JS — the segment nearest
+   today is thickest and brightest, so the path reads forward without an arrow */
+.rrg-tail { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke;
+  transition: opacity .12s ease; }
+.rrg-tail[data-q="leading"]   { stroke: var(--pl-up); }
+.rrg-tail[data-q="weakening"] { stroke: var(--caution); }
+.rrg-tail[data-q="lagging"]   { stroke: var(--pl-down); }
+.rrg-tail[data-q="improving"] { stroke: var(--accent); }
+.rrg-head { stroke: var(--surface); stroke-width: 2; transition: r .12s ease, opacity .12s ease; }
+.rrg-head[data-q="leading"]   { fill: var(--pl-up); }
+.rrg-head[data-q="weakening"] { fill: var(--caution); }
+.rrg-head[data-q="lagging"]   { fill: var(--pl-down); }
+.rrg-head[data-q="improving"] { fill: var(--accent); }
+.rrg-head[data-active] { stroke: var(--text); filter: drop-shadow(0 0 5px currentColor); }
+.rrg-axis { position: absolute; font-family: var(--font-mono); font-size: var(--fs-micro);
+  font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.rrg-axis[data-ax="x"] { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.rrg-axis[data-ax="y"] { left: 2px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
+.rrg-origin { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+  font-size: var(--fs-micro); color: var(--dim); background: color-mix(in oklch, var(--panel) 80%, transparent);
+  padding: 0 4px; border-radius: 3px; }
 .rrg-lbl-conn { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.55; }
 .mm-scatter svg { display: block; width: 100%; }
 @media (max-width: 640px) { .mm-scatter svg { min-height: 340px; } .mm-dot-label { font-size: var(--fs-micro); } }
@@ -2672,3 +2700,21 @@ body { background: #0a0b0d; }
   place-items: center; background: none; border: 0; color: var(--dim); cursor: pointer;
   font-size: var(--fs-label); border-radius: var(--radius-sm); }
 .pf-io-x:hover { color: var(--text); background: var(--surface-2); }
+
+/* ---- RVOL gauge --------------------------------------------------------- */
+/* Four bars, because the decision it feeds is coarse: normal, busy, heavy,
+   extreme. Amber rather than the P&L pair — turnover is participation, not
+   direction, and the Δ column beside it already carries which way it went. */
+.rvol { display: inline-flex; align-items: center; gap: 7px; justify-content: flex-end; cursor: help; }
+.rvol-bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 11px; }
+.rvol-bars i { width: 3px; border-radius: 1px; background: var(--border-2); }
+.rvol-bars i:nth-child(1) { height: 5px; }
+.rvol-bars i:nth-child(2) { height: 7px; }
+.rvol-bars i:nth-child(3) { height: 9px; }
+.rvol-bars i:nth-child(4) { height: 11px; }
+.rvol[data-tier="normal"]  .rvol-bars i[data-on] { background: var(--dim); }
+.rvol[data-tier="busy"]    .rvol-bars i[data-on] { background: var(--accent); }
+.rvol[data-tier="heavy"]   .rvol-bars i[data-on] { background: var(--brand); }
+.rvol[data-tier="extreme"] .rvol-bars i[data-on] { background: var(--brand); box-shadow: 0 0 6px color-mix(in oklch, var(--brand) 70%, transparent); }
+.rvol b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.rvol[data-tier="heavy"] b, .rvol[data-tier="extreme"] b { color: var(--text); }

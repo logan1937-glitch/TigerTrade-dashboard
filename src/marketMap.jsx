@@ -313,28 +313,53 @@ function RelativeRotation({ rows, onOpenStock }) {
       {/* geometry in SVG; ALL text lives in the HTML overlay below so it renders
           at true pixel size instead of scaling up with the viewBox */}
       <div className="rrg-plot">
-        <svg viewBox={`0 0 ${W} ${H}`} className="chart" preserveAspectRatio="none" role="img" aria-label="Relative rotation vs S&P 500">
+        {/* `preserveAspectRatio` is xMidYMid, NOT none. With `none` the viewBox is
+            stretched independently on each axis, which turns every head into an
+            ellipse and — worse — distorts the CURL of the rotation path, which is
+            the shape the whole chart exists to show. The container carries the
+            600:400 aspect so nothing is letterboxed. */}
+        <svg viewBox={`0 0 ${W} ${H}`} className="chart" preserveAspectRatio="xMidYMid meet"
+          role="img" aria-label="Relative rotation vs S&P 500">
           <rect x={cx} y={padT} width={W - padR - cx} height={cy - padT} className="rrg-q" data-q="leading" />
           <rect x={cx} y={cy} width={W - padR - cx} height={H - padB - cy} className="rrg-q" data-q="weakening" />
           <rect x={padL} y={cy} width={cx - padL} height={H - padB - cy} className="rrg-q" data-q="lagging" />
           <rect x={padL} y={padT} width={cx - padL} height={cy - padT} className="rrg-q" data-q="improving" />
           <line x1={cx} y1={padT} x2={cx} y2={H - padB} className="chart-zero" />
           <line x1={padL} y1={cy} x2={W - padR} y2={cy} className="chart-zero" />
-          {/* dots + on-demand tail (only the hovered / tapped entity) */}
+
+          {/* EVERY tail, always. A rotation graph without its trails is a scatter
+              plot — where a sector sits matters far less than which way it is
+              travelling, and hiding that behind a hover meant the one thing this
+              chart knows that the heatmap does not was invisible by default.
+              Each segment fades toward the past, so direction reads without an
+              arrowhead and without a legend. */}
           {entities.map((e) => {
             const active = hover === e.id || pinned === e.id;
+            const dim = (hover ?? pinned) != null && !active;
+            const q = QUAD(e.head);
             const hx = x(e.head.ratio), hy = y(e.head.mom);
-            const pts = active ? e.tail.map((p) => `${x(p.ratio).toFixed(1)},${y(p.mom).toFixed(1)}`).join(" ") : null;
+            const segs = [];
+            for (let i = 1; i < e.tail.length; i++) {
+              const a = e.tail[i - 1], b = e.tail[i];
+              // oldest segment faintest; the newest carries almost full weight
+              const f = i / (e.tail.length - 1);
+              segs.push(
+                <line key={i} x1={x(a.ratio)} y1={y(a.mom)} x2={x(b.ratio)} y2={y(b.mom)}
+                  className="rrg-tail" data-q={q} data-active={active || undefined}
+                  strokeWidth={(0.9 + f * 1.5).toFixed(2)}
+                  opacity={(dim ? 0.10 : (active ? 0.35 : 0.18) + f * (active ? 0.6 : 0.34)).toFixed(2)} />
+              );
+            }
             return (
               <g key={e.id} style={{ cursor: "pointer" }}
                  onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
                  onClick={() => (e.kind === "name" ? onOpenStock({ tk: e.id }) : setPinned((v) => (v === e.id ? null : e.id)))}>
-                {active && <polyline points={pts} className="rrg-tail" data-active />}
-                {active && e.tail.slice(0, -1).map((p, i) => (
-                  <circle key={i} cx={x(p.ratio)} cy={y(p.mom)} r="1.6" className="rrg-tail-dot" />
-                ))}
+                {segs}
                 <circle cx={hx} cy={hy} r="13" fill="transparent" />
-                <circle cx={hx} cy={hy} r={active ? 5.2 : 3.6} className="rrg-head" data-active={active || undefined} />
+                {/* the head takes its quadrant's colour, so position is stated
+                    twice — by where it sits and by what colour it is */}
+                <circle cx={hx} cy={hy} r={active ? 5.6 : 4.2} className="rrg-head"
+                  data-q={q} data-active={active || undefined} opacity={dim ? 0.35 : 1} />
               </g>
             );
           })}
@@ -350,6 +375,11 @@ function RelativeRotation({ rows, onOpenStock }) {
           <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>Improving</span>
           <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Lagging</span>
           <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Weakening</span>
+          {/* what the two axes actually are. Without these the quadrant names are
+              four words with nothing behind them. */}
+          <span className="rrg-axis" data-ax="x">RS-Ratio vs S&amp;P 500 →</span>
+          <span className="rrg-axis" data-ax="y">RS-Momentum ↑</span>
+          <span className="rrg-origin mono">100</span>
           {placed.map(({ e, dx, dy, right }) => {
             const active = hover === e.id || pinned === e.id;
             return (
