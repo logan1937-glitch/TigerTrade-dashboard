@@ -222,9 +222,8 @@ graph's quadrants** — leading was green, lagging red, for a rotation state tha
 is not a gain. Its heads are now a strength *ramp* rather than four categorical
 hues: jade solid leading, desaturated jade improving, `--caution` weakening,
 `--dim` lagging. Four hues also fails CVD, and the corner labels already name the
-quadrants, so colour only has to rank them — and `.rrg-qdot` in the roster is now
-the key to that ramp as well as the only place the four states are defined in
-words. Still on P&L green and
+quadrants, so colour only has to rank them — `.rrg-qdot` keys that ramp in both
+the roster and the plot's four corner captions. Still on P&L green and
 open to the same argument: the LEADERS pass letters and the buy-status pill. `--pl-up` /
 `--pl-down` are the names to reach for; `--cat-growth` / `--sev-extreme` still
 resolve to them because the Growth event category and the Extreme severity band
@@ -382,14 +381,61 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   the same treatment `.seg` gets on the filter rows. Measure with the loop in
   **Verifying UI changes**, not by eye — a screenshot taken before anything
   scrolls the page looks perfect.
-- **A de-collision gap in viewBox units is not a gap in pixels.** The RRG's
-  `GAP` spaces labels that render at a fixed px size: 13 units is 18.6px on the
-  860px desktop plot and 10.5px on the phone, i.e. narrower than the label. It is
-  branched on width for that reason. Related: labels de-collide **per side** on a
-  wide plot and **globally** on a narrow one — splitting by side stops two stacks
-  fighting when there is horizontal room, but when a label is a third of the box
-  wide, a left-anchored and a right-anchored label land on the same row and
-  overlap ("Consumer Cyclical" on "Healthcare"). One global stack cannot.
+- **A de-collision gap in viewBox units is not a gap in pixels**, and the plot's
+  width is not a constant. The RRG's `GAP` spaces label chips that render at a
+  fixed px size, so it is derived from the plot's **measured** width and the
+  chip's **measured** height (`ResizeObserver`, both). It was a constant twice,
+  and a constant is only right at one width: 16 units clears a chip on an 858px
+  plot and is 20px on the 727px one a 1200px viewport gives it — narrower than
+  the chip it is spacing. 1500px looked perfect throughout.
+- **Labels de-collide in ONE global stack, at every width.** Per-side placement
+  halves the crowding but cannot stop a left-anchored and a right-anchored label
+  landing on the same row: they are placed independently, so neither knows about
+  the other, and chips are wide enough to meet in the middle.
+- **Shift-then-clamp re-collides the top of a label stack.** The obvious overflow
+  fix — forward pass, then "if the last one overran, shift everything up and
+  clamp at the ceiling" — moves items uniformly but clamps them individually, so
+  whatever hits the ceiling stops while its neighbour keeps going. Measured as
+  "Consumer Cyclical" 21px under "Healthcare" while every other pair sat at 25.
+  The stack is placed with a forward pass and then a **backward** pass from the
+  bottom, which preserves the gap; the gap itself is pre-shrunk to fit the span so
+  neither pass can run out of room.
+- **A stack must stop clear of the chart's furniture, not at the plot edge.** The
+  RRG reserves 24 viewBox units at the top and 40 at the bottom: the corner
+  quadrant captions live in those bands, and so does the "100" origin chip at
+  bottom centre. Clamping to the plot edge landed labels on all three.
+
+### The rotation graph
+
+**Sectors only, and no trails until asked for.** Both were reversed twice and the
+reversals are the whole history of this component:
+
+- There was a **Names** mode plotting every tracked ticker. ~500 dots in a 600×400
+  box is not a chart, so labels were capped at eight and forty-odd unlabelled dots
+  sat there meaning nothing, while the roster beside it ran four screens. Rotation
+  is a sector-level idea — where money moves *between* groups — and one name's RS
+  line belongs in the drawer. Eleven dots is the point.
+- **Every tail drawn at once has now been tried twice**, once coloured by quadrant
+  and once in neutral ink, and both read as spaghetti: eleven six-point paths
+  crossing each other at this size. Colouring by quadrant is worse than useless —
+  a tail crossing three quadrants gets painted whichever one its *head* landed in.
+  The default is now where things ARE; where one came from is a question asked of
+  one sector at a time, and only the hovered/pinned sector draws its path, in jade,
+  with one dot per week so the trail carries its own time scale.
+- **The roster beside the plot is not decoration.** A dot's position is the
+  reading, but decoding eleven of them is work, and the question actually being
+  asked — "who is leading?" — is a list. It also carries the sentence that says
+  what each quadrant *means*; "Weakening" is the strong-but-rolling-over corner and
+  everyone reads it backwards. It is absolutely positioned inside its grid column
+  so the row is sized by the **plot**, and it scrolls to fit rather than running
+  past the chart. Its scroll fade is conditional on there actually being more
+  below — shown unconditionally it washed out the footer, which is an affordance
+  pointing at content that does not exist.
+- **The readout sits above the chart, not in it.** Anchored to its dot it has to go
+  somewhere, and everywhere inside a plot this dense is on top of something: it
+  was measured landing on a neighbour's label chip at 1200/820/700 and on the
+  corner captions at 390. The dot it describes is already marked twice — its own
+  chip lights up and so does its roster row.
 
 ## Verifying UI changes
 
@@ -404,7 +450,7 @@ npm run shots -- --views radar --live                   # against real APIs
 
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
-`vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`, `map`, `rrgnames`,
+`vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`, `map`,
 `rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`.
 The `watch` shot seeds all four watchlist row states — a curated event, a **live
 econ** event, a star whose release has left the calendar window, and a ticker —
@@ -417,11 +463,10 @@ actually merges in a shot — `?tier=ext` is routed to its own fixture, and the
 route test checks it **before** the core one because the ext URL contains
 `/api/snapshot` too; answering it with the core payload would make a merge that
 never happened look like a success.
-`rrgnames` and `rrgpin` shoot the rotation graph's two hardest states, neither of
-which the plain `map` shot reaches: ~50 dots with only the top 8 labelled, and one
-sector pinned so the focus treatment (every other tail dims, the pinned one draws
-its full path in jade) is actually in a picture. `rrgnames` is also the only shot
-where the **roster overflows** — it is the state its scroll fade exists for.
+`rrgpin` pins one sector, and it is the ONLY state in which the rotation graph
+draws a trail at all — the default is eleven dots and no paths — so without it the
+feature is never in a picture. (There was an `rrgnames` shot for the Names mode;
+that mode is gone, see below.)
 
 The fixture gives every name a sector AND an industry from `FIX_SECTORS`, and a
 6-point `rrg` tail. Both were flat for a long time, and the cost was silent: one

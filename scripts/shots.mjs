@@ -136,11 +136,6 @@ const VIEWS = [
       await p.waitForTimeout(700);
     } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
-  { id: "rrgnames",  state: { tt_product: "canslim" }, act: async (p) => {
-      await click(p, "Market Map");
-      await p.locator(".rrg-toolbar .seg-btn", { hasText: /^Names$/ }).first().click();
-      await p.waitForTimeout(400);
-    } },
   { id: "rrgpin",    state: { tt_product: "canslim" }, act: async (p) => {
       await click(p, "Market Map");
       // a head circle, not the label — the label is in a pointer-events:none overlay

@@ -310,30 +310,56 @@ function useHasMore(ref, deps) {
   return more;
 }
 
-function RelativeRotation({ rows, onOpenStock }) {
+/* SECTORS ONLY. There was a Names mode plotting every tracked ticker, and ~500
+   dots in a 600×400 box is not a chart — the labels had to be capped at eight, so
+   forty-odd unlabelled dots sat there meaning nothing you could act on, and the
+   roster beside it ran four screens long. Rotation is a sector-level idea anyway:
+   it is about where money is moving between groups, and a single name's RS line
+   already has a better home in the drawer. Eleven dots is the whole point. */
+function RelativeRotation({ rows }) {
   const narrow = useNarrow();
-  const [mode, setMode] = useState("sectors");
   const [hover, setHover] = useState(null);
   const [pinned, setPinned] = useState(null);   // tapped sector whose tail stays shown
   const rosterRef = useRef(null);
+  /* The plot's rendered width. The label stack's gap is the one number here that
+     has to be right in PIXELS — the chips render at a fixed size while everything
+     else in this component is viewBox units — and the plot's width is not a fixed
+     860: it is whatever its grid column gives it, which varies with the roster,
+     the breakpoint and the viewport. Guessing it put labels back on top of each
+     other at 1200px and 820px while 1500px looked perfect. */
+  const plotRef = useRef(null);
+  const labRef = useRef(null);
+  const [plotW, setPlotW] = useState(0);
+  const [labH, setLabH] = useState(0);
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((es) => {
+      for (const e of es) {
+        if (e.target === plotRef.current) setPlotW((w) => (Math.abs(w - e.contentRect.width) < 0.5 ? w : e.contentRect.width));
+        // offsetHeight, not contentRect: the chip's padding and border are part of
+        // what has to clear its neighbour, and contentRect excludes both
+        else setLabH((h) => (Math.abs(h - e.target.offsetHeight) < 0.5 ? h : e.target.offsetHeight));
+      }
+    });
+    if (plotRef.current) ro.observe(plotRef.current);
+    if (labRef.current) ro.observe(labRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   const entities = useMemo(() => {
     // each name's 6-point rotation tail is precomputed on the snapshot (rrgOf).
     // Sectors are the equal-weight average of their members' tails.
     const withTail = rows.map((r) => (r.sig && r.sector !== "Custom" ? { r, tail: rrgOf(r) } : null)).filter((x) => x && x.tail);
-    if (mode === "sectors") {
-      const by = {};
-      for (const { r, tail } of withTail) (by[r.sector] = by[r.sector] || []).push(tail);
-      return Object.entries(by).map(([sector, tails]) => {
-        const tail = avgTails(tails);
-        return tail ? { id: sector, label: sector, tail, head: tail[tail.length - 1], n: tails.length, kind: "sector" } : null;
-      }).filter(Boolean);
-    }
-    return withTail.map(({ r, tail }) => ({ id: r.tk, label: r.tk, tail, head: tail[tail.length - 1], kind: "name", score: r.score || 0 }));
-  }, [rows, mode]);
+    const by = {};
+    for (const { r, tail } of withTail) (by[r.sector] = by[r.sector] || []).push(tail);
+    return Object.entries(by).map(([sector, tails]) => {
+      const tail = avgTails(tails);
+      return tail ? { id: sector, label: sector, tail, head: tail[tail.length - 1], n: tails.length } : null;
+    }).filter(Boolean);
+  }, [rows]);
   // above the early return: a hook that runs only when there is data is a hook
   // whose order changes between renders
-  const rosterMore = useHasMore(rosterRef, [entities, mode, narrow]);
+  const rosterMore = useHasMore(rosterRef, [entities, narrow]);
 
   if (entities.length < 2) return <div className="empty">Waiting for live data…</div>;
 
@@ -351,39 +377,54 @@ function RelativeRotation({ rows, onOpenStock }) {
   const y = (m) => padT + (1 - (m - 100 + domY) / (2 * domY)) * (H - padT - padB);
   const cx = x(100), cy = y(100);
 
-  const labeled = mode === "sectors"
-    ? new Set(entities.map((e) => e.id))
-    : new Set([...entities].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 8).map((e) => e.id));
+  /* ONE global stack, at every width. Labels used to de-collide within their own
+     side of the plot, which halves the crowding but cannot stop a left-anchored
+     label and a right-anchored one landing on the same row — they are placed
+     independently, so nothing knows about the other. That was already the reason
+     a phone had to fall back to a global stack, and turning the labels into chips
+     made it happen on a desktop too: "Consumer Cyclical" pointing right ran
+     straight into "Healthcare" pointing left. Eleven rows at 16 viewBox units is
+     253 of the 400 available, so one stack fits with room to spare, and no two
+     labels can share a row whatever their x.
 
-  /* On a wide plot, labels de-collide within their own SIDE. One shared column
-     meant eleven sectors clustered near the centre all pushed each other down a
-     single stack — "Basic Materials" landed on "Communication Services" and the
-     pair drifted away from the dots they name. Splitting by side halves the
-     crowding and keeps each label next to its own head.
-
-     On a phone the split makes things WORSE, which is not obvious: a left-anchored
-     label and a right-anchored one are de-collided independently, so nothing stops
-     them landing on the same row — and in a 356px box a label is a third of the
-     width, so they meet in the middle. "Consumer Cyclical" sat on top of
-     "Healthcare" for exactly this reason. Narrow falls back to one global stack,
-     where no two labels can share a row whatever their x. */
-  /* GAP is in viewBox units and the labels are real pixels, so it has to be
-     converted, not copied: at 860px the desktop box renders 1.43px per unit and
-     13 units clears a 11px label; the phone box renders ~0.81px per unit, where
-     the same 13 units is 10px and every label overlapped its neighbour. */
-  const GAP = narrow ? 20 : 13;
-  const place = (list) => {
-    list.sort((a, b) => a.oy - b.oy);
-    for (let i = 1; i < list.length; i++) if (list[i].dy - list[i - 1].dy < GAP) list[i].dy = list[i - 1].dy + GAP;
-    const over = list.length ? list[list.length - 1].dy - (H - padB - 3) : 0;
-    if (over > 0) list.forEach((p) => (p.dy = Math.max(padT + 9, p.dy - over)));
-    return list;
-  };
-  const marks = entities.filter((e) => labeled.has(e.id))
-    .map((e) => { const dx = x(e.head.ratio), oy = y(e.head.mom); return { e, dx, oy, dy: oy, right: dx <= W * 0.55 }; });
-  const placed = narrow
-    ? place(marks)
-    : [...place(marks.filter((p) => p.right)), ...place(marks.filter((p) => !p.right))];
+     GAP is a real 23px — one chip plus a hair — converted into viewBox units
+     through the plot's measured width. Before the plot was measured this was a
+     constant, and a constant is only correct at one width: 16 units clears a chip
+     on an 858px plot and is 20px on a 727px one, which is narrower than the chip
+     it is spacing. */
+  // the chip's own measured height plus 3px of air. Guessed twice and wrong both
+  // times: the desktop chip is 24px and the phone one 21, and a gap a pixel under
+  // either is a gap that does not clear it
+  const LABEL_PX = (labH || (narrow ? 21 : 24)) + 3;
+  const GAP = plotW > 0 ? (LABEL_PX * W) / plotW : (narrow ? 30 : 17);
+  /* Stop the stack CLEAR of the furniture, not at the plot edge. Two things live
+     in those bands and both were being landed on: the corner captions top and
+     bottom, and the "100" origin chip at bottom centre. */
+  const lo = padT + 24, hi = H - padB - 40;
+  const marks = entities.map((e) => {
+    const dx = x(e.head.ratio), oy = y(e.head.mom);
+    return { e, dx, oy, dy: oy, right: dx <= W * 0.55 };
+  });
+  /* Two passes, down then back up. A single forward pass plus "if the last one
+     overran, shift everything up and clamp at the top" is the obvious version and
+     it is wrong: the shift is uniform but the clamp is per-item, so whatever hits
+     the ceiling stops while its neighbour keeps moving, and the top of the stack
+     re-collides. That is precisely what put "Consumer Cyclical" back on top of
+     "Healthcare" at 700px — 21px apart while every other pair sat at 25.
+     The backward pass pulls from the bottom instead and preserves the gap. */
+  const span = hi - lo;
+  const gap = marks.length > 1 ? Math.min(GAP, span / (marks.length - 1)) : GAP;
+  marks.sort((a, b) => a.oy - b.oy);
+  for (let i = 1; i < marks.length; i++) marks[i].dy = Math.max(marks[i].dy, marks[i - 1].dy + gap);
+  if (marks.length && marks[marks.length - 1].dy > hi) {
+    marks[marks.length - 1].dy = hi;
+    for (let i = marks.length - 2; i >= 0; i--) marks[i].dy = Math.min(marks[i].dy, marks[i + 1].dy - gap);
+  }
+  if (marks.length && marks[0].dy < lo) {
+    const d = lo - marks[0].dy;
+    for (const m of marks) m.dy += d;   // `gap` already guarantees the stack fits
+  }
+  const placed = marks;
 
   const hv = entities.find((e) => e.id === (hover ?? pinned)) || null;
 
@@ -394,18 +435,35 @@ function RelativeRotation({ rows, onOpenStock }) {
 
   return (
     <div className="mm-scatter">
+      {/* The Sectors/Names switch is gone with the Names mode. What replaces it is
+          the one instruction the chart needs, stated where the old control was —
+          the trails are hidden until asked for, and nothing else on screen would
+          tell you they exist. */}
       <div className="rrg-toolbar">
-        <div className="seg">
-          {[["sectors", "Sectors"], ["names", "Names"]].map(([id, l]) => (
-            <button key={id} className="seg-btn" data-active={mode === id} onClick={() => { setMode(id); setHover(null); setPinned(null); }}>{l}</button>
-          ))}
-        </div>
-        <span className="dr-sec-sub mono">{mode === "sectors" ? "tap a sector to trace its 6-week path" : "tap a name for analysis · hover to trace"}</span>
+        {/* The readout lives HERE, not floating in the plot, at every width. Anchored
+            to its dot it has to go somewhere, and everywhere inside a plot this
+            dense is on top of something: it landed on the "Healthcare" chip at
+            1200px, 820px and 700px, and on the corner captions at 390px. Above the
+            chart it can never collide, and the dot it describes is already marked
+            twice over — its own label chip lights up and so does its roster row. */}
+        {hv ? (
+          <span className="rrg-hint mono">
+            <b>{hv.label}</b> · {hv.n} names · <span style={{ textTransform: "capitalize" }}>{QUAD(hv.head)}</span>
+            {" "}· Ratio {hv.head.ratio.toFixed(1)} · Mom {hv.head.mom.toFixed(1)}
+          </span>
+        ) : (
+          <span className="rrg-hint mono">
+            <b>Hover or tap a sector</b> to trace where it has come from over six weeks
+          </span>
+        )}
+        {pinned && (
+          <button className="rrg-clear mono" onClick={() => setPinned(null)}>Clear {pinned}</button>
+        )}
       </div>
       <div className="rrg-wrap">
       {/* geometry in SVG; ALL text lives in the HTML overlay below so it renders
           at true pixel size instead of scaling up with the viewBox */}
-      <div className="rrg-plot">
+      <div className="rrg-plot" ref={plotRef}>
         {/* `preserveAspectRatio` is xMidYMid, NOT none. With `none` the viewBox is
             stretched independently on each axis, which turns every head into an
             ellipse and — worse — distorts the CURL of the rotation path, which is
@@ -421,53 +479,62 @@ function RelativeRotation({ rows, onOpenStock }) {
           <rect x={cx} y={cy} width={W - cx} height={H - cy} className="rrg-q" data-q="weakening" />
           <rect x={0} y={cy} width={cx} height={H - cy} className="rrg-q" data-q="lagging" />
           <rect x={0} y={0} width={cx} height={cy} className="rrg-q" data-q="improving" />
+          {/* A quarter grid. Without it the plot is an empty rectangle with dots in
+              it — there is no sense of scale, so a dot two thirds of the way out
+              looks the same as one just past the centre. Four dotted lines is the
+              least furniture that makes it read as a measured chart. */}
+          {[0.25, 0.75].map((f) => (
+            <line key={"gx" + f} x1={f * W} y1={0} x2={f * W} y2={H} className="rrg-grid" />
+          ))}
+          {[0.25, 0.75].map((f) => (
+            <line key={"gy" + f} x1={0} y1={f * H} x2={W} y2={f * H} className="rrg-grid" />
+          ))}
           <line x1={cx} y1={0} x2={cx} y2={H} className="chart-zero" />
           <line x1={0} y1={cy} x2={W} y2={cy} className="chart-zero" />
 
-          {/* EVERY tail, always. A rotation graph without its trails is a scatter
-              plot — where a sector sits matters far less than which way it is
-              travelling, and hiding that behind a hover meant the one thing this
-              chart knows that the heatmap does not was invisible by default.
-              Each segment fades toward the past, so direction reads without an
-              arrowhead and without a legend. */}
+          {/* ONE tail, and only when asked. Every tail drawn at once is eleven
+              six-point paths crossing each other in a box this size — measured as
+              spaghetti twice, once in colour and once in neutral ink, and neither
+              read. A rotation graph's default state is WHERE things are; where they
+              came from is a question you ask of one sector at a time.
+              The trail is drawn under every head so it never covers a dot. */}
+          {hv && (() => {
+            const t = hv.tail;
+            const d = t.map((p, i) => `${i ? "L" : "M"}${x(p.ratio).toFixed(2)} ${y(p.mom).toFixed(2)}`).join(" ");
+            return (
+              <g className="rrg-trace" style={{ pointerEvents: "none" }}>
+                <path d={d} className="rrg-tail" />
+                {/* a dot per week, so the trail carries its own time scale: evenly
+                    spaced dots are a steady drift, bunched ones are a stall */}
+                {t.slice(0, -1).map((p, i) => (
+                  <circle key={i} cx={x(p.ratio)} cy={y(p.mom)} r={1.6 + i * 0.35}
+                    className="rrg-tail-pt" opacity={(0.3 + i * 0.11).toFixed(2)} />
+                ))}
+              </g>
+            );
+          })()}
+
           {entities.map((e) => {
-            const active = hover === e.id || pinned === e.id;
-            const focus = (hover ?? pinned) != null;
+            const active = hv && hv.id === e.id;
+            const focus = !!hv;
             const q = QUAD(e.head);
             const hx = x(e.head.ratio), hy = y(e.head.mom);
-            /* SHORT and NEUTRAL until you ask. Drawing all six points of eleven
-               sectors in eleven quadrant colours turned this into spaghetti with
-               a rainbow on top — and the colour identified nothing, because a
-               tail that crossed three quadrants was painted the one its head
-               happened to land in. Six fixture sectors hid that; eleven real ones
-               did not.
-
-               So: everyone gets the last three segments in one neutral ink, just
-               enough to read direction at a glance, and the one you point at gets
-               its whole path in jade. Colour marks focus, not identity. */
-            const full = active;
-            const from = full ? 1 : Math.max(1, e.tail.length - 3);
-            const segs = [];
-            for (let i = from; i < e.tail.length; i++) {
-              const a = e.tail[i - 1], b = e.tail[i];
-              const f = (i - from + 1) / (e.tail.length - from);   // 0…1 toward today
-              segs.push(
-                <line key={i} x1={x(a.ratio)} y1={y(a.mom)} x2={x(b.ratio)} y2={y(b.mom)}
-                  className="rrg-tail" data-active={active || undefined}
-                  strokeWidth={(active ? 1.1 + f * 1.4 : 0.8 + f * 0.7).toFixed(2)}
-                  opacity={(active ? 0.35 + f * 0.6 : focus ? 0.07 : 0.12 + f * 0.22).toFixed(2)} />
-              );
-            }
             return (
               <g key={e.id} style={{ cursor: "pointer" }}
                  onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
-                 onClick={() => (e.kind === "name" ? onOpenStock({ tk: e.id }) : setPinned((v) => (v === e.id ? null : e.id)))}>
-                {segs}
-                <circle cx={hx} cy={hy} r="13" fill="transparent" />
+                 onClick={() => setPinned((v) => (v === e.id ? null : e.id))}>
+                {/* the hit area is bigger than the dot — an 4.5px target is a miss
+                    on a trackpad and unusable on a thumb */}
+                <circle cx={hx} cy={hy} r="14" fill="transparent" />
+                {/* a soft disc in the head's own colour. It gives the mark presence
+                    at this size without making the dot itself bigger, which is what
+                    kept eleven dots from reading as a scatter of specks. */}
+                <circle cx={hx} cy={hy} r={active ? 12 : 9} className="rrg-halo"
+                  data-q={q} opacity={focus && !active ? 0.25 : 1} />
                 {/* the head takes its quadrant's colour, so position is stated
                     twice — by where it sits and by what colour it is */}
-                <circle cx={hx} cy={hy} r={active ? 5.6 : 4} className="rrg-head"
-                  data-q={q} data-active={active || undefined} opacity={focus && !active ? 0.45 : 1} />
+                <circle cx={hx} cy={hy} r={active ? 6 : 4.6} className="rrg-head"
+                  data-q={q} data-active={active || undefined} opacity={focus && !active ? 0.5 : 1} />
               </g>
             );
           })}
@@ -479,10 +546,16 @@ function RelativeRotation({ rows, onOpenStock }) {
           ))}
         </svg>
         <div className="rrg-overlay" aria-hidden="true">
-          <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>Leading</span>
-          <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>Improving</span>
-          <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Lagging</span>
-          <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Weakening</span>
+          {/* each corner carries its own dot, so the head colours are keyed on the
+              chart itself and not only in the roster beside it */}
+          <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>
+            <i className="rrg-qdot" data-q="leading" />Leading</span>
+          <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>
+            <i className="rrg-qdot" data-q="improving" />Improving</span>
+          <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>
+            <i className="rrg-qdot" data-q="lagging" />Lagging</span>
+          <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>
+            <i className="rrg-qdot" data-q="weakening" />Weakening</span>
           {/* Each axis names itself AND both of its directions. "RS-Ratio vs S&P
               500 →" told you what the axis was measuring and left you to work out
               which way was good; a reader who has to consult the paragraph under
@@ -497,27 +570,15 @@ function RelativeRotation({ rows, onOpenStock }) {
               the centre of the box is 6 viewBox units off the 100 gridline and the
               label sat visibly beside the axis it names */}
           <span className="rrg-origin mono" style={{ left: `${(cx / W) * 100}%` }}>100</span>
-          {placed.map(({ e, dx, dy, right }) => {
+          {placed.map(({ e, dx, dy, right }, i) => {
             const active = hover === e.id || pinned === e.id;
             return (
-              <span key={"l" + e.id} className="rrg-lab mono" data-active={active || undefined}
+              <span key={"l" + e.id} ref={i === 0 ? labRef : undefined} className="rrg-lab mono" data-active={active || undefined}
                 style={{ left: `${((right ? dx + 8 : dx - 8) / W) * 100}%`, top: `${(dy / H) * 100}%`,
                   transform: `translateY(-50%)${right ? "" : " translateX(-100%)"}` }}>{e.label}</span>
             );
           })}
         </div>
-        {/* INSIDE the plot box. Its offsets are percentages of the viewBox, and
-            the plot is a fixed-aspect box centred in a much wider panel — anchored
-            to the panel the readout drifted further from its dot the wider the
-            screen got. */}
-        {hv && (
-          <div className="pchart-tip" style={{ left: `${(x(hv.head.ratio) / W) * 100}%`, top: `${Math.max(0, (y(hv.head.mom) / H) * 100 - 15)}%`,
-            transform: x(hv.head.ratio) > W * 0.7 ? "translateX(-100%)" : x(hv.head.ratio) < W * 0.2 ? "none" : "translateX(-50%)" }}>
-            <span className="pchart-tip-p mono">{hv.label}{hv.kind === "sector" ? ` · ${hv.n} names` : ""}</span>
-            <span className="pchart-tip-d mono" style={{ textTransform: "capitalize" }}>{QUAD(hv.head)}</span>
-            <span className="pchart-tip-d mono">Ratio {hv.head.ratio.toFixed(1)} · Mom {hv.head.mom.toFixed(1)}</span>
-          </div>
-        )}
       </div>
 
       {/* The roster. A dot's position IS the reading, but decoding eleven of them
@@ -555,8 +616,8 @@ function RelativeRotation({ rows, onOpenStock }) {
                   <button key={e.id} className="rrg-rrow" data-active={active || undefined}
                     onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
                     onFocus={() => setHover(e.id)} onBlur={() => setHover(null)}
-                    onClick={() => (e.kind === "name" ? onOpenStock({ tk: e.id }) : setPinned((v) => (v === e.id ? null : e.id)))}
-                    title={e.kind === "name" ? `${e.id} — open full analysis` : `Trace ${e.label}'s six-week path`}>
+                    onClick={() => setPinned((v) => (v === e.id ? null : e.id))}
+                    title={`Trace ${e.label}'s six-week path`}>
                     <span className="rrg-rrow-l">{e.label}</span>
                     <span className="rrg-rrow-v mono">{e.head.ratio.toFixed(1)}</span>
                     <span className="rrg-rrow-v mono">{e.head.mom.toFixed(1)}</span>
@@ -785,14 +846,15 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) 
 
       <div className="mm-sec-h"><h3>Relative rotation</h3><span className="dr-sec-sub mono">RS-trend vs its momentum · benchmark: S&amp;P 500</span></div>
       <div className="mm-scatter-card">
-        <RelativeRotation rows={rows} onOpenStock={onOpenStock} />
+        <RelativeRotation rows={rows} />
         <p className="mono mm-rrg-note">
           {/* the axes now name both of their own directions, so this no longer
               repeats them; what is left is what the picture cannot say by itself */}
-          <b>Reading it:</b> each dot is where its sector — or its name, on the Names tab — sits today; the trail behind it is the last three weeks, so
-          direction is the reading and position is only the starting point. Rotation runs clockwise —
-          Improving → Leading → Weakening → Lagging — and a full turn takes months, not days.
-          Point at anything, on the chart or in the list, to trace its whole six-week path.
+          <b>Reading it:</b> each dot is one sector today, measured against the S&amp;P 500. Rotation runs clockwise —
+          Improving → Leading → Weakening → Lagging — and a full turn takes months, not days, so a sector
+          deep in one corner is a position rather than a signal. Hover or tap anything, on the chart or in
+          the list, to draw the six weeks behind it; the dots along that trail are one per week, so evenly
+          spaced is a steady drift and bunched is a stall.
           <span style={{ opacity: .7 }}> Our approximation of the relative-rotation concept popularized by Julius de Kempenaer (RRG Research); not the proprietary JdK RS-Ratio / RS-Momentum. Educational use only.</span>
         </p>
       </div>

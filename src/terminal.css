@@ -1691,17 +1691,23 @@ body { background: #0a0b0d; }
    letterboxes and the HTML label overlay drifts off it */
 @media (max-width: 640px) {
   .rrg-plot { aspect-ratio: 440 / 430; }
-  .rrg-lab { font-size: var(--fs-micro); }
+  .rrg-lab { font-size: var(--fs-micro); padding: 2px 6px; }
 }
 .rrg-overlay { position: absolute; inset: 0; pointer-events: none; }
-.rrg-cap { position: absolute; font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600;
-  letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--dim); opacity: 0.85; }
-/* the halo is knocked out of the plot's own ground, so it has to be --panel:
-   the plot is an inset panel inside a --surface card, and a --surface halo left
-   a visible lighter smudge behind every label */
+.rrg-cap { position: absolute; display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600;
+  letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--dim); opacity: 0.9; }
+/* A chip, not floating text. A text-shadow halo is a workaround for a label with
+   no ground of its own; on a plot with a grid behind it the glyphs sat directly
+   on the dotted lines and read as debris. The chip also gives the active state
+   something to fill, which is what ties a hovered roster row to its dot. */
 .rrg-lab { position: absolute; font-size: var(--fs-label); color: var(--muted); white-space: nowrap;
-  text-shadow: 0 0 3px var(--panel), 0 0 6px var(--panel), 0 0 2px var(--panel); }
-.rrg-lab[data-active] { color: var(--text); font-weight: 700; }
+  padding: 2px 8px; border-radius: 20px; border: 1px solid transparent;
+  background: color-mix(in oklch, var(--panel) 88%, transparent);
+  transition: background .12s ease, color .12s ease, border-color .12s ease; }
+.rrg-lab[data-active] { color: var(--text); font-weight: 600;
+  background: color-mix(in oklch, var(--accent) 18%, var(--panel));
+  border-color: color-mix(in oklch, var(--accent) 42%, transparent); }
 .mm-axis-y { position: absolute; top: 8px; left: 16px; font-size: var(--fs-micro); letter-spacing: var(--track-label); color: var(--dim); }
 .mm-legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 2px 2px; font-size: var(--fs-label); color: var(--dim); align-items: center; }
 .mm-legend .mm-key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
@@ -1711,6 +1717,14 @@ body { background: #0a0b0d; }
 /* relative-rotation graph (RRG-style) */
 .rrg-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .rrg-toolbar .seg-btn { padding: 5px 12px; }
+/* the instruction sits where the Sectors/Names switch used to, because the trails
+   are hidden until asked for and nothing else on screen says they exist */
+.rrg-hint { font-size: var(--fs-label); color: var(--dim); }
+.rrg-hint b { color: var(--muted); font-weight: 600; }
+.rrg-clear { font-size: var(--fs-label); color: var(--accent); background: transparent;
+  border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--border)); border-radius: var(--radius-sm);
+  padding: 4px 11px; cursor: pointer; transition: background .13s ease; }
+.rrg-clear:hover { background: color-mix(in oklch, var(--accent) 12%, transparent); }
 /* quadrant tints stay a whisper — context, not four colored slabs */
 .rrg-q { opacity: 1; }
 /* Ground, not decoration — and no longer P&L. 8% washes made a red half and a
@@ -1723,14 +1737,26 @@ body { background: #0a0b0d; }
 .rrg-q[data-q="weakening"] { fill: none; }
 .rrg-q[data-q="lagging"]   { fill: none; }
 .rrg-q[data-q="improving"] { fill: none; }
-/* One neutral ink for every trail; jade only for the one you are pointing at.
-   Colour here marks FOCUS, not identity — eleven coloured paths crossing each
-   other encode nothing, because the colour came from where the head landed
-   rather than from whose path it is. Width and opacity ramp toward today in JS,
-   which is what carries direction. */
-.rrg-tail { fill: none; stroke: var(--muted); stroke-linecap: round;
-  vector-effect: non-scaling-stroke; transition: opacity .12s ease; }
-.rrg-tail[data-active] { stroke: var(--accent); }
+/* A quarter grid, at a whisper. It exists so the plot reads as a measured space
+   rather than as an empty rectangle with dots in it — with only the centre cross,
+   a dot two thirds of the way out and one just past the middle look alike. */
+.rrg-grid { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 6;
+  vector-effect: non-scaling-stroke; opacity: 0.65; }
+/* ONE trail, jade, and only for the sector you are pointing at. Every trail drawn
+   at once is eleven six-point paths crossing each other in a 600×400 box, and it
+   read as spaghetti in colour and as spaghetti in neutral ink. */
+.rrg-tail { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round;
+  stroke-linejoin: round; vector-effect: non-scaling-stroke;
+  opacity: 0.85; filter: drop-shadow(0 0 4px color-mix(in oklch, var(--accent) 45%, transparent)); }
+.rrg-tail-pt { fill: var(--accent); }
+/* A soft disc under each head, in the head's own colour. It gives an 11-dot
+   scatter presence at this size without enlarging the dot itself, which is what
+   made the plot read as a handful of specks on a dark field. */
+.rrg-halo { pointer-events: none; transition: r .12s ease, opacity .12s ease; }
+.rrg-halo[data-q="leading"]   { fill: color-mix(in oklch, var(--accent) 16%, transparent); }
+.rrg-halo[data-q="improving"] { fill: color-mix(in oklch, var(--accent) 9%, transparent); }
+.rrg-halo[data-q="weakening"] { fill: color-mix(in oklch, var(--caution) 13%, transparent); }
+.rrg-halo[data-q="lagging"]   { fill: color-mix(in oklch, var(--dim) 12%, transparent); }
 /* A strength RAMP, not four categorical hues — and none of them P&L. A quadrant
    is a rotation state; green and red mean money moved, and eleven dots split
    green/red/amber/jade read as four unrelated things rather than as one axis
