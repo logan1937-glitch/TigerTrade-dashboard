@@ -9,6 +9,7 @@ import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT
   computeSignals, compactSig } from "../src/signals.js";
 import { quoteFromChart } from "../api/_quote.js";
 import { extUniverse } from "../api/snapshot.js";
+import { parsePositions, parseNum, parseDate, splitCsvLine } from "../src/importPositions.js";
 
 let pass = 0, fail = 0;
 const eq = (label, got, want) => {
@@ -272,6 +273,78 @@ console.log("\n— peak since entry —");
   eq("a missing industry is an em dash, not an empty label", extUniverse([row("X", 5e9, { industry: null })], core)[0].industry, "—");
   eq("an empty screen yields an empty list", extUniverse([], core).length, 0);
   eq("a failed screen (null) does not throw", extUniverse(null, core).length, 0);
+}
+
+/* ── broker CSV import ─────────────────────────────────────────────────────
+   Every case here is a shape a real export actually has. The rule that matters:
+   a value the file does not give stays empty, never zero — a cost of 0 would
+   read as "acquired for free" and put a fabricated P&L on the book.
+*/
+{
+  eq("a dollar amount loses its formatting", parseNum("$1,234.56"), 1234.56);
+  eq("accounting negatives are negative", parseNum("(87.25)"), -87.25);
+  eq("a broker's blank is null, NOT zero", parseNum("--"), null);
+  eq("so is N/A", parseNum("N/A"), null);
+  eq("and an empty cell", parseNum(""), null);
+  eq("a real zero still parses", parseNum("0"), 0);
+
+  // a company name with a comma shifts every column after it
+  eq("quoted commas do not split a row",
+    splitCsvLine('GOOG,"Alphabet Inc, Class C",10,$100').length, 4);
+  eq("and the columns after it stay put",
+    splitCsvLine('GOOG,"Alphabet Inc, Class C",10,$100')[2], "10");
+
+  eq("ISO dates pass through", parseDate("2025-03-04"), "2025-03-04");
+  eq("US order is assumed when ambiguous", parseDate("03/04/2025"), "2025-03-04");
+  eq("a day over 12 settles the ambiguity", parseDate("25/03/2025"), "2025-03-25");
+  eq("an unparseable date is empty, not today", parseDate("last tuesday"), "");
+
+  // Fidelity-shaped: preamble, named columns out of order, cash and total rows
+  const fidelity = [
+    "Account Summary",
+    "",
+    "Account Name,Symbol,Description,Quantity,Last Price,Average Cost Basis,Cost Basis Total",
+    "Individual,AVGO,BROADCOM INC,120,$312.40,$268.10,\"$32,172.00\"",
+    "Individual,NVDA,NVIDIA CORP,50,$176.05,$120.00,\"$6,000.00\"",
+    "Individual,SPAXX,FIDELITY GOVT MMKT,1000,$1.00,--,--",
+    "Individual,Cash,,,,,",
+    "Individual,Account Total,,,,,\"$38,172.00\"",
+    "Brokerage services provided by Fidelity Brokerage Services LLC.",
+  ].join("\n");
+  const f = parsePositions(fidelity);
+  eq("the header is found below the preamble", f.positional, false);
+  eq("only the real holdings import", f.rows.length, 2);
+  eq("the ticker is right", f.rows[0].tk, "AVGO");
+  eq("shares come from the quantity column", f.rows[0].shares, "120");
+  eq("per-share cost is preferred over the total", f.rows[0].cost, "268.1");
+  eq("the money-market sweep is skipped", f.rows.some((r) => r.tk === "SPAXX"), false);
+  eq("and so is the totals row", f.rows.some((r) => r.tk.includes("TOTAL")), false);
+  eq("skips are reported rather than silent", f.skipped.length > 0, true);
+
+  // Schwab-shaped: only a TOTAL cost basis, so per-share is derived
+  const schwab = 'Symbol,Description,Qty,Price,Cost Basis\nMSFT,MICROSOFT CORP,10,$400.00,"$3,500.00"';
+  const s2 = parsePositions(schwab);
+  eq("a total-only file derives per-share cost", s2.rows[0].cost, "350");
+  eq("and says it derived it", s2.rows[0].derivedCost, true);
+
+  // a file with no usable cost must not invent one
+  const noCost = "Symbol,Quantity,Cost Basis Per Share\nTSLA,25,--";
+  const n = parsePositions(noCost);
+  eq("an unknown cost stays empty", n.rows[0].cost, "");
+  eq("but the position still imports", n.rows[0].tk, "TSLA");
+
+  // this app's own export, which has no recognisable broker header
+  const own = "AAPL,100,150,2025-01-02,\nMSFT,50,300,,";
+  const o = parsePositions(own);
+  eq("our own export falls back to positional", o.positional, true);
+  eq("and reads both rows", o.rows.length, 2);
+  eq("with the entry date intact", o.rows[0].entry, "2025-01-02");
+
+  // two lots of one name: keep one row rather than blend a basis we were not given
+  const lots = "Symbol,Quantity,Average Cost\nNVDA,10,100\nNVDA,20,200";
+  const l = parsePositions(lots);
+  eq("repeated lots collapse to one position", l.rows.length, 1);
+  eq("and the collapse is counted", l.lots, 1);
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);

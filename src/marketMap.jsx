@@ -463,14 +463,37 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
             const fill = flat
               ? "color-mix(in oklch, var(--text) 5%, var(--surface))"
               : `color-mix(in oklch, ${up ? "var(--cat-growth)" : "var(--sev-extreme)"} ${Math.round(alpha * 100)}%, var(--surface))`;
-            const showTk = t.w > 5.5 && t.h > 4;
-            const showPct = t.w > 8.5 && t.h > 7;
+            /* Type scaled to the TILE, which is the whole difference between a
+               treemap and a grid of coloured rectangles. A fixed 10.5px ticker
+               gave the largest holding in the market the same label as a sliver,
+               so the size encoding — the thing a treemap exists for — was
+               carried by area alone and read as noise.
+
+               `cqw`/`cqh` against the container: a tile `t.w`% wide is `t.w cqw`
+               wide, so this stays correct at every viewport instead of assuming
+               a map width. Bounded at both ends — under 9px is unreadable, over
+               34px a ticker starts crowding its own tile. */
+            /* Width per character, not per tile: a 4-letter ticker needs a third
+               more room than a 3-letter one at the same size, and ignoring that
+               is what clipped DDOG while AMD sat comfortably. 0.80em is the cap
+               advance in Space Grotesk 700 — the display face is wider than the
+               mono one, which is what the first pass at this got wrong. */
+            const wCoef = 0.94 / (t.r.tk.length * 0.80 + 0.6);
+            const tkSize = `clamp(8px, min(${(t.w * wCoef).toFixed(3)}cqw, ${(t.h * 0.34).toFixed(2)}cqh), 34px)`;
+            const pctSize = `clamp(8px, min(${(t.w * 0.17).toFixed(2)}cqw, ${(t.h * 0.24).toFixed(2)}cqh), 17px)`;
+            // thresholds drop with the type: a tile that can hold 9px of ticker
+            // shows one, and the percentage needs about a line and a half more
+            const showTk = t.w > 3.4 && t.h > 2.6;
+            const showPct = t.w > 6 && t.h > 5;
             return (
               <button key={t.r.tk} className="mm-heat-tile" onClick={() => onOpenStock({ tk: t.r.tk })}
                 title={`${t.r.tk} · ${t.r.sector}${t.chg != null ? ` · ${up ? "+" : ""}${t.chg.toFixed(1)}% (${tf})` : ""}`}
                 style={{ left: px(t.x), top: py(t.y), width: px(t.w), height: py(t.h), background: fill }}>
-                {showTk && <span className="mm-heat-tk">{t.r.tk}</span>}
-                {showPct && t.chg != null && <span className="mm-heat-pct mono" data-up={up}>{up ? "+" : ""}{t.chg.toFixed(1)}%</span>}
+                {showTk && <span className="mm-heat-tk" style={{ fontSize: tkSize }}>{t.r.tk}</span>}
+                {showPct && t.chg != null && (
+                  <span className="mm-heat-pct mono" data-up={up} style={{ fontSize: pctSize }}>
+                    {up ? "+" : ""}{t.chg.toFixed(1)}%</span>
+                )}
               </button>
             );
           })}

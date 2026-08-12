@@ -5,6 +5,7 @@
 // (no price yet, no cost basis entered) renders as "—" rather than an estimate.
 import { useMemo, useState } from "react";
 import { usePositions, NA, Chip, FigPct } from "./components.jsx";
+import { parsePositions } from "./importPositions.js";
 import { atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
@@ -82,22 +83,8 @@ const CSV_HEAD = "ticker,shares,cost,entry,reports";
 const toCsv = (list) => [CSV_HEAD, ...list.map((p) =>
   [p.tk, p.shares ?? "", p.cost ?? "", p.entry ?? "", p.ern ?? ""].join(","))].join("\n");
 
-// Tolerant on purpose: a header row is optional, blank cells stay blank rather
-// than becoming 0, and a row whose ticker is unusable is skipped rather than
-// aborting the whole import.
-function parseCsv(text) {
-  const out = [];
-  for (const line of String(text || "").split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t || /^ticker\s*,/i.test(t)) continue;
-    const [tk, sh, cost, entry, ern] = t.split(",").map((x) => (x || "").trim());
-    const sym = (tk || "").toUpperCase().replace(/[^A-Z0-9.\-]/g, "");
-    if (!sym) continue;
-    out.push({ tk: sym, shares: sh, cost, entry, ern });
-  }
-  return out;
-}
-
+/* Parsing lives in importPositions.js so it can be unit-tested without React —
+   it is the piece most likely to meet a file shape nobody anticipated. */
 export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null }) {
   // the ATR multiple for the trailing stop. 1.5 is the default; it is a
   // portfolio-wide setting rather than per-position because it is a rule you
@@ -225,7 +212,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
     </button>
   );
 
-  const [ioMsg, setIoMsg] = useState("");
+  const [ioRes, setIoRes] = useState(null);
   const exportCsv = () => {
     const blob = new Blob([toCsv(pos.list)], { type: "text/csv" });
     const a = document.createElement("a");
@@ -233,18 +220,43 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
     a.download = `tigertrade-positions-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
-    setIoMsg(`Exported ${pos.list.length} position${pos.list.length === 1 ? "" : "s"}.`);
+    setIoRes({ head: `Exported ${pos.list.length} position${pos.list.length === 1 ? "" : "s"}.`, detail: "ticker, shares, cost, entry date, report date" });
   };
+  /* Says what it did, in the file's own terms. A half-import that reports
+     success is the worst outcome here — you would size against a book quietly
+     missing two positions — so the count taken, the count skipped and the
+     reason for each skip all get stated. */
   const importCsv = async (file) => {
     if (!file) return;
     try {
-      const parsed = parseCsv(await file.text());
-      if (!parsed.length) { setIoMsg("No usable rows in that file."); return; }
+      const r = parsePositions(await file.text());
+      if (!r.rows.length) {
+        setIoRes({ bad: true, head: "Nothing importable in that file.",
+          detail: r.skipped.length
+            ? `Read ${r.skipped.length} row${r.skipped.length === 1 ? "" : "s"}, none of which had a usable ticker.`
+            : "No rows with a ticker in them. A CSV with a Symbol or Ticker column is what this expects." });
+        return;
+      }
       // adds and updates, never deletes — an import should not silently drop a
       // position that simply is not in the file
-      for (const p of parsed) pos.add(p.tk, p.shares, p.cost, p.ern, p.entry);
-      setIoMsg(`Imported ${parsed.length} row${parsed.length === 1 ? "" : "s"} — existing tickers were updated, none removed.`);
-    } catch { setIoMsg("Could not read that file."); }
+      for (const p of r.rows) pos.add(p.tk, p.shares, p.cost, p.ern, p.entry);
+      const bits = [];
+      if (r.positional) bits.push("no column headers recognised, so it was read in this app's own export order");
+      else bits.push(`matched your ${r.mapped.join(", ")} column${r.mapped.length === 1 ? "" : "s"}`);
+      if (r.lots) bits.push(`${r.lots} repeat lot${r.lots === 1 ? "" : "s"} collapsed to one row each`);
+      const derived = r.rows.filter((x) => x.derivedCost).length;
+      if (derived) bits.push(`${derived} cost basis derived from a total ÷ shares`);
+      const noCost = r.rows.filter((x) => !x.cost).length;
+      if (noCost) bits.push(`${noCost} with no cost basis in the file — left blank, not zeroed`);
+      const bySkip = {};
+      for (const sk of r.skipped) bySkip[sk.why] = (bySkip[sk.why] || 0) + 1;
+      const skipTxt = Object.entries(bySkip).map(([w, n]) => `${n} ${w}`).join(" · ");
+      setIoRes({
+        head: `Imported ${r.rows.length} position${r.rows.length === 1 ? "" : "s"}. Existing tickers updated, none removed.`,
+        detail: bits.join(" · "),
+        skip: skipTxt ? `Skipped ${skipTxt}.` : "",
+      });
+    } catch { setIoRes({ bad: true, head: "Could not read that file.", detail: "It needs to be a text CSV export." }); }
   };
 
   return (
@@ -338,13 +350,23 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
         <span className="pf-io">
           <button className="seg-btn" onClick={exportCsv} disabled={!pos.list.length}
             title="Download the book as CSV — ticker, shares, cost, entry date, report date">Export CSV</button>
-          <label className="seg-btn pf-io-imp" title="Load a CSV back in. Tickers already in the book are updated; nothing is removed.">
-            Import
-            <input type="file" accept=".csv,text/csv" onChange={(e) => { importCsv(e.target.files && e.target.files[0]); e.target.value = ""; }} />
+          <label className="seg-btn pf-io-imp"
+            title="A CSV from your broker, or one this app exported. Columns are matched by name — Symbol, Quantity, Average Cost and so on — so the order does not matter. Tickers already in the book are updated; nothing is removed.">
+            Import a CSV
+            <input type="file" accept=".csv,.txt,text/csv,text/plain"
+              onChange={(e) => { importCsv(e.target.files && e.target.files[0]); e.target.value = ""; }} />
           </label>
-          {ioMsg && <span className="pf-io-msg mono">{ioMsg}</span>}
         </span>
       </div>
+
+      {ioRes && (
+        <div className="pf-io-res" data-bad={ioRes.bad || undefined} role="status">
+          <button className="pf-io-x" onClick={() => setIoRes(null)} aria-label="Dismiss">✕</button>
+          <div className="pf-io-head">{ioRes.head}</div>
+          {ioRes.detail && <div className="pf-io-det mono">{ioRes.detail}</div>}
+          {ioRes.skip && <div className="pf-io-det mono">{ioRes.skip}</div>}
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <div className="empty" style={{ marginTop: 18 }}>
