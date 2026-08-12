@@ -255,6 +255,23 @@ function IndustryGroups({ rows, onOpenStock }) {
    Quadrant tints are contextual only — identity is always a direct label. */
 const QUAD = (p) => (p.ratio >= 100 ? (p.mom >= 100 ? "leading" : "weakening") : (p.mom >= 100 ? "improving" : "lagging"));
 
+/* The four states in the order a momentum trader cares about them, each with the
+   sentence that says what it MEANS rather than what it is called. "Weakening" is
+   the one everybody reads backwards — it is the strong-but-rolling-over corner,
+   not the weak one — so the description does the work the label cannot.
+   Listed beside the plot: reading a dot's position is a decoding step, and the
+   whole point of the roster is that it removes it. */
+// ordered by what a momentum screener is looking for, not by the rotation cycle:
+// the two states worth acting on sit at the top of the column
+const QUADRANTS = [
+  { id: "leading", label: "Leading", desc: "stronger than the S&P, and still gaining" },
+  { id: "improving", label: "Improving", desc: "still weaker, but momentum has turned up" },
+  { id: "weakening", label: "Weakening", desc: "still stronger, but momentum has turned down" },
+  { id: "lagging", label: "Lagging", desc: "weaker than the S&P, and still losing" },
+];
+// a long tail of names would push the plot off screen; the overflow is stated
+const ROSTER_MAX = 8;
+
 /* The viewBox has to match the BOX, or the SVG letterboxes inside it while the
    HTML label overlay — positioned in percentages of the box — keeps using the
    full height. The phone rule set `aspect-ratio: 1/1` on the container without
@@ -274,11 +291,31 @@ const useNarrow = () => {
   return n;
 };
 
+/* Is there content below the fold of a scroller, right now? The roster's fade
+   has to answer that and nothing else: shown unconditionally it washed out the
+   footer line in Sectors mode, where the list fits and there is nothing below —
+   a scroll affordance pointing at content that does not exist. */
+function useHasMore(ref, deps) {
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const read = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+    read();
+    el.addEventListener("scroll", read, { passive: true });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(read) : null;
+    if (ro) ro.observe(el);
+    return () => { el.removeEventListener("scroll", read); if (ro) ro.disconnect(); };
+  }, deps);
+  return more;
+}
+
 function RelativeRotation({ rows, onOpenStock }) {
   const narrow = useNarrow();
   const [mode, setMode] = useState("sectors");
   const [hover, setHover] = useState(null);
   const [pinned, setPinned] = useState(null);   // tapped sector whose tail stays shown
+  const rosterRef = useRef(null);
 
   const entities = useMemo(() => {
     // each name's 6-point rotation tail is precomputed on the snapshot (rrgOf).
@@ -294,6 +331,9 @@ function RelativeRotation({ rows, onOpenStock }) {
     }
     return withTail.map(({ r, tail }) => ({ id: r.tk, label: r.tk, tail, head: tail[tail.length - 1], kind: "name", score: r.score || 0 }));
   }, [rows, mode]);
+  // above the early return: a hook that runs only when there is data is a hook
+  // whose order changes between renders
+  const rosterMore = useHasMore(rosterRef, [entities, mode, narrow]);
 
   if (entities.length < 2) return <div className="empty">Waiting for live data…</div>;
 
@@ -347,8 +387,13 @@ function RelativeRotation({ rows, onOpenStock }) {
 
   const hv = entities.find((e) => e.id === (hover ?? pinned)) || null;
 
+  // the same entities, bucketed by where their head sits, strongest first
+  const byQuad = {};
+  for (const e of entities) (byQuad[QUAD(e.head)] = byQuad[QUAD(e.head)] || []).push(e);
+  for (const k of Object.keys(byQuad)) byQuad[k].sort((a, b) => b.head.ratio - a.head.ratio);
+
   return (
-    <div className="mm-scatter" style={{ position: "relative" }}>
+    <div className="mm-scatter">
       <div className="rrg-toolbar">
         <div className="seg">
           {[["sectors", "Sectors"], ["names", "Names"]].map(([id, l]) => (
@@ -357,6 +402,7 @@ function RelativeRotation({ rows, onOpenStock }) {
         </div>
         <span className="dr-sec-sub mono">{mode === "sectors" ? "tap a sector to trace its 6-week path" : "tap a name for analysis · hover to trace"}</span>
       </div>
+      <div className="rrg-wrap">
       {/* geometry in SVG; ALL text lives in the HTML overlay below so it renders
           at true pixel size instead of scaling up with the viewBox */}
       <div className="rrg-plot">
@@ -437,10 +483,16 @@ function RelativeRotation({ rows, onOpenStock }) {
           <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>Improving</span>
           <span className="rrg-cap" style={{ left: `${((padL + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Lagging</span>
           <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, bottom: `${((padB + 4) / H) * 100}%` }}>Weakening</span>
-          {/* what the two axes actually are. Without these the quadrant names are
-              four words with nothing behind them. */}
-          <span className="rrg-axis" data-ax="x">RS-Ratio vs S&amp;P 500 →</span>
-          <span className="rrg-axis" data-ax="y">RS-Momentum ↑</span>
+          {/* Each axis names itself AND both of its directions. "RS-Ratio vs S&P
+              500 →" told you what the axis was measuring and left you to work out
+              which way was good; a reader who has to consult the paragraph under
+              the chart to know which end is which cannot read the chart. */}
+          <span className="rrg-axis" data-ax="x">
+            <i>weaker</i><b>RS-Ratio vs S&amp;P 500</b><i>stronger</i>
+          </span>
+          <span className="rrg-axis" data-ax="y">
+            <i>losing</i><b>RS-Momentum</b><i>gaining</i>
+          </span>
           {/* pinned to the actual zero line, not to 50% — padL and padR differ, so
               the centre of the box is 6 viewBox units off the 100 gridline and the
               label sat visibly beside the axis it names */}
@@ -454,15 +506,78 @@ function RelativeRotation({ rows, onOpenStock }) {
             );
           })}
         </div>
+        {/* INSIDE the plot box. Its offsets are percentages of the viewBox, and
+            the plot is a fixed-aspect box centred in a much wider panel — anchored
+            to the panel the readout drifted further from its dot the wider the
+            screen got. */}
+        {hv && (
+          <div className="pchart-tip" style={{ left: `${(x(hv.head.ratio) / W) * 100}%`, top: `${Math.max(0, (y(hv.head.mom) / H) * 100 - 15)}%`,
+            transform: x(hv.head.ratio) > W * 0.7 ? "translateX(-100%)" : x(hv.head.ratio) < W * 0.2 ? "none" : "translateX(-50%)" }}>
+            <span className="pchart-tip-p mono">{hv.label}{hv.kind === "sector" ? ` · ${hv.n} names` : ""}</span>
+            <span className="pchart-tip-d mono" style={{ textTransform: "capitalize" }}>{QUAD(hv.head)}</span>
+            <span className="pchart-tip-d mono">Ratio {hv.head.ratio.toFixed(1)} · Mom {hv.head.mom.toFixed(1)}</span>
+          </div>
+        )}
       </div>
-      {hv && (
-        <div className="pchart-tip" style={{ left: `${(x(hv.head.ratio) / W) * 100}%`, top: `${Math.max(0, (y(hv.head.mom) / H) * 100 - 15)}%`,
-          transform: x(hv.head.ratio) > W * 0.7 ? "translateX(-100%)" : x(hv.head.ratio) < W * 0.2 ? "none" : "translateX(-50%)" }}>
-          <span className="pchart-tip-p mono">{hv.label}{hv.kind === "sector" ? ` · ${hv.n} names` : ""}</span>
-          <span className="pchart-tip-d mono" style={{ textTransform: "capitalize" }}>{QUAD(hv.head)}</span>
-          <span className="pchart-tip-d mono">Ratio {hv.head.ratio.toFixed(1)} · Mom {hv.head.mom.toFixed(1)}</span>
-        </div>
-      )}
+
+      {/* The roster. A dot's position IS the reading, but decoding eleven of them
+          is work, and the answer a user actually wants — "who is leading?" — is a
+          list. It also fills the panel width the fixed-aspect plot leaves empty,
+          and it carries the one thing the corner labels cannot: what each state
+          MEANS. Hover and pin are shared with the plot, so pointing at a row
+          traces its path on the chart. */}
+      {/* The column is a positioning context and the roster fills it absolutely,
+          which is what pins the roster to the PLOT's height without measuring it:
+          an absolute child contributes nothing to the grid row, so the row is
+          sized by the plot alone and the roster scrolls inside whatever that is.
+          In Names mode there are ~44 entities and the roster would otherwise run
+          hundreds of pixels past the chart. */}
+      <div className="rrg-roster-col">
+      {/* says "there is more below" — without it the list ends on a card sliced
+          through its own header, which reads as a layout fault rather than a
+          scroll boundary */}
+      {rosterMore && <span className="rrg-roster-fade" aria-hidden="true" />}
+      <div className="rrg-roster" ref={rosterRef}>
+        {QUADRANTS.map((q) => {
+          const list = byQuad[q.id] || [];
+          const shown = list.slice(0, ROSTER_MAX);
+          return (
+            <div className="rrg-qgrp" key={q.id}>
+              <div className="rrg-qgrp-h">
+                <span className="rrg-qdot" data-q={q.id} aria-hidden="true" />
+                <span className="rrg-qgrp-t mono">{q.label}</span>
+                <span className="rrg-qgrp-n mono">{list.length}</span>
+              </div>
+              <p className="rrg-qgrp-d">{q.desc}</p>
+              {shown.map((e) => {
+                const active = hover === e.id || pinned === e.id;
+                return (
+                  <button key={e.id} className="rrg-rrow" data-active={active || undefined}
+                    onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
+                    onFocus={() => setHover(e.id)} onBlur={() => setHover(null)}
+                    onClick={() => (e.kind === "name" ? onOpenStock({ tk: e.id }) : setPinned((v) => (v === e.id ? null : e.id)))}
+                    title={e.kind === "name" ? `${e.id} — open full analysis` : `Trace ${e.label}'s six-week path`}>
+                    <span className="rrg-rrow-l">{e.label}</span>
+                    <span className="rrg-rrow-v mono">{e.head.ratio.toFixed(1)}</span>
+                    <span className="rrg-rrow-v mono">{e.head.mom.toFixed(1)}</span>
+                  </button>
+                );
+              })}
+              {/* never a silent truncation — a roster that quietly stopped at eight
+                  would read as "these are all of them" */}
+              {list.length > shown.length && (
+                <p className="rrg-qgrp-e mono">+{list.length - shown.length} more, ranked below the top {ROSTER_MAX}</p>
+              )}
+              {!list.length && <p className="rrg-qgrp-e mono">none</p>}
+            </div>
+          );
+        })}
+        <p className="rrg-roster-f mono">
+          Ranked by RS-Ratio. The two figures are Ratio and Momentum, both against 100.
+        </p>
+      </div>
+      </div>
+      </div>
     </div>
   );
 }
@@ -672,8 +787,12 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) 
       <div className="mm-scatter-card">
         <RelativeRotation rows={rows} onOpenStock={onOpenStock} />
         <p className="mono mm-rrg-note">
-          <b>Reading it:</b> right = outperforming the S&amp;P; up = that outperformance is accelerating. Names rotate clockwise through
-          Improving → Leading → Weakening → Lagging.
+          {/* the axes now name both of their own directions, so this no longer
+              repeats them; what is left is what the picture cannot say by itself */}
+          <b>Reading it:</b> each dot is where its sector — or its name, on the Names tab — sits today; the trail behind it is the last three weeks, so
+          direction is the reading and position is only the starting point. Rotation runs clockwise —
+          Improving → Leading → Weakening → Lagging — and a full turn takes months, not days.
+          Point at anything, on the chart or in the list, to trace its whole six-week path.
           <span style={{ opacity: .7 }}> Our approximation of the relative-rotation concept popularized by Julius de Kempenaer (RRG Research); not the proprietary JdK RS-Ratio / RS-Momentum. Educational use only.</span>
         </p>
       </div>

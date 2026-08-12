@@ -222,7 +222,9 @@ graph's quadrants** — leading was green, lagging red, for a rotation state tha
 is not a gain. Its heads are now a strength *ramp* rather than four categorical
 hues: jade solid leading, desaturated jade improving, `--caution` weakening,
 `--dim` lagging. Four hues also fails CVD, and the corner labels already name the
-quadrants, so colour only has to rank them. Still on P&L green and
+quadrants, so colour only has to rank them — and `.rrg-qdot` in the roster is now
+the key to that ramp as well as the only place the four states are defined in
+words. Still on P&L green and
 open to the same argument: the LEADERS pass letters and the buy-status pill. `--pl-up` /
 `--pl-down` are the names to reach for; `--cat-growth` / `--sev-extreme` still
 resolve to them because the Growth event category and the Extreme severity band
@@ -371,6 +373,15 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   390px gave a 356×237 plot in a 356×356 box with every label placed against the
   356. Both shapes are declared in `marketMap.jsx` now (600:400 wide, 440:430
   narrow) and the CSS only mirrors them — change one, change the other.
+- **A flex row of topbar controls does not shrink, it overflows.** Between 641px
+  and ~1050px the topbar carries all six controls (below 640 it gives up three),
+  and a flex item is under no obligation to go below its max-content width — so
+  the row grew past the viewport and pushed the theme toggle off the right edge:
+  `document.scrollWidth` 1031 against `clientWidth` 1000, on **every view**.
+  `.nav-pills` now carries `min-width: 0` and its own scroll strip at all widths,
+  the same treatment `.seg` gets on the filter rows. Measure with the loop in
+  **Verifying UI changes**, not by eye — a screenshot taken before anything
+  scrolls the page looks perfect.
 - **A de-collision gap in viewBox units is not a gap in pixels.** The RRG's
   `GAP` spaces labels that render at a fixed px size: 13 units is 18.6px on the
   860px desktop plot and 10.5px on the phone, i.e. narrower than the label. It is
@@ -409,7 +420,8 @@ never happened look like a success.
 `rrgnames` and `rrgpin` shoot the rotation graph's two hardest states, neither of
 which the plain `map` shot reaches: ~50 dots with only the top 8 labelled, and one
 sector pinned so the focus treatment (every other tail dims, the pinned one draws
-its full path in jade) is actually in a picture.
+its full path in jade) is actually in a picture. `rrgnames` is also the only shot
+where the **roster overflows** — it is the state its scroll fade exists for.
 
 The fixture gives every name a sector AND an industry from `FIX_SECTORS`, and a
 6-point `rrg` tail. Both were flat for a long time, and the cost was silent: one

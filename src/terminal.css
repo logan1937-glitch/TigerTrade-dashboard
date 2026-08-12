@@ -251,7 +251,16 @@ body { background: #0a0b0d; }
 .brand .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
   margin-right: 9px; align-self: center; box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent); }
 
-.nav-pills { display: flex; gap: 4px; }
+/* `min-width: 0` and its own scroll strip, not just on a phone. Between 641px
+   and ~1050px the topbar carries all six controls, and a flex item is under no
+   obligation to shrink below its max-content — so the row grew past the viewport
+   and pushed the theme toggle off the right edge, measured as
+   `document.scrollWidth` 1031 against a clientWidth of 1000. The whole document
+   then scrolls sideways, which reads as broken on every view, not just this one.
+   Same treatment `.seg` gets on the filter rows: overflow scrolls INSIDE the
+   strip rather than dragging the page with it. */
+.nav-pills { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nav-pills::-webkit-scrollbar { display: none; }
 .navpill {
   font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase;
   font-weight: 600; color: var(--dim);
@@ -1741,18 +1750,93 @@ body { background: #0a0b0d; }
    circle resolves to the inherited text colour, so the focused head bloomed
    near-white — the loudest thing on the chart, and a colour that means nothing
    here. */
-.rrg-head[data-active] { stroke: var(--text);
+.rrg-head[data-active] { stroke: color-mix(in oklch, var(--text) 55%, transparent); stroke-width: 1.6;
   filter: drop-shadow(0 0 4px color-mix(in oklch, var(--accent) 70%, transparent)); }
-.rrg-axis { position: absolute; font-family: var(--font-mono); font-size: var(--fs-micro);
+/* The axis name in the middle, its two directions pushed to the ENDS of the axis
+   they describe. Adjacent to the name they read as a run-on phrase; at the ends,
+   position states the direction and no arrow glyph is needed — which matters,
+   because an arrow inside a rotated label is rotated too. */
+.rrg-axis { position: absolute; display: flex; align-items: baseline; justify-content: space-between;
+  font-family: var(--font-mono); font-size: var(--fs-micro);
   font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.rrg-axis i { flex: none; font-style: normal; font-weight: 500;
+  color: color-mix(in oklch, var(--dim) 70%, transparent); }
+/* the name stays centred on the axis whatever the two end words measure */
+.rrg-axis b { flex: 1; text-align: center; font-weight: 600; }
 /* clear of the frame the plot now carries — at 2px both captions sat on the
    hairline */
-.rrg-axis[data-ax="x"] { bottom: 6px; left: 50%; transform: translateX(-50%); }
-.rrg-axis[data-ax="y"] { left: 7px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
+.rrg-axis[data-ax="x"] { left: 0; right: 0; bottom: 6px; padding: 0 26px; }
+/* `writing-mode`, not `rotate(-90deg)`: a rotated inline box still lays out
+   horizontally, so space-between would distribute left-to-right and both end
+   words would stack on each other. vertical-rl + rotate(180) runs the inline axis
+   bottom-to-top, which is what the y axis means. */
+.rrg-axis[data-ax="y"] { left: 4px; top: 0; bottom: 0; writing-mode: vertical-rl;
+  transform: rotate(180deg); padding: 30px 0; }
 .rrg-origin { position: absolute; bottom: 22px; transform: translateX(-50%);
   font-size: var(--fs-micro); color: var(--dim); background: color-mix(in oklch, var(--panel) 80%, transparent);
   padding: 0 4px; border-radius: 3px; }
+/* Dropped on a phone: the plot is a third of its desktop width, the origin sits
+   at dead centre-bottom, and a sector label landed on top of it (measured —
+   "100" over "Basic Materials"). The roster's footer states the 100 baseline in
+   words, so nothing is lost but the collision. */
+@media (max-width: 640px) { .rrg-origin { display: none; } }
 .rrg-lbl-conn { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.55; }
+
+/* ── the roster beside the plot ──────────────────────────────────────────
+   The plot is a fixed 600:400 box capped at 860px, so on a desktop it leaves a
+   few hundred pixels of panel doing nothing. The roster fills them with the
+   answer the chart is asked for — "who is leading?" — which a scatter can only
+   give after you decode eleven dot positions. `minmax(0, …)` on the plot column
+   so the SVG can shrink; a grid item's default `min-width: auto` would let it
+   push the roster off the panel instead. */
+.rrg-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(268px, 320px);
+  gap: 22px; align-items: stretch; }
+/* the roster is absolute inside this, so the grid row is sized by the PLOT and
+   the roster scrolls to fit it rather than running past the chart in Names mode */
+.rrg-roster-col { position: relative; min-height: 0; }
+/* above the roster in the stacking order, so it sits over the scrolled content */
+.rrg-roster-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; z-index: 2;
+  pointer-events: none; background: linear-gradient(to top, var(--surface), transparent); }
+.rrg-roster { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-right: 4px; }
+@media (max-width: 1120px) {
+  .rrg-wrap { grid-template-columns: 1fr; }
+  /* stacked, there is no height to fit — let it run at its natural size */
+  .rrg-roster-col { position: static; }
+  .rrg-roster { position: static; overflow: visible; padding-right: 0; margin-top: 14px; }
+  .rrg-roster-fade { display: none; }
+}
+/* on a narrow screen the four groups sit side by side rather than in one long
+   column under the plot — the whole roster is above the fold either way */
+@media (min-width: 641px) and (max-width: 1120px) {
+  .rrg-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+  .rrg-roster-f { grid-column: 1 / -1; }
+}
+.rrg-qgrp { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 9px 10px 8px;
+  background: color-mix(in oklch, var(--panel) 55%, transparent); }
+.rrg-qgrp-h { display: flex; align-items: center; gap: 7px; }
+.rrg-qgrp-t { font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--track-label);
+  text-transform: uppercase; color: var(--text); }
+.rrg-qgrp-n { margin-left: auto; font-size: var(--fs-micro); color: var(--dim); font-variant-numeric: tabular-nums; }
+/* the key to the head colours, and the only place the four states are defined */
+.rrg-qdot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.rrg-qdot[data-q="leading"]   { background: var(--accent); }
+.rrg-qdot[data-q="improving"] { background: color-mix(in oklch, var(--accent) 55%, var(--muted)); }
+.rrg-qdot[data-q="weakening"] { background: var(--caution); }
+.rrg-qdot[data-q="lagging"]   { background: var(--dim); }
+/* prose, so --font-ui at a readable line height — this is the sentence that does
+   the explaining, and .mono would turn it into a code block */
+.rrg-qgrp-d { font-size: var(--fs-label); line-height: 1.5; color: var(--muted); margin: 3px 0 7px; }
+.rrg-qgrp-e { font-size: var(--fs-micro); color: var(--dim); margin: 4px 0 0; }
+.rrg-rrow { display: grid; grid-template-columns: minmax(0, 1fr) 42px 42px; align-items: center; gap: 6px;
+  width: 100%; padding: 4px 5px; border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .12s ease; }
+.rrg-rrow:hover, .rrg-rrow:focus-visible { outline: none; background: var(--surface-2); }
+.rrg-rrow[data-active] { background: color-mix(in oklch, var(--accent) 15%, transparent); }
+.rrg-rrow-l { font-size: var(--fs-label); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rrg-rrow-v { font-size: var(--fs-micro); color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+.rrg-rrow[data-active] .rrg-rrow-v { color: var(--muted); }
+.rrg-roster-f { font-size: var(--fs-micro); line-height: 1.5; color: var(--dim); margin: 0; }
 .mm-scatter svg { display: block; width: 100%; }
 @media (max-width: 640px) { .mm-scatter svg { min-height: 340px; } .mm-dot-label { font-size: var(--fs-micro); } }
 .mm-rrg-note { font-size: var(--fs-label); line-height: 1.6; color: var(--muted); margin: 10px 2px 2px; max-width: 78ch; }
