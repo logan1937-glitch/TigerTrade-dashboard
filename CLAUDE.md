@@ -212,12 +212,17 @@ properties across four themes.
 It implements the **Ember** brand handoff. One rule governs it: **amber is
 brand, jade is signal and interaction, green and red are P&L and nothing else.**
 Green/red are the only colours in the product that mean money moved, so spending
-them on a decorative success state costs them that meaning. Three surfaces have
+them on a decorative success state costs them that meaning. Four surfaces have
 been taken off them because they are not money: the screener's **trend spark**
 (one brand amber, because a line's direction is its shape and the Δ column an
 inch away already carries the sign), the **score** column's top tier (amber —
-a leadership score is a model output), and **off-high** (jade for the leadership
-band, `--caution` beyond it — a distance is a signal). Still on P&L green and
+a leadership score is a model output), **off-high** (jade for the leadership
+band, `--caution` beyond it — a distance is a signal), and the **rotation
+graph's quadrants** — leading was green, lagging red, for a rotation state that
+is not a gain. Its heads are now a strength *ramp* rather than four categorical
+hues: jade solid leading, desaturated jade improving, `--caution` weakening,
+`--dim` lagging. Four hues also fails CVD, and the corner labels already name the
+quadrants, so colour only has to rank them. Still on P&L green and
 open to the same argument: the LEADERS pass letters and the buy-status pill. `--pl-up` /
 `--pl-down` are the names to reach for; `--cat-growth` / `--sev-extreme` still
 resolve to them because the Growth event category and the Extreme severity band
@@ -346,6 +351,34 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   Note `position: sticky` on that panel does **not** work (a plain sibling in
   the same container sticks fine; the scroll container does not) — don't reach
   for it as a shortcut.
+- **A container unit cannot subtract a fixed padding, so it cannot decide
+  whether text fits.** The Market Map's tile type was sized in `cqw`/`cqh` — a
+  proportion of the map — while the text is laid out inside the tile *minus* 8px
+  of padding and 2px of border. That is 4% of a large tile and 29% of a 35px
+  one, so tickers fit everywhere except where it mattered. Worse, the `clamp()`
+  carried an 8px floor, which turns "does not fit" into "draw it anyway at the
+  smallest size": PLTR rendered as **`PLIR`** and GOOGL as `GOO`. A clipped
+  ticker is not a truncated label, it is a **different, plausible ticker** on a
+  trading screen — the same class of failure as a fabricated number. Tile type
+  now comes from a `ResizeObserver` in real pixels, and a label whose fitted size
+  lands under 8px is **dropped**; the tile keeps its tooltip and its click.
+  Confirm with `scrollWidth > clientWidth` on `.mm-heat-tk`, not by eye.
+- **An SVG viewBox and its container must be the same shape.** `preserveAspect
+  Ratio="xMidYMid meet"` letterboxes inside a box of a different aspect — and the
+  RRG's labels live in an **HTML overlay positioned in percentages of the box**,
+  so they drift off the plot rather than moving with it. The phone rule set
+  `aspect-ratio: 1/1` on `.rrg-plot` while the viewBox stayed 600:400, which at
+  390px gave a 356×237 plot in a 356×356 box with every label placed against the
+  356. Both shapes are declared in `marketMap.jsx` now (600:400 wide, 440:430
+  narrow) and the CSS only mirrors them — change one, change the other.
+- **A de-collision gap in viewBox units is not a gap in pixels.** The RRG's
+  `GAP` spaces labels that render at a fixed px size: 13 units is 18.6px on the
+  860px desktop plot and 10.5px on the phone, i.e. narrower than the label. It is
+  branched on width for that reason. Related: labels de-collide **per side** on a
+  wide plot and **globally** on a narrow one — splitting by side stops two stacks
+  fighting when there is horizontal room, but when a label is a third of the box
+  wide, a left-anchored and a right-anchored label land on the same row and
+  overlap ("Consumer Cyclical" on "Healthcare"). One global stack cannot.
 
 ## Verifying UI changes
 
@@ -360,7 +393,8 @@ npm run shots -- --views radar --live                   # against real APIs
 
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
-`vol`, `volsort`, `watch`, `screener`, `screenerext`, `map`, `health`, `playbook`, `portfolio`, `drawer`.
+`vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`, `map`, `rrgnames`,
+`rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`.
 The `watch` shot seeds all four watchlist row states — a curated event, a **live
 econ** event, a star whose release has left the calendar window, and a ticker —
 and the fixture now answers `/api/fmp?endpoint=economic-calendar`, so the merged
@@ -372,11 +406,23 @@ actually merges in a shot — `?tier=ext` is routed to its own fixture, and the
 route test checks it **before** the core one because the ext URL contains
 `/api/snapshot` too; answering it with the core payload would make a merge that
 never happened look like a success.
+`rrgnames` and `rrgpin` shoot the rotation graph's two hardest states, neither of
+which the plain `map` shot reaches: ~50 dots with only the top 8 labelled, and one
+sector pinned so the focus treatment (every other tail dims, the pinned one draws
+its full path in jade) is actually in a picture.
+
 The fixture gives every name a sector AND an industry from `FIX_SECTORS`, and a
 6-point `rrg` tail. Both were flat for a long time, and the cost was silent: one
 industry meant the group panel rendered a single group, and a missing `rrg` left
 the whole relative-rotation panel on "Waiting for live data…" in every shot ever
-taken. A fixture that under-varies doesn't fail — it just stops testing.
+taken. **`FIX_SECTORS` was then six sectors against production's eleven, and six
+is the density at which every sector-cardinality problem hides** — labels never
+collided, tails never crossed, and "draw every tail coloured by its quadrant"
+shipped looking clean and arrived as spaghetti. It matches `sectors.rows` now.
+The `rrg` tail is anchored to the name's SECTOR with per-name jitter, because
+keying it off `i` alone (co-prime with the sector stride) averaged every sector to
+within a point of 100 and piled all eleven heads into one blob at the origin.
+A fixture that under-varies doesn't fail — it just stops testing.
 Read the PNGs — page errors are reported inline next to each shot.
 
 The radar's 4th tab used to be **Catalysts** (internal id `playbook`) — a third

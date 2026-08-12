@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useStored } from "./store.js";
 import { rrgTail, RET_KEY } from "./signals.js";
 import { SearchIcon } from "./components.jsx";
@@ -6,8 +6,9 @@ import { SearchIcon } from "./components.jsx";
 // ── Market Map: sector momentum heatmap + relative-rotation graph ─────────────
 // Every mark is computed from the live feed (real returns, real RS). Rules:
 // polarity is encoded with the P&L pair AND a printed signed number (never color
-// alone); quadrant identity is positional with text labels — the palette
-// validator rejected a 4-hue quadrant scheme for CVD, so we don't use one.
+// alone); quadrant identity is positional with text labels. The rotation graph's
+// heads are a strength RAMP, not four categorical hues — four hues fails CVD, and
+// green/red on a quadrant would spend the P&L pair on something that is not money.
 
 const TF_BARS = { "1W": 5, "1M": 21, "3M": 63 };
 // % return over a window. Prefers the snapshot's precomputed returns (compact
@@ -254,7 +255,27 @@ function IndustryGroups({ rows, onOpenStock }) {
    Quadrant tints are contextual only — identity is always a direct label. */
 const QUAD = (p) => (p.ratio >= 100 ? (p.mom >= 100 ? "leading" : "weakening") : (p.mom >= 100 ? "improving" : "lagging"));
 
+/* The viewBox has to match the BOX, or the SVG letterboxes inside it while the
+   HTML label overlay — positioned in percentages of the box — keeps using the
+   full height. The phone rule set `aspect-ratio: 1/1` on the container without
+   changing the 600:400 viewBox, so on a 390px screen the plot rendered as a
+   356×237 band with 60px of dead space above and below it, and every label was
+   placed against the 356 instead. Both shapes are declared here now, and the CSS
+   only mirrors them. */
+const useNarrow = () => {
+  const q = "(max-width: 640px)";
+  const [n, setN] = useState(() => typeof window !== "undefined" && window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setN(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return n;
+};
+
 function RelativeRotation({ rows, onOpenStock }) {
+  const narrow = useNarrow();
   const [mode, setMode] = useState("sectors");
   const [hover, setHover] = useState(null);
   const [pinned, setPinned] = useState(null);   // tapped sector whose tail stays shown
@@ -276,7 +297,11 @@ function RelativeRotation({ rows, onOpenStock }) {
 
   if (entities.length < 2) return <div className="empty">Waiting for live data…</div>;
 
-  const W = 600, H = 400, padL = 26, padR = 14, padT = 14, padB = 24;
+  // 3:2 on a desktop, near-square on a phone — a phone has width to spare on
+  // neither axis, and the labels need vertical room far more than the dots need
+  // horizontal spread
+  const W = narrow ? 440 : 600, H = narrow ? 430 : 400;
+  const padL = 26, padR = 14, padT = 14, padB = 24;
   const all = entities.flatMap((e) => e.tail);
   // scale each axis INDEPENDENTLY around 100 (RS-momentum deviations are smaller
   // than RS-ratio's, so a shared domain would flatten the momentum axis)
@@ -290,13 +315,35 @@ function RelativeRotation({ rows, onOpenStock }) {
     ? new Set(entities.map((e) => e.id))
     : new Set([...entities].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 8).map((e) => e.id));
 
-  // greedy vertical de-collision of labels, kept inside the plot
-  const placed = entities.filter((e) => labeled.has(e.id))
-    .map((e) => { const dx = x(e.head.ratio), oy = y(e.head.mom); return { e, dx, oy, dy: oy, right: dx <= W * 0.8 }; })
-    .sort((a, b) => a.oy - b.oy);
-  const GAP = 12;
-  for (let i = 1; i < placed.length; i++) if (placed[i].dy - placed[i - 1].dy < GAP) placed[i].dy = placed[i - 1].dy + GAP;
-  if (placed.length) { const over = placed[placed.length - 1].dy - (H - padB - 3); if (over > 0) placed.forEach((p) => (p.dy = Math.max(padT + 9, p.dy - over))); }
+  /* On a wide plot, labels de-collide within their own SIDE. One shared column
+     meant eleven sectors clustered near the centre all pushed each other down a
+     single stack — "Basic Materials" landed on "Communication Services" and the
+     pair drifted away from the dots they name. Splitting by side halves the
+     crowding and keeps each label next to its own head.
+
+     On a phone the split makes things WORSE, which is not obvious: a left-anchored
+     label and a right-anchored one are de-collided independently, so nothing stops
+     them landing on the same row — and in a 356px box a label is a third of the
+     width, so they meet in the middle. "Consumer Cyclical" sat on top of
+     "Healthcare" for exactly this reason. Narrow falls back to one global stack,
+     where no two labels can share a row whatever their x. */
+  /* GAP is in viewBox units and the labels are real pixels, so it has to be
+     converted, not copied: at 860px the desktop box renders 1.43px per unit and
+     13 units clears a 11px label; the phone box renders ~0.81px per unit, where
+     the same 13 units is 10px and every label overlapped its neighbour. */
+  const GAP = narrow ? 20 : 13;
+  const place = (list) => {
+    list.sort((a, b) => a.oy - b.oy);
+    for (let i = 1; i < list.length; i++) if (list[i].dy - list[i - 1].dy < GAP) list[i].dy = list[i - 1].dy + GAP;
+    const over = list.length ? list[list.length - 1].dy - (H - padB - 3) : 0;
+    if (over > 0) list.forEach((p) => (p.dy = Math.max(padT + 9, p.dy - over)));
+    return list;
+  };
+  const marks = entities.filter((e) => labeled.has(e.id))
+    .map((e) => { const dx = x(e.head.ratio), oy = y(e.head.mom); return { e, dx, oy, dy: oy, right: dx <= W * 0.55 }; });
+  const placed = narrow
+    ? place(marks)
+    : [...place(marks.filter((p) => p.right)), ...place(marks.filter((p) => !p.right))];
 
   const hv = entities.find((e) => e.id === (hover ?? pinned)) || null;
 
@@ -320,12 +367,16 @@ function RelativeRotation({ rows, onOpenStock }) {
             600:400 aspect so nothing is letterboxed. */}
         <svg viewBox={`0 0 ${W} ${H}`} className="chart" preserveAspectRatio="xMidYMid meet"
           role="img" aria-label="Relative rotation vs S&P 500">
-          <rect x={cx} y={padT} width={W - padR - cx} height={cy - padT} className="rrg-q" data-q="leading" />
-          <rect x={cx} y={cy} width={W - padR - cx} height={H - padB - cy} className="rrg-q" data-q="weakening" />
-          <rect x={padL} y={cy} width={cx - padL} height={H - padB - cy} className="rrg-q" data-q="lagging" />
-          <rect x={padL} y={padT} width={cx - padL} height={cy - padT} className="rrg-q" data-q="improving" />
-          <line x1={cx} y1={padT} x2={cx} y2={H - padB} className="chart-zero" />
-          <line x1={padL} y1={cy} x2={W - padR} y2={cy} className="chart-zero" />
+          {/* Washes and axes run to the EDGE of the box, not to the padding. The
+              pads exist to keep dots off the border; drawing the ground inside
+              them left a bare gutter between the tinted quadrant and the frame,
+              which read as a misaligned rectangle rather than as a quadrant. */}
+          <rect x={cx} y={0} width={W - cx} height={cy} className="rrg-q" data-q="leading" />
+          <rect x={cx} y={cy} width={W - cx} height={H - cy} className="rrg-q" data-q="weakening" />
+          <rect x={0} y={cy} width={cx} height={H - cy} className="rrg-q" data-q="lagging" />
+          <rect x={0} y={0} width={cx} height={cy} className="rrg-q" data-q="improving" />
+          <line x1={cx} y1={0} x2={cx} y2={H} className="chart-zero" />
+          <line x1={0} y1={cy} x2={W} y2={cy} className="chart-zero" />
 
           {/* EVERY tail, always. A rotation graph without its trails is a scatter
               plot — where a sector sits matters far less than which way it is
@@ -335,19 +386,30 @@ function RelativeRotation({ rows, onOpenStock }) {
               arrowhead and without a legend. */}
           {entities.map((e) => {
             const active = hover === e.id || pinned === e.id;
-            const dim = (hover ?? pinned) != null && !active;
+            const focus = (hover ?? pinned) != null;
             const q = QUAD(e.head);
             const hx = x(e.head.ratio), hy = y(e.head.mom);
+            /* SHORT and NEUTRAL until you ask. Drawing all six points of eleven
+               sectors in eleven quadrant colours turned this into spaghetti with
+               a rainbow on top — and the colour identified nothing, because a
+               tail that crossed three quadrants was painted the one its head
+               happened to land in. Six fixture sectors hid that; eleven real ones
+               did not.
+
+               So: everyone gets the last three segments in one neutral ink, just
+               enough to read direction at a glance, and the one you point at gets
+               its whole path in jade. Colour marks focus, not identity. */
+            const full = active;
+            const from = full ? 1 : Math.max(1, e.tail.length - 3);
             const segs = [];
-            for (let i = 1; i < e.tail.length; i++) {
+            for (let i = from; i < e.tail.length; i++) {
               const a = e.tail[i - 1], b = e.tail[i];
-              // oldest segment faintest; the newest carries almost full weight
-              const f = i / (e.tail.length - 1);
+              const f = (i - from + 1) / (e.tail.length - from);   // 0…1 toward today
               segs.push(
                 <line key={i} x1={x(a.ratio)} y1={y(a.mom)} x2={x(b.ratio)} y2={y(b.mom)}
-                  className="rrg-tail" data-q={q} data-active={active || undefined}
-                  strokeWidth={(0.9 + f * 1.5).toFixed(2)}
-                  opacity={(dim ? 0.10 : (active ? 0.35 : 0.18) + f * (active ? 0.6 : 0.34)).toFixed(2)} />
+                  className="rrg-tail" data-active={active || undefined}
+                  strokeWidth={(active ? 1.1 + f * 1.4 : 0.8 + f * 0.7).toFixed(2)}
+                  opacity={(active ? 0.35 + f * 0.6 : focus ? 0.07 : 0.12 + f * 0.22).toFixed(2)} />
               );
             }
             return (
@@ -358,8 +420,8 @@ function RelativeRotation({ rows, onOpenStock }) {
                 <circle cx={hx} cy={hy} r="13" fill="transparent" />
                 {/* the head takes its quadrant's colour, so position is stated
                     twice — by where it sits and by what colour it is */}
-                <circle cx={hx} cy={hy} r={active ? 5.6 : 4.2} className="rrg-head"
-                  data-q={q} data-active={active || undefined} opacity={dim ? 0.35 : 1} />
+                <circle cx={hx} cy={hy} r={active ? 5.6 : 4} className="rrg-head"
+                  data-q={q} data-active={active || undefined} opacity={focus && !active ? 0.45 : 1} />
               </g>
             );
           })}
@@ -379,7 +441,10 @@ function RelativeRotation({ rows, onOpenStock }) {
               four words with nothing behind them. */}
           <span className="rrg-axis" data-ax="x">RS-Ratio vs S&amp;P 500 →</span>
           <span className="rrg-axis" data-ax="y">RS-Momentum ↑</span>
-          <span className="rrg-origin mono">100</span>
+          {/* pinned to the actual zero line, not to 50% — padL and padR differ, so
+              the centre of the box is 6 viewBox units off the 100 gridline and the
+              label sat visibly beside the axis it names */}
+          <span className="rrg-origin mono" style={{ left: `${(cx / W) * 100}%` }}>100</span>
           {placed.map(({ e, dx, dy, right }) => {
             const active = hover === e.id || pinned === e.id;
             return (
@@ -439,13 +504,39 @@ function squarify(children, X, Y, Wd, Ht) {
   return out;
 }
 
-const MAP_W = 100, MAP_H = 62, MAP_CAP = 80;
+/* The cap is a legibility budget, not a data limit. 80 tiles in a 1,000px map is
+   ~8,000px² each and reads fine; the same 80 in a phone's 358×344 box is 1,500px²,
+   which is smaller than the word it would have to hold. The note under the map
+   states the count either way, so cutting it on a phone is a stated narrowing
+   rather than a silent one. */
+const MAP_W = 100, MAP_H = 62, MAP_CAP = 80, MAP_CAP_NARROW = 34;
 function MarketHeatmap({ rows, tf, onOpenStock }) {
+  const narrow = useNarrow();
+  /* Measured, because the label decision is a PIXEL question and every input to
+     it was a percentage. `showTk` asked whether a tile was 3.4% of the map wide —
+     which is 34px on a desktop and 12px on a phone, and 12px of a 4-letter ticker
+     at the 8px floor is three and a half glyphs. That does not read as truncation,
+     it reads as a DIFFERENT TICKER: PLTR rendered as "PLIR", GOOGL as "GOO".
+     A tile now shows its ticker only when the ticker fits at a legible size. */
+  const boxRef = useRef(null);
+  const [box, setBox] = useState(null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => {
+      const r = e.contentRect;
+      setBox((p) => (p && p.w === r.width && p.h === r.height ? p : { w: r.width, h: r.height }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const built = useMemo(() => {
     let names = rows.filter((r) => r.sig && r.sig.dollarVol > 0 && r.sector && r.sector !== "Custom");
     const total = names.length;
     // keep the most-traded names so tiles stay legible; note the rest honestly
-    names = [...names].sort((a, b) => (b.sig.dollarVol || 0) - (a.sig.dollarVol || 0)).slice(0, MAP_CAP);
+    const cap = narrow ? MAP_CAP_NARROW : MAP_CAP;
+    names = [...names].sort((a, b) => (b.sig.dollarVol || 0) - (a.sig.dollarVol || 0)).slice(0, cap);
     if (names.length < 2) return null;
     const by = {};
     for (const r of names) (by[r.sector] = by[r.sector] || []).push(r);
@@ -465,7 +556,7 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
       }
     }
     return { groups, tiles, shown: names.length, total };
-  }, [rows, tf]);
+  }, [rows, tf, narrow]);
 
   if (!built) return <div className="empty">Waiting for live data…</div>;
   const maxAbs = Math.max(2, ...built.tiles.map((t) => (t.chg != null ? Math.abs(t.chg) : 0)));
@@ -473,11 +564,15 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
   // BOTH axes (the layout space is MAP_W×MAP_H; y was previously left at ~62%)
   const px = (v) => `${(v / MAP_W) * 100}%`;
   const py = (v) => `${(v / MAP_H) * 100}%`;
+  /* 1% of the measured container width, the unit `t.w` is already in. Zero until
+     the observer has measured, which drops every label for one frame — a frame of
+     bare tiles beats a frame of tickers clipped into different tickers. */
+  const cqw = box ? box.w / 100 : 0;
 
   return (
     <>
       <div className="mm-heat" role="img" aria-label="Market heatmap — tile size by dollar volume, color by return">
-        <div className="mm-heat-inner">
+        <div className="mm-heat-inner" ref={boxRef}>
           {built.groups.map((g) => (
             <div key={g.sector} className="mm-heat-group"
               style={{ left: px(g.x), top: py(g.y), width: px(g.w), height: py(g.h) }}>
@@ -499,22 +594,34 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
                so the size encoding — the thing a treemap exists for — was
                carried by area alone and read as noise.
 
-               `cqw`/`cqh` against the container: a tile `t.w`% wide is `t.w cqw`
-               wide, so this stays correct at every viewport instead of assuming
-               a map width. Bounded at both ends — under 9px is unreadable, over
-               34px a ticker starts crowding its own tile. */
-            /* Width per character, not per tile: a 4-letter ticker needs a third
-               more room than a 3-letter one at the same size, and ignoring that
-               is what clipped DDOG while AMD sat comfortably. 0.80em is the cap
-               advance in Space Grotesk 700 — the display face is wider than the
-               mono one, which is what the first pass at this got wrong. */
-            const wCoef = 0.94 / (t.r.tk.length * 0.80 + 0.6);
-            const tkSize = `clamp(8px, min(${(t.w * wCoef).toFixed(3)}cqw, ${(t.h * 0.34).toFixed(2)}cqh), 34px)`;
-            const pctSize = `clamp(8px, min(${(t.w * 0.17).toFixed(2)}cqw, ${(t.h * 0.24).toFixed(2)}cqh), 17px)`;
-            // thresholds drop with the type: a tile that can hold 9px of ticker
-            // shows one, and the percentage needs about a line and a half more
-            const showTk = t.w > 3.4 && t.h > 2.6;
-            const showPct = t.w > 6 && t.h > 5;
+               Sized in PIXELS off the measured container rather than in `cqw`/
+               `cqh`. Container units are a proportion of the box, so they cannot
+               subtract the tile's own fixed chrome — 8px of padding and 2px of
+               border, which is 4% of a big tile and 29% of a 35px one. That is
+               the whole reason AMD, AMZN and CRWD still overflowed after the
+               per-character pass: the formula was sizing to the tile and the text
+               was being laid out inside the tile MINUS ten pixels. Measured:
+               `.mm-heat-tk` clientWidth 25 against scrollWidth 28.
+
+               Nothing is drawn below 8px. A floor in the old `clamp()` turned
+               "this does not fit" into "draw it anyway at the smallest size",
+               which is how a 12px tile rendered PLTR as "PLIR" — clipped
+               mid-glyph, and the result is not a truncated ticker, it is a
+               plausible DIFFERENT one. An unlabelled tile keeps its tooltip and
+               its click; a mislabelled one is a wrong reading on a trading
+               screen. */
+            const PAD_X = 10, PAD_Y = 6;                    // padding 2px 4px + 1px border, both axes
+            const tileW = t.w * cqw, tileH = (t.h / MAP_H) * (box ? box.h : 0);
+            const availW = tileW - PAD_X, availH = tileH - PAD_Y;
+            // 0.86em is the measured cap advance of Space Grotesk 700; the display
+            // face is wider than the mono one, which the first pass at this missed
+            const tkPx = Math.min(availW / (t.r.tk.length * 0.86), availH * 0.55, 34);
+            const showTk = tkPx >= 8;
+            // "+12.0%" is six tabular mono glyphs at ~0.62em; the percentage only
+            // appears when a second line still fits UNDER the ticker
+            const pctPx = Math.min(availW / 3.8, (availH - tkPx * 1.15) / 1.2, 17);
+            const showPct = showTk && pctPx >= 8;
+            const tkSize = `${tkPx.toFixed(2)}px`, pctSize = `${pctPx.toFixed(2)}px`;
             return (
               <button key={t.r.tk} className="mm-heat-tile" onClick={() => onOpenStock({ tk: t.r.tk })}
                 title={`${t.r.tk} · ${t.r.sector}${t.chg != null ? ` · ${up ? "+" : ""}${t.chg.toFixed(1)}% (${tf})` : ""}`}

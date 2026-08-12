@@ -1629,10 +1629,20 @@ body { background: #0a0b0d; }
 .mm-heat { width: 100%; aspect-ratio: 100 / 50; min-height: 300px; }
 .mm-heat-inner { position: relative; width: 100%; height: 100%; }
 .mm-heat-group { position: absolute; border: 1px solid var(--border-2); border-radius: var(--radius-sm); pointer-events: none; overflow: hidden; }
-.mm-heat-glabel { position: absolute; top: 2px; left: 4px; z-index: 3; font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); white-space: nowrap;
+/* Ellipsis, not a hard clip. The group box carries `overflow: hidden`, so a
+   sector whose name is wider than its rectangle lost its last characters with
+   nothing to say it had — "FINANCIAL SERVI" and "BASIC MATERIAL" read as though
+   that were the label. A sector name is prose, not a ticker, so truncating it
+   with a visible mark is honest; the tiles inside name the sector anyway. */
+.mm-heat-glabel { position: absolute; top: 2px; left: 4px; z-index: 3; max-width: calc(100% - 8px);
+  font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   background: color-mix(in oklch, var(--panel) 72%, transparent); border-radius: 4px; padding: 0 5px 1px; backdrop-filter: blur(2px); }
-/* the size unit the tiles' type is measured in — see the note in marketMap.jsx */
-.mm-heat-inner { container-type: size; }
+/* No `container-type` any more. Tile type used to be sized in `cqw`/`cqh`, but a
+   container unit is a proportion of the box and so cannot subtract the tile's own
+   padding and border — see the note in marketMap.jsx. The size now comes from a
+   ResizeObserver in px, and leaving size containment on would apply layout
+   containment for nothing. */
 /* centred both ways: a label pinned to the left edge of a wide tile reads as
    belonging to whatever sits to its left */
 .mm-heat-tile { position: absolute; overflow: hidden; display: flex; flex-direction: column;
@@ -1660,14 +1670,28 @@ body { background: #0a0b0d; }
    BOX a different shape from the viewBox, so the SVG letterboxes inside it and
    the HTML overlay — whose labels are positioned in viewBox percentages — drifts
    off the plot. Capping width keeps box and viewBox the same 600:400. */
-.rrg-plot { position: relative; aspect-ratio: 600 / 400; width: min(100%, 860px); margin-inline: auto; }
+/* Framed, because the box is narrower than the panel it sits in. At a desktop
+   width the 600:400 cap leaves ~280px of panel on either side, and with the
+   quadrant washes doing the only bounding the plot read as two tinted slabs
+   floating in a void rather than as a chart. An inset surface and a hairline
+   say where the plot ends, which is what lets the washes drop to nothing. */
+.rrg-plot { position: relative; aspect-ratio: 600 / 400; width: min(100%, 860px); margin-inline: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
 .rrg-plot > svg { width: 100%; height: 100%; }
-@media (max-width: 640px) { .rrg-plot { aspect-ratio: 1 / 1; } }
+/* mirrors the narrow viewBox in marketMap.jsx — these two must agree or the SVG
+   letterboxes and the HTML label overlay drifts off it */
+@media (max-width: 640px) {
+  .rrg-plot { aspect-ratio: 440 / 430; }
+  .rrg-lab { font-size: var(--fs-micro); }
+}
 .rrg-overlay { position: absolute; inset: 0; pointer-events: none; }
 .rrg-cap { position: absolute; font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600;
   letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--dim); opacity: 0.85; }
+/* the halo is knocked out of the plot's own ground, so it has to be --panel:
+   the plot is an inset panel inside a --surface card, and a --surface halo left
+   a visible lighter smudge behind every label */
 .rrg-lab { position: absolute; font-size: var(--fs-label); color: var(--muted); white-space: nowrap;
-  text-shadow: 0 0 3px var(--surface), 0 0 6px var(--surface), 0 0 2px var(--surface); }
+  text-shadow: 0 0 3px var(--panel), 0 0 6px var(--panel), 0 0 2px var(--panel); }
 .rrg-lab[data-active] { color: var(--text); font-weight: 700; }
 .mm-axis-y { position: absolute; top: 8px; left: 16px; font-size: var(--fs-micro); letter-spacing: var(--track-label); color: var(--dim); }
 .mm-legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 2px 2px; font-size: var(--fs-label); color: var(--dim); align-items: center; }
@@ -1680,32 +1704,52 @@ body { background: #0a0b0d; }
 .rrg-toolbar .seg-btn { padding: 5px 12px; }
 /* quadrant tints stay a whisper — context, not four colored slabs */
 .rrg-q { opacity: 1; }
-/* 3.5% was invisible — four quadrants that all read as one empty box. These are
-   the four standard rotation states and the wash is the fastest way to know
-   which one you are looking at without reading a corner label. */
-.rrg-q[data-q="leading"]   { fill: color-mix(in oklch, var(--pl-up) 9%, transparent); }
-.rrg-q[data-q="weakening"] { fill: color-mix(in oklch, var(--caution) 8%, transparent); }
-.rrg-q[data-q="lagging"]   { fill: color-mix(in oklch, var(--pl-down) 7%, transparent); }
-.rrg-q[data-q="improving"] { fill: color-mix(in oklch, var(--accent) 8%, transparent); }
-/* stroke width and opacity ramp along the trail in JS — the segment nearest
-   today is thickest and brightest, so the path reads forward without an arrow */
-.rrg-tail { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke;
-  transition: opacity .12s ease; }
-.rrg-tail[data-q="leading"]   { stroke: var(--pl-up); }
-.rrg-tail[data-q="weakening"] { stroke: var(--caution); }
-.rrg-tail[data-q="lagging"]   { stroke: var(--pl-down); }
-.rrg-tail[data-q="improving"] { stroke: var(--accent); }
-.rrg-head { stroke: var(--surface); stroke-width: 2; transition: r .12s ease, opacity .12s ease; }
-.rrg-head[data-q="leading"]   { fill: var(--pl-up); }
+/* Ground, not decoration — and no longer P&L. 8% washes made a red half and a
+   green half that dominated the trails they exist to sit behind; worse, they
+   spent the two colours that mean money moved on a quadrant, which is a rotation
+   state and not a gain. Only LEADING carries a wash now, in jade, because that
+   is the corner the screener is looking for. The other three are named by their
+   corner labels and bounded by the frame, which is enough. */
+.rrg-q[data-q="leading"]   { fill: color-mix(in oklch, var(--accent) 4%, transparent); }
+.rrg-q[data-q="weakening"] { fill: none; }
+.rrg-q[data-q="lagging"]   { fill: none; }
+.rrg-q[data-q="improving"] { fill: none; }
+/* One neutral ink for every trail; jade only for the one you are pointing at.
+   Colour here marks FOCUS, not identity — eleven coloured paths crossing each
+   other encode nothing, because the colour came from where the head landed
+   rather than from whose path it is. Width and opacity ramp toward today in JS,
+   which is what carries direction. */
+.rrg-tail { fill: none; stroke: var(--muted); stroke-linecap: round;
+  vector-effect: non-scaling-stroke; transition: opacity .12s ease; }
+.rrg-tail[data-active] { stroke: var(--accent); }
+/* A strength RAMP, not four categorical hues — and none of them P&L. A quadrant
+   is a rotation state; green and red mean money moved, and eleven dots split
+   green/red/amber/jade read as four unrelated things rather than as one axis
+   from strong to weak. Jade solid is where you want to be, jade muted is on the
+   way there, caution is rolling over, and lagging recedes into the ink. The
+   corner labels already name the quadrants, so colour only has to rank them. */
+.rrg-head { stroke: var(--panel); stroke-width: 2; transition: r .12s ease, opacity .12s ease; }
+.rrg-head[data-q="leading"]   { fill: var(--accent); }
+/* mixed toward --muted, NOT toward --panel: mixing into the ground dims the dot
+   on black and washes it out on paper, so the same rule that read as "half
+   strength" in dark mode nearly disappeared in light. --muted flips with the
+   theme, so the dot stays a desaturated jade against either ground. */
+.rrg-head[data-q="improving"] { fill: color-mix(in oklch, var(--accent) 55%, var(--muted)); }
 .rrg-head[data-q="weakening"] { fill: var(--caution); }
-.rrg-head[data-q="lagging"]   { fill: var(--pl-down); }
-.rrg-head[data-q="improving"] { fill: var(--accent); }
-.rrg-head[data-active] { stroke: var(--text); filter: drop-shadow(0 0 5px currentColor); }
+.rrg-head[data-q="lagging"]   { fill: var(--dim); }
+/* the glow is jade, matching the trail it belongs to. `currentColor` on an SVG
+   circle resolves to the inherited text colour, so the focused head bloomed
+   near-white — the loudest thing on the chart, and a colour that means nothing
+   here. */
+.rrg-head[data-active] { stroke: var(--text);
+  filter: drop-shadow(0 0 4px color-mix(in oklch, var(--accent) 70%, transparent)); }
 .rrg-axis { position: absolute; font-family: var(--font-mono); font-size: var(--fs-micro);
   font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
-.rrg-axis[data-ax="x"] { bottom: 2px; left: 50%; transform: translateX(-50%); }
-.rrg-axis[data-ax="y"] { left: 2px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
-.rrg-origin { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+/* clear of the frame the plot now carries — at 2px both captions sat on the
+   hairline */
+.rrg-axis[data-ax="x"] { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.rrg-axis[data-ax="y"] { left: 7px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
+.rrg-origin { position: absolute; bottom: 22px; transform: translateX(-50%);
   font-size: var(--fs-micro); color: var(--dim); background: color-mix(in oklch, var(--panel) 80%, transparent);
   padding: 0 4px; border-radius: 3px; }
 .rrg-lbl-conn { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.55; }

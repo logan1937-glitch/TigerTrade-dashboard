@@ -136,6 +136,17 @@ const VIEWS = [
       await p.waitForTimeout(700);
     } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
+  { id: "rrgnames",  state: { tt_product: "canslim" }, act: async (p) => {
+      await click(p, "Market Map");
+      await p.locator(".rrg-toolbar .seg-btn", { hasText: /^Names$/ }).first().click();
+      await p.waitForTimeout(400);
+    } },
+  { id: "rrgpin",    state: { tt_product: "canslim" }, act: async (p) => {
+      await click(p, "Market Map");
+      // a head circle, not the label — the label is in a pointer-events:none overlay
+      await p.locator(".rrg-head").nth(3).click({ force: true });
+      await p.waitForTimeout(400);
+    } },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
   { id: "portfolio", state: { tt_product: "canslim", tt_positions: HOLDINGS }, act: (p) => click(p, "Portfolio") },
   /* `tt_pb_seen` matters: the explainer auto-opens on a first visit, so without
@@ -172,13 +183,24 @@ const day = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 let TK_ORDER = [];
 const TK_INDEX = (sym) => { const i = TK_ORDER.indexOf(sym); return i >= 0 ? i : 0; };
 // [sector, [industry groups]] — mirrors the shape normSector() produces
+/* All ELEVEN, matching `sectors.rows` below and what normSector() produces in
+   production. It was six for a long time, and six is a density at which every
+   sector-cardinality problem hides: the RRG's labels never collided, its tails
+   never overlapped, and the map's group panel had half the rows a real load
+   gives it. The user's screenshot of the live chart is what found that. A
+   fixture that under-varies doesn't fail — it just stops testing. */
 const FIX_SECTORS = [
   ["Technology", ["Semiconductors", "Software - Infrastructure", "Software - Application"]],
   ["Financial Services", ["Banks - Diversified", "Capital Markets"]],
   ["Healthcare", ["Biotechnology", "Medical Devices"]],
   ["Consumer Cyclical", ["Internet Retail", "Restaurants"]],
-  ["Energy", ["Oil & Gas E&P"]],
+  ["Energy", ["Oil & Gas E&P", "Oil & Gas Midstream"]],
   ["Industrials", ["Aerospace & Defense", "Specialty Industrial Machinery"]],
+  ["Communication Services", ["Internet Content & Information", "Entertainment"]],
+  ["Consumer Defensive", ["Discount Stores", "Beverages - Non-Alcoholic"]],
+  ["Basic Materials", ["Specialty Chemicals", "Gold"]],
+  ["Utilities", ["Utilities - Regulated Electric"]],
+  ["Real Estate", ["REIT - Industrial", "REIT - Specialty"]],
 ];
 /* The extended tier's names — mid-caps outside the S&P, which is exactly what
    `?tier=ext` serves in production. Kept short: the point of the shot is that a
@@ -196,20 +218,38 @@ function nameRecord(t, i, idx) {
     // Sector AND industry vary. Every name sharing one industry meant the
     // industry-group panel rendered a single group, so its scroller — and the
     // group ordering it exists to make navigable — were never in a shot.
-    const sec = FIX_SECTORS[i % FIX_SECTORS.length];
+    const si = i % FIX_SECTORS.length;
+    const sec = FIX_SECTORS[si];
     meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][i % sec[1].length], idx };
     earnings[t] = { d: day(2 + i * 3), t: i % 2 ? "amc" : "bmo", last: null };
     sig[t] = {
       stage: 2, stageLabel: "Advancing", off52: (i % 9) + 1, atHigh: i % 4 === 0, ret12m: 15 + i * 6,
       rsNewHigh: i % 3 === 0, rsLeads: i % 5 === 0, adrPct: 2.4, dollarVol: 9e8, distDays: i % 4,
       pocketPivot: i % 6 === 0, udVol: 1 + (i % 5) / 10, above50: true, atLow: false, asOf: day(0),
-      // the RRG's 6-point tail. Without it `rrgOf` returns null for every row and
-      // the whole rotation panel sat on "Waiting for live data…" in every shot —
-      // a panel the harness has therefore never actually verified.
-      rrg: Array.from({ length: 6 }, (_, k) => ({
-        ratio: +(100 + ((i % 9) - 4) * 1.6 + k * (((i % 5) - 2) * 0.24)).toFixed(2),
-        mom: +(100 + ((i % 7) - 3) * 1.3 + k * (((i % 4) - 1.5) * 0.3)).toFixed(2),
-      })),
+      /* The RRG's 6-point tail. Without it `rrgOf` returns null for every row and
+         the whole rotation panel sat on "Waiting for live data…" in every shot —
+         a panel the harness has therefore never actually verified.
+
+         The tail is anchored to the name's SECTOR, with per-name jitter on top.
+         The previous version keyed it off `i` alone, which is co-prime with the
+         sector stride, so every sector's average landed within a point of 100 and
+         all eleven heads piled into one blob at the origin — the RRG's crowding
+         would have looked *worse* than production rather than like it. Members of
+         a sector do rotate together; the fixture now says so. Sectors are laid
+         out around a ring so all four quadrants are occupied, and each tail
+         sweeps clockwise, which is the direction the concept describes. */
+      rrg: (() => {
+        const a0 = (si / FIX_SECTORS.length) * Math.PI * 2;
+        const jr = ((i % 5) - 2) * 0.55, jm = ((i % 7) - 3) * 0.42;   // per-name offset
+        return Array.from({ length: 6 }, (_, k) => {
+          const a = a0 - (5 - k) * 0.13;                              // clockwise into today
+          const rad = 2.2 + k * 0.24 + (i % 3) * 0.4;
+          return {
+            ratio: +(100 + Math.cos(a) * rad * 1.5 + jr).toFixed(2),
+            mom: +(100 + Math.sin(a) * rad + jm).toFixed(2),
+          };
+        });
+      })(),
       ret: { d1: ((i % 7) - 3) * 0.9, w1: (i % 5) + 1, m1: (i % 11) + 2, m3: (i % 23) + 4, y1: 15 + i * 6 },
       // DELIBERATELY different from quotes[t].changePercentage above. The row's
       // session change must come from the bars, and a fixture where the two
