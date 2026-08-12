@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
 import { PlaybookView } from "./playbook.jsx";
-import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct, FeedState } from "./components.jsx";
+import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct, FeedState, Term } from "./components.jsx";
+import { GLOSSARY } from "./glossary.js";
 import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
 import { PortfolioView } from "./portfolio.jsx";
@@ -102,10 +103,20 @@ function OffHigh({ off }) {
    around these. Verified in a browser, not assumed. */
 const Seam = () => <span className="cs-seam" aria-hidden="true" />;
 
+/* Three states of one measurement — price against the pivot — so all three are
+   askable from the pill itself rather than from a legend somewhere else. */
+const STATUS_MAP = {
+  buy:   ["In Buy Zone", "var(--cat-growth)", "buyZone"],
+  ext:   ["Extended",    "var(--sev-high)",   "extended"],
+  watch: ["Watch",       "var(--cat-data)",   "watchStatus"],
+};
 function StatusPill({ status }) {
-  const map = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
-  const [label, color] = map[status];
-  return <span className="badge badge-cat" style={{ "--c": color }}>{label}</span>;
+  const [label, color, key] = STATUS_MAP[status];
+  return (
+    <span className="badge badge-cat" style={{ "--c": color }}>
+      <Term k={key}>{label}</Term>
+    </span>
+  );
 }
 
 function fmtPx(n) { if (n == null || Number.isNaN(+n)) return "—"; return n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2); }
@@ -235,11 +246,16 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
   }, [rows, q, sort, dir, statusF, idxF, tf, sectorF]);
 
   // sortable column header — clickable, shows the active sort arrow
-  const Th = ({ label, k, right }) => (
-    <button type="button" className="cs-th" data-active={sort === k || undefined} data-right={right || undefined}
-      aria-sort={sort === k ? (dir === "asc" ? "ascending" : "descending") : "none"} onClick={() => setSortKey(k)}>
-      {label}<span className="cs-th-ar" aria-hidden="true">{sort === k ? (dir === "asc" ? "▲" : "▼") : "↕"}</span>
-    </button>
+  const Th = ({ label, k, right, term }) => (
+    <span className="cs-th-wrap" data-right={right || undefined}>
+      <button type="button" className="cs-th" data-active={sort === k || undefined} data-right={right || undefined}
+        aria-sort={sort === k ? (dir === "asc" ? "ascending" : "descending") : "none"} onClick={() => setSortKey(k)}>
+        {label}<span className="cs-th-ar" aria-hidden="true">{sort === k ? (dir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </button>
+      {/* the definition is a separate control from the sort, so asking what a
+          column means does not silently re-order 500 rows */}
+      {term && <Term k={term}><i className="cs-th-q" aria-hidden="true">?</i></Term>}
+    </span>
   );
 
   return (
@@ -365,18 +381,18 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           <Th label="Ticker" k="ticker" />
           <Seam />
           <Th label={`Price · Δ${tf}`} k="chg" right />
-          <Th label={tf === "1Y" ? "RS" : `RS · ${tf}`} k="rs" />
+          <Th label={tf === "1Y" ? "RS" : `RS · ${tf}`} k="rs" term="rs" />
           <Seam />
           {/* named 1y because it does NOT follow the Δ window — the snapshot ships
               one series per name, and a column that silently meant something else
               than its neighbours would be worse than one that says its scope */}
           <span>Trend · 1y</span>
-          <span>Off high</span>
+          <span><Term k="offHigh">Off high</Term></span>
           <Seam />
           <Th label="Leadership" k="pass" />
           <span>Signals</span>
           <Th label="Buy Status" k="status" right />
-          <Th label={tf === "1Y" ? "Score" : `Score · ${tf}`} k="score" right />
+          <Th label={tf === "1Y" ? "Score" : `Score · ${tf}`} k="score" right term="score" />
         </div>
         {view.map((r, i) => (
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }}

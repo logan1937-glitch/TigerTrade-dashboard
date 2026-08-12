@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { TT } from "./tt.js";
+import { GLOSSARY } from "./glossary.js";
 
 export const SEV_LABEL = { extreme: "Extreme", high: "High", medium: "Medium", low: "Low" };
 
@@ -320,6 +322,103 @@ export function FeedState({ kind = "degraded", kicker, headline, detail, actions
         </div>
       )}
     </div>
+  );
+}
+
+/* The portal target is the `.app` wrapper, NOT <body>. Every token in this design
+   system is defined on `.app[data-dir][data-mode]`, so a node portalled to the
+   body inherits none of them and renders as unstyled text on a transparent
+   ground — which is exactly what happened, and is the trap CLAUDE.md warns about
+   for standalone mounts. `.app` carries no transform, so `position: fixed` still
+   resolves against the viewport from inside it. */
+const portalHost = () => document.querySelector(".app") || document.body;
+
+/* ── a term that explains itself ──────────────────────────────────────────
+   Wraps any label whose meaning is not obvious from the label. The definition
+   comes from `glossary.js` by key, so the chip on a row and the sentence in the
+   glossary panel are literally the same string and cannot drift.
+
+   It is a <button> rather than a span with a title: a `title` attribute is
+   mouse-only and never reaches a keyboard or a phone, and "what does this mean"
+   is exactly the question a new user has and cannot hover to answer. Tapping it
+   opens the definition; the surrounding row's click is stopped, because wanting
+   to know what a chip means is not the same as wanting to open the drawer. */
+export function Term({ k, children, as: As = "span", ...rest }) {
+  const g = GLOSSARY[k];
+  const btn = useRef(null);
+  const [at, setAt] = useState(null);          // viewport coords, or null when closed
+
+  /* `position: fixed`, placed from the button's rect, rather than absolute inside
+     the wrapper. The screener's rows live in `.cs-panel-scroll`, which is an
+     overflow container — an absolutely positioned popup is clipped by it, and the
+     definition was getting cut off mid-sentence in exactly the table it explains.
+     Fixed also lets it flip near the right edge and flip ABOVE near the bottom,
+     and it never counts toward the document's scrollWidth. */
+  /* Prefer below the button, flip above when there is no room, and then CLAMP
+     into the viewport regardless. The clamp is the part that matters: a rect can
+     be measured while the button is still scrolling into place, and a definition
+     that renders off-screen is worse than no definition at all — it looks like
+     the control did nothing. */
+  const H = 320, PAD = 16;
+  const place = () => {
+    const el = btn.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const w = Math.min(360, vw - PAD * 2);
+    let top = r.bottom + 8;
+    if (top + H > vh - PAD) top = r.top - H - 8;          // no room below — flip up
+    top = Math.max(PAD, Math.min(top, vh - H - PAD));
+    let left = r.left + w > vw - PAD ? r.right - w : r.left;
+    left = Math.max(PAD, Math.min(left, vw - w - PAD));
+    setAt({ w, left, top });
+  };
+
+  /* Reposition on scroll rather than dismiss. Closing on any scroll sounds tidy
+     and is wrong in practice: clicking a control scrolls it into view, so the
+     definition dismissed itself on the very gesture that opened it. It follows
+     its button instead, and closes only on Escape, a second click, or a click
+     somewhere else. */
+  useEffect(() => {
+    if (!at) return;
+    const onKey = (e) => { if (e.key === "Escape") setAt(null); };
+    const onAway = (e) => { if (btn.current && !btn.current.contains(e.target)) setAt(null); };
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    window.addEventListener("keydown", onKey);
+    // pointerdown, not click: the row underneath handles click, and we want the
+    // definition gone before that fires rather than after
+    document.addEventListener("pointerdown", onAway, true);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onAway, true);
+    };
+  }, [at]);
+
+  if (!g) return <As {...rest}>{children}</As>;
+  return (
+    <As className="term-wrap" {...rest}>
+      <button ref={btn} type="button" className="term" data-open={at ? "" : undefined}
+        aria-expanded={!!at} aria-label={`${g.term}: ${g.short}`}
+        onClick={(e) => { e.stopPropagation(); at ? setAt(null) : place(); }}>
+        {children ?? g.term}
+      </button>
+      {/* Portalled to <body>. `position: fixed` resolves against the nearest
+          TRANSFORMED ancestor, not the viewport — and `.cs-row` carries a
+          transform for its reveal animation and its hover nudge, so a fixed
+          popup rendered in place was being positioned relative to the row and
+          landing off-screen. Measured, not guessed: it reported top 1309 in a
+          1000px viewport. A portal has no such ancestor. */}
+      {at && createPortal(
+        <span className="term-pop" role="tooltip"
+          onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+          style={{ width: at.w, left: at.left, top: at.top, maxHeight: H, overflowY: "auto" }}>
+          <b className="term-pop-t">{g.term}</b>
+          <span className="term-pop-s">{g.short}</span>
+          {g.long && <span className="term-pop-l">{g.long}</span>}
+        </span>, portalHost())}
+    </As>
   );
 }
 

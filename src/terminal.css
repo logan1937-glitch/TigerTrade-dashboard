@@ -790,6 +790,12 @@ body { background: #0a0b0d; }
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface-2) 96%, transparent), color-mix(in oklch, var(--surface) 92%, var(--bg)));
   backdrop-filter: blur(6px); }
 /* 600, not a darker token: small tracked all-caps ghosts at 400 even at 7.8:1 */
+.cs-th-wrap { display: inline-flex; align-items: center; gap: 5px; }
+.cs-th-wrap[data-right] { justify-content: flex-end; }
+.cs-th-q { font-style: normal; font-size: var(--fs-micro); font-weight: 700; color: var(--dim);
+  width: 13px; height: 13px; display: inline-grid; place-items: center; border-radius: 50%;
+  border: 1px solid var(--border-2); line-height: 1; }
+.cs-th-q:hover { color: var(--accent); border-color: var(--accent); }
 .cs-head span { font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
 /* sortable column header — reads as a label, behaves as a button */
 .cs-th { display: inline-flex; align-items: center; gap: 5px; background: none; border: 0; padding: 0; cursor: pointer;
@@ -2605,3 +2611,38 @@ body { background: #0a0b0d; }
    collapsing to a line of text where a grid used to be */
 .mb-out .state, .vix-out .state { border: 0; box-shadow: none; background: none; padding: 4px 0; }
 .cs-state { margin: 18px 0 40px; }
+
+/* ---- a term that explains itself --------------------------------------- */
+/* The dotted rule marks it as askable, the same way `.na`'s marks a stated
+   absence. Deliberately NOT a `title`: that is mouse-only, and "what does this
+   mean" is the one question a phone user most needs answered. */
+.term-wrap { position: relative; display: inline-flex; }
+.term { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: help;
+  border-bottom: 1px dotted currentColor; line-height: inherit; }
+.term:hover, .term[data-open] { border-bottom-style: solid; }
+.term:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+/* Anchored to the wrapper, and clamped to the viewport width: an absolutely
+   positioned box still counts toward scrollWidth, which is how this document
+   ended up 626px wide at a 390px viewport once already. */
+/* fixed, placed from the button's rect in JS — see the note on Term. An absolute
+   box here is clipped by `.cs-panel-scroll` and counts toward scrollWidth. */
+.term-pop { position: fixed; z-index: 190;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 13px 15px; border-radius: var(--radius-sm);
+  background: var(--panel); border: 1px solid var(--border-2); box-shadow: var(--lift-2);
+  font-family: var(--font-ui); font-size: var(--fs-data); line-height: 1.55;
+  letter-spacing: 0; text-transform: none; text-align: left; text-wrap: pretty; }
+.term-pop-t { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: var(--track-label); text-transform: uppercase; color: var(--accent); }
+.term-pop-s { color: var(--text); font-weight: 600; }
+.term-pop-l { color: var(--muted); }
+
+/* ---- the glossary panel ------------------------------------------------ */
+.gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1px;
+  background: var(--border); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; margin: 14px 0 40px; }
+.gloss-i { background: var(--surface); padding: 16px 18px; }
+.gloss-t { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: var(--track-label); text-transform: uppercase; color: var(--brand); margin-bottom: 7px; }
+.gloss-s { font-size: var(--fs-body); color: var(--text); line-height: 1.5; margin-bottom: 6px; }
+.gloss-l { font-size: var(--fs-data); color: var(--muted); line-height: 1.6; text-wrap: pretty; }
