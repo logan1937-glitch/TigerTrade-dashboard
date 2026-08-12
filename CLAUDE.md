@@ -439,7 +439,18 @@ close-to-close change off the **same adjusted bars as `volD`**, never the quote'
 `changePercentage`, which is a different clock and rounded to 0.00 across the
 whole universe once, silently emptying both filters while "All" still showed
 every row. The `volsort` shot sets them to opposite
-directions, so a shared-state regression shows up as both panels moving together. It was briefly a VIX term-structure view; that
+directions, so a shared-state regression shows up as both panels moving together.
+**Both panels label the measure `RVOL`,** with the glossary term attached — they
+said "× normal" and "× normal volume", which is accurate and meant the
+abbreviation every trader uses appeared nowhere on the page, so the four-bar gauge
+read as unexplained decoration and the feature was reported missing. The gauge is
+the dollar-volume panel's 4th column and it **survives ≤640px** (it loses its
+number, keeps its bars): it is the only column there that separates a mega-cap
+that is busy from one that is merely big, and dropping it with everything else
+that did not fit deleted the reason to read that panel on a phone. The
+unusual-volume panel drops its Shares column instead — its RVOL is already the
+meter. Note two `@media (max-width: 640px)` blocks both touch `.flow-row`; the
+later one wins, and it is the one that owns the grid. It was briefly a VIX term-structure view; that
 was an options-desk answer to a momentum-trader question — contango is a fact
 with no decision attached unless you trade options — so it now shows where
 capital actually traded. **There is no options flow anywhere in this app and it

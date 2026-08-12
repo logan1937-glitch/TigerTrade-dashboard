@@ -84,11 +84,16 @@ function FlowBar({ upShare }) {
    as the ranking it draws, so the prose under a table cannot drift from the list
    above it. */
 const PANELS = [
+  /* Both panels name the measure RVOL. They used to label it "× normal" and
+     "× normal volume" — accurate, and it meant the abbreviation every trader
+     actually uses appeared NOWHERE on the page, so the gauge read as an
+     unexplained row of bars. The term is the label and the glossary carries the
+     definition, which is the whole point of `<Term>`. */
   { id: "dv", key: "heavy", title: "Heaviest dollar volume", desc: "who moved the index",
-    col: "Dollar volume", alt: "× normal",
-    why: "Price × shares, this session — the names the index's move is actually made of. Expect the mega-caps: that is the point, not a flaw. When the top of this list is red, the index was sold no matter how many small names rose." },
+    col: "Dollar volume", alt: "RVOL",
+    why: "Price × shares, this session — the names the index's move is actually made of. Expect the mega-caps: that is the point, not a flaw. When the top of this list is red, the index was sold no matter how many small names rose. The RVOL gauge beside each row is what separates a mega-cap that is merely big from one that is busy." },
   { id: "rvol", key: "unusual", title: "Unusual volume", desc: "where something happened",
-    col: "× normal volume", alt: "Shares",
+    col: "RVOL", alt: "Shares",
     why: "Session volume as a multiple of the name's own 50-day average, so a mid-cap and a mega-cap can be read on one screen. Volume this far above normal is news, an index rebalance, or a report — the drawer says which." },
 ];
 const DIRS = [
@@ -147,7 +152,9 @@ function FlowTable({ rows, all, mode, sortDef, onOpenStock }) {
       <div className="flow-row flow-hrow mono">
         <span>Ticker</span>
         <span style={{ textAlign: "right" }}>Δ</span>
-        <span>{sortDef.col}</span>
+        {/* the glossary chip follows the LABEL, not the column, so either panel
+            can carry RVOL in either slot without the two drifting apart */}
+        <span>{sortDef.col === "RVOL" ? <Term k="rvol">RVOL</Term> : sortDef.col}</span>
         <span style={{ textAlign: "right" }}>{sortDef.alt === "RVOL" ? <Term k="rvol">RVOL</Term> : sortDef.alt}</span>
       </div>
       {rows.map((r) => {

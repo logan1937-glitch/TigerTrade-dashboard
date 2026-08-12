@@ -2161,7 +2161,7 @@ body { background: #0a0b0d; }
 
 /* the two ranked lists */
 .flow-tbl { display: flex; flex-direction: column; }
-.flow-row { display: grid; grid-template-columns: minmax(96px, 1.1fr) 62px minmax(120px, 1.7fr) 66px;
+.flow-row { display: grid; grid-template-columns: minmax(96px, 1.1fr) 62px minmax(120px, 1.7fr) 78px;
   align-items: center; gap: 12px; padding: 8px 2px; }
 .flow-hrow { padding-bottom: 9px; border-bottom: 1px solid var(--border-2); }
 .flow-hrow span { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-label);
@@ -2188,9 +2188,18 @@ body { background: #0a0b0d; }
   font-variant-numeric: tabular-nums; }
 .flow-sec { font-size: var(--fs-label); text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
 
+/* The 4th column SURVIVES on a phone. It used to be dropped with everything else
+   that did not fit, which on the dollar-volume panel meant deleting the RVOL
+   gauge — the one column that says whether the mega-caps at the top are busy or
+   just big, and the reason to read that panel at all. The gauge loses its number
+   instead and keeps its bars, which is the coarse read it was built for. */
+/* The phone grid for .flow-row is NOT here. A second `@media (max-width: 640px)`
+   block further down sets it too, at equal specificity and later in the file, so
+   it wins — which is the same source-order trap `.star.star-lbl` documents. One
+   owner: search for "Volume tab: two panels stack". */
 @media (max-width: 640px) {
-  .flow-row { grid-template-columns: minmax(80px, 1fr) 56px minmax(90px, 1.4fr); }
-  .flow-row > *:nth-child(4) { display: none; }
+  .rvol b { display: none; }
+  .rvol-bars { gap: 1.5px; }
 }
 
 .vol-histwrap { position: relative; }
@@ -2336,9 +2345,17 @@ body { background: #0a0b0d; }
   .dr-px { font-size: var(--fs-h2); }
   .dr-actionbar .dr-actions > * { min-height: 44px; }
 
-  /* Volume tab: two panels stack, so their tables get the full width back */
-  .flow-row { grid-template-columns: minmax(88px, 1fr) 58px minmax(96px, 1.5fr); }
-  .flow-row > *:nth-child(4) { display: none; }
+  /* Volume tab: two panels stack, so their tables get the full width back.
+     The 4th column SURVIVES on the dollar-volume panel, because there it is the
+     RVOL gauge — the one column that says whether the mega-caps at the top of
+     that list are busy or merely big, which is the reason to read it at all.
+     Dropping it with everything else that did not fit deleted the feature on a
+     phone. It loses its number and keeps its bars; the coarse read is what the
+     gauge was built for. The unusual-volume panel drops its Shares column
+     instead — its RVOL is already the meter, so there the 4th is expendable. */
+  .flow-row { grid-template-columns: minmax(72px, 1fr) 50px minmax(74px, 1.3fr) 30px; gap: 8px; }
+  [data-panel="rvol"] .flow-row { grid-template-columns: minmax(88px, 1fr) 58px minmax(96px, 1.5fr); }
+  [data-panel="rvol"] .flow-row > *:nth-child(4) { display: none; }
   .vol-tv { font-size: var(--fs-h2); }
 }
 
@@ -2749,13 +2766,21 @@ body { background: #0a0b0d; }
 /* Four bars, because the decision it feeds is coarse: normal, busy, heavy,
    extreme. Amber rather than the P&L pair — turnover is participation, not
    direction, and the Δ column beside it already carries which way it went. */
-.rvol { display: inline-flex; align-items: center; gap: 7px; justify-content: flex-end; cursor: help; }
-.rvol-bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 11px; }
-.rvol-bars i { width: 3px; border-radius: 1px; background: var(--border-2); }
-.rvol-bars i:nth-child(1) { height: 5px; }
-.rvol-bars i:nth-child(2) { height: 7px; }
-.rvol-bars i:nth-child(3) { height: 9px; }
-.rvol-bars i:nth-child(4) { height: 11px; }
+/* Sized up from 3px bars in an 11px box. At that scale the gauge read as texture
+   at the right edge of the row rather than as a reading — the whole complaint was
+   that it could not be found on the page. 4px bars in a 14px box, and the number
+   at data size, is the smallest version that is still a gauge. */
+.rvol { display: inline-flex; align-items: center; gap: 7px; justify-content: flex-end; cursor: help;
+  font-size: var(--fs-data); }
+.rvol-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+/* unlit bars stay faint — the reading is HOW MANY are lit, and on paper a 70%
+   track sat close enough to the `--dim` of a lit one that a 0.8× gauge read as
+   four bars rather than one */
+.rvol-bars i { width: 4px; border-radius: 1px; background: color-mix(in oklch, var(--border-2) 42%, transparent); }
+.rvol-bars i:nth-child(1) { height: 6px; }
+.rvol-bars i:nth-child(2) { height: 8.5px; }
+.rvol-bars i:nth-child(3) { height: 11px; }
+.rvol-bars i:nth-child(4) { height: 14px; }
 .rvol[data-tier="normal"]  .rvol-bars i[data-on] { background: var(--dim); }
 .rvol[data-tier="busy"]    .rvol-bars i[data-on] { background: var(--accent); }
 .rvol[data-tier="heavy"]   .rvol-bars i[data-on] { background: var(--brand); }
