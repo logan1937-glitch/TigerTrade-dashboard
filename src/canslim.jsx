@@ -42,8 +42,18 @@ function Spark({ data }) {
   const y = (p) => mid - (p / span) * amp;
   const pts = pcts.map((p, i) => `${((i / (data.length - 1)) * w).toFixed(1)},${y(p).toFixed(2)}`);
   const net = (last / first - 1) * 100;
-  // polarity follows the window's net direction — a downtrend must not read green
-  const c = net >= 0 ? "var(--cat-growth)" : "var(--sev-extreme)";
+  /* One colour, and it is brand amber — the reference draws it that way and the
+     rule agrees. A trend line is a SHAPE, not money moved: a falling amber line
+     still reads as falling because it goes down, and the Δ column an inch to the
+     left already carries the sign in the P&L pair. Spending green and red on a
+     channel that is redundant with its own neighbour is exactly what costs them
+     their meaning everywhere else.
+
+     This replaces an earlier "polarity follows net direction" rule. That rule
+     was solving a real problem — a downtrend drawn in green — but the fix was
+     the wrong axis: the answer is not to switch between P&L colours, it is not
+     to use them here at all. */
+  const c = "var(--brand)";
   // fill to the unchanged line rather than to the floor of the box, so the shaded
   // area is the gain (or the loss) and not just "there is a line here"
   const area = `0,${mid} ${pts.join(" ")} ${w},${mid}`;

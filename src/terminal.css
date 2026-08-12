@@ -840,16 +840,20 @@ body { background: #0a0b0d; }
 /* depth below the 52-week high */
 .cs-off { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .cs-off-v { font-size: var(--fs-data); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
-.cs-off[data-tier="near"] .cs-off-v { color: var(--cat-growth); }
-.cs-off[data-tier="far"] .cs-off-v { color: var(--sev-extreme); }
+/* Distance from the 52-week high is a SIGNAL, not money moved — jade for the
+   leadership band, caution for a name that has fallen out of it. It sits one
+   column from an amber spark and two from the P&L pair, and painting it green
+   and red made three different meanings share two colours in the same row. */
+.cs-off[data-tier="near"] .cs-off-v { color: var(--accent); }
+.cs-off[data-tier="far"] .cs-off-v { color: var(--caution); }
 .cs-off-bar { position: relative; width: 100%; height: 3px; border-radius: 3px;
   background: color-mix(in oklch, var(--border-2) 80%, transparent); }
 /* right-anchored — the bar grows leftward out of the high, so a column of
    leaders lines up on a clean right edge and a laggard reaches across */
 .cs-off-bar i { position: absolute; right: 0; top: 0; height: 100%; border-radius: 3px;
   background: color-mix(in oklch, var(--muted) 60%, transparent); }
-.cs-off[data-tier="near"] .cs-off-bar i { background: var(--cat-growth); }
-.cs-off[data-tier="far"] .cs-off-bar i { background: color-mix(in oklch, var(--sev-extreme) 75%, transparent); }
+.cs-off[data-tier="near"] .cs-off-bar i { background: var(--accent); }
+.cs-off[data-tier="far"] .cs-off-bar i { background: color-mix(in oklch, var(--caution) 75%, transparent); }
 .mh-ispark .cs-spark { width: 64px; }
 .cs-letters { display: flex; gap: 4px; }
 .cs-let { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; font-family: var(--font-mono);

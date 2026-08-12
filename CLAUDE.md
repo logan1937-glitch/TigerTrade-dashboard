@@ -212,7 +212,13 @@ properties across four themes.
 It implements the **Ember** brand handoff. One rule governs it: **amber is
 brand, jade is signal and interaction, green and red are P&L and nothing else.**
 Green/red are the only colours in the product that mean money moved, so spending
-them on a decorative success state costs them that meaning. `--pl-up` /
+them on a decorative success state costs them that meaning. Three surfaces have
+been taken off them because they are not money: the screener's **trend spark**
+(one brand amber, because a line's direction is its shape and the Δ column an
+inch away already carries the sign), the **score** column's top tier (amber —
+a leadership score is a model output), and **off-high** (jade for the leadership
+band, `--caution` beyond it — a distance is a signal). Still on P&L green and
+open to the same argument: the LEADERS pass letters and the buy-status pill. `--pl-up` /
 `--pl-down` are the names to reach for; `--cat-growth` / `--sev-extreme` still
 resolve to them because the Growth event category and the Extreme severity band
 have always been drawn in those hues, and separating those two from P&L is the
