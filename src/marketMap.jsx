@@ -269,8 +269,6 @@ const QUADRANTS = [
   { id: "weakening", label: "Weakening", desc: "still stronger, but momentum has turned down" },
   { id: "lagging", label: "Lagging", desc: "weaker than the S&P, and still losing" },
 ];
-// a long tail of names would push the plot off screen; the overflow is stated
-const ROSTER_MAX = 8;
 
 /* The viewBox has to match the BOX, or the SVG letterboxes inside it while the
    HTML label overlay — positioned in percentages of the box — keeps using the
@@ -291,25 +289,6 @@ const useNarrow = () => {
   return n;
 };
 
-/* Is there content below the fold of a scroller, right now? The roster's fade
-   has to answer that and nothing else: shown unconditionally it washed out the
-   footer line in Sectors mode, where the list fits and there is nothing below —
-   a scroll affordance pointing at content that does not exist. */
-function useHasMore(ref, deps) {
-  const [more, setMore] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const read = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
-    read();
-    el.addEventListener("scroll", read, { passive: true });
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(read) : null;
-    if (ro) ro.observe(el);
-    return () => { el.removeEventListener("scroll", read); if (ro) ro.disconnect(); };
-  }, deps);
-  return more;
-}
-
 /* SECTORS ONLY. There was a Names mode plotting every tracked ticker, and ~500
    dots in a 600×400 box is not a chart — the labels had to be capped at eight, so
    forty-odd unlabelled dots sat there meaning nothing you could act on, and the
@@ -320,31 +299,6 @@ function RelativeRotation({ rows }) {
   const narrow = useNarrow();
   const [hover, setHover] = useState(null);
   const [pinned, setPinned] = useState(null);   // tapped sector whose tail stays shown
-  const rosterRef = useRef(null);
-  /* The plot's rendered width. The label stack's gap is the one number here that
-     has to be right in PIXELS — the chips render at a fixed size while everything
-     else in this component is viewBox units — and the plot's width is not a fixed
-     860: it is whatever its grid column gives it, which varies with the roster,
-     the breakpoint and the viewport. Guessing it put labels back on top of each
-     other at 1200px and 820px while 1500px looked perfect. */
-  const plotRef = useRef(null);
-  const labRef = useRef(null);
-  const [plotW, setPlotW] = useState(0);
-  const [labH, setLabH] = useState(0);
-  useEffect(() => {
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver((es) => {
-      for (const e of es) {
-        if (e.target === plotRef.current) setPlotW((w) => (Math.abs(w - e.contentRect.width) < 0.5 ? w : e.contentRect.width));
-        // offsetHeight, not contentRect: the chip's padding and border are part of
-        // what has to clear its neighbour, and contentRect excludes both
-        else setLabH((h) => (Math.abs(h - e.target.offsetHeight) < 0.5 ? h : e.target.offsetHeight));
-      }
-    });
-    if (plotRef.current) ro.observe(plotRef.current);
-    if (labRef.current) ro.observe(labRef.current);
-    return () => ro.disconnect();
-  }, []);
 
   const entities = useMemo(() => {
     // each name's 6-point rotation tail is precomputed on the snapshot (rrgOf).
@@ -357,15 +311,13 @@ function RelativeRotation({ rows }) {
       return tail ? { id: sector, label: sector, tail, head: tail[tail.length - 1], n: tails.length } : null;
     }).filter(Boolean);
   }, [rows]);
-  // above the early return: a hook that runs only when there is data is a hook
-  // whose order changes between renders
-  const rosterMore = useHasMore(rosterRef, [entities, narrow]);
 
   if (entities.length < 2) return <div className="empty">Waiting for live data…</div>;
 
-  // 3:2 on a desktop, near-square on a phone — a phone has width to spare on
-  // neither axis, and the labels need vertical room far more than the dots need
-  // horizontal spread
+  // 3:2 on a desktop, near-square on a phone. The CSS mirrors both shapes and must
+  // keep mirroring them: a viewBox that disagrees with its container letterboxes
+  // the SVG while the HTML overlay keeps using the full box, so every mark drifts
+  // off the plot it belongs to.
   const W = narrow ? 440 : 600, H = narrow ? 430 : 400;
   const padL = 26, padR = 14, padT = 14, padB = 24;
   const all = entities.flatMap((e) => e.tail);
@@ -377,61 +329,36 @@ function RelativeRotation({ rows }) {
   const y = (m) => padT + (1 - (m - 100 + domY) / (2 * domY)) * (H - padT - padB);
   const cx = x(100), cy = y(100);
 
-  /* ONE global stack, at every width. Labels used to de-collide within their own
-     side of the plot, which halves the crowding but cannot stop a left-anchored
-     label and a right-anchored one landing on the same row — they are placed
-     independently, so nothing knows about the other. That was already the reason
-     a phone had to fall back to a global stack, and turning the labels into chips
-     made it happen on a desktop too: "Consumer Cyclical" pointing right ran
-     straight into "Healthcare" pointing left. Eleven rows at 16 viewBox units is
-     253 of the 400 available, so one stack fits with room to spare, and no two
-     labels can share a row whatever their x.
+  /* NO label placement, because there are no labels left to place. Eleven sector
+     names inside the plot were the clutter: each one is ~18 glyphs repeating a
+     row that already exists in the roster, and the stack that stopped them
+     colliding pushed most of them away from the dot they name — measured at up to
+     77px, joined back by a hairline. A name sitting nearer some other sector's dot
+     than its own is not a label, it is a wrong reading, and it cost a three-step
+     decode (find chip, follow line, find dot) to answer what the roster answers in
+     one. Deleting them also retires the two ResizeObservers, the px↔viewBox gap
+     conversion and the two-pass placement — the four hairiest bugs this component
+     has had were all in that code, and it now does not exist.
 
-     GAP is a real 23px — one chip plus a hair — converted into viewBox units
-     through the plot's measured width. Before the plot was measured this was a
-     constant, and a constant is only correct at one width: 16 units clears a chip
-     on an 858px plot and is 20px on a 727px one, which is narrower than the chip
-     it is spacing. */
-  // the chip's own measured height plus 3px of air. Guessed twice and wrong both
-  // times: the desktop chip is 24px and the phone one 21, and a gap a pixel under
-  // either is a gap that does not clear it
-  const LABEL_PX = (labH || (narrow ? 21 : 24)) + 3;
-  const GAP = plotW > 0 ? (LABEL_PX * W) / plotW : (narrow ? 30 : 17);
-  /* Stop the stack CLEAR of the furniture, not at the plot edge. Two things live
-     in those bands and both were being landed on: the corner captions top and
-     bottom, and the "100" origin chip at bottom centre. */
-  const lo = padT + 24, hi = H - padB - 40;
-  const marks = entities.map((e) => {
-    const dx = x(e.head.ratio), oy = y(e.head.mom);
-    return { e, dx, oy, dy: oy, right: dx <= W * 0.55 };
-  });
-  /* Two passes, down then back up. A single forward pass plus "if the last one
-     overran, shift everything up and clamp at the top" is the obvious version and
-     it is wrong: the shift is uniform but the clamp is per-item, so whatever hits
-     the ceiling stops while its neighbour keeps moving, and the top of the stack
-     re-collides. That is precisely what put "Consumer Cyclical" back on top of
-     "Healthcare" at 700px — 21px apart while every other pair sat at 25.
-     The backward pass pulls from the bottom instead and preserves the gap. */
-  const span = hi - lo;
-  const gap = marks.length > 1 ? Math.min(GAP, span / (marks.length - 1)) : GAP;
-  marks.sort((a, b) => a.oy - b.oy);
-  for (let i = 1; i < marks.length; i++) marks[i].dy = Math.max(marks[i].dy, marks[i - 1].dy + gap);
-  if (marks.length && marks[marks.length - 1].dy > hi) {
-    marks[marks.length - 1].dy = hi;
-    for (let i = marks.length - 2; i >= 0; i--) marks[i].dy = Math.min(marks[i].dy, marks[i + 1].dy - gap);
-  }
-  if (marks.length && marks[0].dy < lo) {
-    const d = lo - marks[0].dy;
-    for (const m of marks) m.dy += d;   // `gap` already guarantees the stack fits
-  }
-  const placed = marks;
+     Identity moves INSIDE the mark instead: each dot carries a rank numeral, and
+     the roster prints the same numeral beside the name. That is one lookup rather
+     than a traced hairline, and it is also what forces the dot to be big enough to
+     read — which is the sizing half of the complaint. */
 
   const hv = entities.find((e) => e.id === (hover ?? pinned)) || null;
 
-  // the same entities, bucketed by where their head sits, strongest first
+  /* Bucketed by where each head sits, strongest first — and NUMBERED in that
+     order, so the roster reads 1,2 / 3,4,5 / 6,7,8 / 9,10,11 down the column and a
+     numeral on the chart lands in a contiguous run rather than scattered across
+     four cards. The key is render-local and nothing is persisted against it; it is
+     a legend, not an identity, and it must never become one — an id that encodes a
+     position has already cost this app a broken watchlist. */
   const byQuad = {};
   for (const e of entities) (byQuad[QUAD(e.head)] = byQuad[QUAD(e.head)] || []).push(e);
   for (const k of Object.keys(byQuad)) byQuad[k].sort((a, b) => b.head.ratio - a.head.ratio);
+  const keyOf = {};
+  let kn = 0;
+  for (const q of QUADRANTS) for (const e of byQuad[q.id] || []) keyOf[e.id] = ++kn;
 
   return (
     <div className="mm-scatter">
@@ -445,7 +372,7 @@ function RelativeRotation({ rows }) {
             dense is on top of something: it landed on the "Healthcare" chip at
             1200px, 820px and 700px, and on the corner captions at 390px. Above the
             chart it can never collide, and the dot it describes is already marked
-            twice over — its own label chip lights up and so does its roster row. */}
+            twice over — its own dot lifts and so does its roster row. */}
         {hv ? (
           <span className="rrg-hint mono">
             <b>{hv.label}</b> · {hv.n} names · <span style={{ textTransform: "capitalize" }}>{QUAD(hv.head)}</span>
@@ -463,7 +390,7 @@ function RelativeRotation({ rows }) {
       <div className="rrg-wrap">
       {/* geometry in SVG; ALL text lives in the HTML overlay below so it renders
           at true pixel size instead of scaling up with the viewBox */}
-      <div className="rrg-plot" ref={plotRef}>
+      <div className="rrg-plot">
         {/* `preserveAspectRatio` is xMidYMid, NOT none. With `none` the viewBox is
             stretched independently on each axis, which turns every head into an
             ellipse and — worse — distorts the CURL of the rotation path, which is
@@ -514,38 +441,8 @@ function RelativeRotation({ rows }) {
             );
           })()}
 
-          {entities.map((e) => {
-            const active = hv && hv.id === e.id;
-            const focus = !!hv;
-            const q = QUAD(e.head);
-            const hx = x(e.head.ratio), hy = y(e.head.mom);
-            return (
-              <g key={e.id} style={{ cursor: "pointer" }}
-                 onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
-                 onClick={() => setPinned((v) => (v === e.id ? null : e.id))}>
-                {/* the hit area is bigger than the dot — an 4.5px target is a miss
-                    on a trackpad and unusable on a thumb */}
-                <circle cx={hx} cy={hy} r="14" fill="transparent" />
-                {/* a soft disc in the head's own colour. It gives the mark presence
-                    at this size without making the dot itself bigger, which is what
-                    kept eleven dots from reading as a scatter of specks. */}
-                <circle cx={hx} cy={hy} r={active ? 12 : 9} className="rrg-halo"
-                  data-q={q} opacity={focus && !active ? 0.25 : 1} />
-                {/* the head takes its quadrant's colour, so position is stated
-                    twice — by where it sits and by what colour it is */}
-                <circle cx={hx} cy={hy} r={active ? 6 : 4.6} className="rrg-head"
-                  data-q={q} data-active={active || undefined} opacity={focus && !active ? 0.5 : 1} />
-              </g>
-            );
-          })}
-          {/* connectors for nudged labels (geometry only — text is HTML) */}
-          {placed.map(({ e, dx, oy, dy, right }) => (
-            Math.abs(dy - oy) > 7
-              ? <line key={"c" + e.id} x1={dx} y1={oy} x2={right ? dx + 6 : dx - 6} y2={dy - 3} className="rrg-lbl-conn" style={{ pointerEvents: "none" }} />
-              : null
-          ))}
         </svg>
-        <div className="rrg-overlay" aria-hidden="true">
+        <div className="rrg-overlay">
           {/* each corner carries its own dot, so the head colours are keyed on the
               chart itself and not only in the roster beside it */}
           <span className="rrg-cap" style={{ right: `${((padR + 5) / W) * 100}%`, top: `${((padT + 4) / H) * 100}%` }}>
@@ -570,12 +467,30 @@ function RelativeRotation({ rows }) {
               the centre of the box is 6 viewBox units off the 100 gridline and the
               label sat visibly beside the axis it names */}
           <span className="rrg-origin mono" style={{ left: `${(cx / W) * 100}%` }}>100</span>
-          {placed.map(({ e, dx, dy, right }, i) => {
-            const active = hover === e.id || pinned === e.id;
+          {/* The marks live in the OVERLAY, not the SVG, for the same reason the
+              text does: an HTML element renders at true pixel size instead of
+              scaling with the viewBox, so a 30px dot is 30px at every width with
+              nothing to measure. Being above the SVG also puts them over the
+              trail without any z-index bookkeeping. The overlay is
+              pointer-events:none; these opt back in, and they are real buttons —
+              the SVG <g> handlers were never keyboard-reachable. */}
+          {entities.map((e) => {
+            const active = hv && hv.id === e.id;
+            const focus = !!hv;
+            const q = QUAD(e.head);
             return (
-              <span key={"l" + e.id} ref={i === 0 ? labRef : undefined} className="rrg-lab mono" data-active={active || undefined}
-                style={{ left: `${((right ? dx + 8 : dx - 8) / W) * 100}%`, top: `${(dy / H) * 100}%`,
-                  transform: `translateY(-50%)${right ? "" : " translateX(-100%)"}` }}>{e.label}</span>
+              <button key={"d" + e.id} className="rrg-dot" data-q={q} data-active={active || undefined}
+                style={{ left: `${(x(e.head.ratio) / W) * 100}%`, top: `${(y(e.head.mom) / H) * 100}%`,
+                  opacity: focus && !active ? 0.55 : 1 }}
+                onMouseEnter={() => setHover(e.id)} onMouseLeave={() => setHover(null)}
+                onFocus={() => setHover(e.id)} onBlur={() => setHover(null)}
+                onClick={() => setPinned((v) => (v === e.id ? null : e.id))}
+                aria-label={`${e.label} — ${QUAD(e.head)}, ratio ${e.head.ratio.toFixed(1)}, momentum ${e.head.mom.toFixed(1)}`}>
+                {/* the soft disc survives as the ring's own ground: at 30px it is
+                    what keeps the numeral legible over a gridline or a trail */}
+                <i className="rrg-halo" data-q={q} aria-hidden="true" />
+                <b className="rrg-key mono">{keyOf[e.id]}</b>
+              </button>
             );
           })}
         </div>
@@ -587,21 +502,16 @@ function RelativeRotation({ rows }) {
           and it carries the one thing the corner labels cannot: what each state
           MEANS. Hover and pin are shared with the plot, so pointing at a row
           traces its path on the chart. */}
-      {/* The column is a positioning context and the roster fills it absolutely,
-          which is what pins the roster to the PLOT's height without measuring it:
-          an absolute child contributes nothing to the grid row, so the row is
-          sized by the plot alone and the roster scrolls inside whatever that is.
-          In Names mode there are ~44 entities and the roster would otherwise run
-          hundreds of pixels past the chart. */}
+      {/* Eleven sectors always fit, so the roster is a plain block again. It used
+          to be absolutely positioned inside a relative column purely to pin its
+          height to the plot's and scroll — which existed for the deleted Names
+          mode's ~44 entities. With that gone the trick only ever cost a scroll
+          fade that washed out the footer. */}
       <div className="rrg-roster-col">
-      {/* says "there is more below" — without it the list ends on a card sliced
-          through its own header, which reads as a layout fault rather than a
-          scroll boundary */}
-      {rosterMore && <span className="rrg-roster-fade" aria-hidden="true" />}
-      <div className="rrg-roster" ref={rosterRef}>
+      <div className="rrg-roster">
         {QUADRANTS.map((q) => {
           const list = byQuad[q.id] || [];
-          const shown = list.slice(0, ROSTER_MAX);
+          const shown = list;
           return (
             <div className="rrg-qgrp" key={q.id}>
               <div className="rrg-qgrp-h">
@@ -618,17 +528,15 @@ function RelativeRotation({ rows }) {
                     onFocus={() => setHover(e.id)} onBlur={() => setHover(null)}
                     onClick={() => setPinned((v) => (v === e.id ? null : e.id))}
                     title={`Trace ${e.label}'s six-week path`}>
+                    {/* the same numeral the dot carries — this is the whole key,
+                        and it is why the plot needs no names inside it */}
+                    <span className="rrg-rrow-n mono">{keyOf[e.id]}</span>
                     <span className="rrg-rrow-l">{e.label}</span>
                     <span className="rrg-rrow-v mono">{e.head.ratio.toFixed(1)}</span>
                     <span className="rrg-rrow-v mono">{e.head.mom.toFixed(1)}</span>
                   </button>
                 );
               })}
-              {/* never a silent truncation — a roster that quietly stopped at eight
-                  would read as "these are all of them" */}
-              {list.length > shown.length && (
-                <p className="rrg-qgrp-e mono">+{list.length - shown.length} more, ranked below the top {ROSTER_MAX}</p>
-              )}
               {!list.length && <p className="rrg-qgrp-e mono">none</p>}
             </div>
           );
@@ -638,6 +546,16 @@ function RelativeRotation({ rows }) {
         </p>
       </div>
       </div>
+        <p className="mm-rrg-note">
+          {/* the axes now name both of their own directions, so this no longer
+              repeats them; what is left is what the picture cannot say by itself */}
+          <b>Reading it:</b> each numbered dot is one sector today, measured against the S&amp;P 500, and the same
+          number sits beside its name in the list. Rotation runs clockwise — Improving → Leading → Weakening →
+          Lagging — and a full turn takes months, not days, so a sector deep in one corner is a position rather
+          than a signal. Hover or tap anything, on the chart or in the list, to draw the six weeks behind it;
+          the dots along that trail are one per week, so evenly spaced is a steady drift and bunched is a stall.
+          <span style={{ opacity: .7 }}> Our approximation of the relative-rotation concept popularized by Julius de Kempenaer (RRG Research); not the proprietary JdK RS-Ratio / RS-Momentum. Educational use only.</span>
+        </p>
       </div>
     </div>
   );
@@ -847,16 +765,6 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) 
       <div className="mm-sec-h"><h3>Relative rotation</h3><span className="dr-sec-sub mono">RS-trend vs its momentum · benchmark: S&amp;P 500</span></div>
       <div className="mm-scatter-card">
         <RelativeRotation rows={rows} />
-        <p className="mono mm-rrg-note">
-          {/* the axes now name both of their own directions, so this no longer
-              repeats them; what is left is what the picture cannot say by itself */}
-          <b>Reading it:</b> each dot is one sector today, measured against the S&amp;P 500. Rotation runs clockwise —
-          Improving → Leading → Weakening → Lagging — and a full turn takes months, not days, so a sector
-          deep in one corner is a position rather than a signal. Hover or tap anything, on the chart or in
-          the list, to draw the six weeks behind it; the dots along that trail are one per week, so evenly
-          spaced is a steady drift and bunched is a stall.
-          <span style={{ opacity: .7 }}> Our approximation of the relative-rotation concept popularized by Julius de Kempenaer (RRG Research); not the proprietary JdK RS-Ratio / RS-Momentum. Educational use only.</span>
-        </p>
       </div>
 
       <div className="mm-sec-h"><h3>Sector ETFs</h3><span className="dr-sec-sub mono">excess return over the S&amp;P · tap a row to screen that sector</span></div>

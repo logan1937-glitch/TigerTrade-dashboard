@@ -1684,30 +1684,24 @@ body { background: #0a0b0d; }
    quadrant washes doing the only bounding the plot read as two tinted slabs
    floating in a void rather than as a chart. An inset surface and a hairline
    say where the plot ends, which is what lets the washes drop to nothing. */
-.rrg-plot { position: relative; aspect-ratio: 600 / 400; width: min(100%, 860px); margin-inline: auto;
+.rrg-plot { position: relative; aspect-ratio: 600 / 400; width: min(100%, 620px); margin-inline: auto;
   background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
 .rrg-plot > svg { width: 100%; height: 100%; }
 /* mirrors the narrow viewBox in marketMap.jsx — these two must agree or the SVG
    letterboxes and the HTML label overlay drifts off it */
 @media (max-width: 640px) {
   .rrg-plot { aspect-ratio: 440 / 430; }
-  .rrg-lab { font-size: var(--fs-micro); padding: 2px 6px; }
 }
 .rrg-overlay { position: absolute; inset: 0; pointer-events: none; }
 .rrg-cap { position: absolute; display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600;
+  font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 700;
   letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--dim); opacity: 0.9; }
-/* A chip, not floating text. A text-shadow halo is a workaround for a label with
-   no ground of its own; on a plot with a grid behind it the glyphs sat directly
-   on the dotted lines and read as debris. The chip also gives the active state
-   something to fill, which is what ties a hovered roster row to its dot. */
-.rrg-lab { position: absolute; font-size: var(--fs-label); color: var(--muted); white-space: nowrap;
-  padding: 2px 8px; border-radius: 20px; border: 1px solid transparent;
-  background: color-mix(in oklch, var(--panel) 88%, transparent);
-  transition: background .12s ease, color .12s ease, border-color .12s ease; }
-.rrg-lab[data-active] { color: var(--text); font-weight: 600;
-  background: color-mix(in oklch, var(--accent) 18%, var(--panel));
-  border-color: color-mix(in oklch, var(--accent) 42%, transparent); }
+/* `.rrg-lab` and `.rrg-lbl-conn` are GONE. Eleven sector names inside the plot
+   were the clutter — each repeating a roster row that says it better — and the
+   stack that kept them from colliding pushed most of them away from the dot they
+   name, up to 77px, joined back by a hairline. Identity moved inside the mark
+   instead: `.rrg-dot` carries a rank numeral and `.rrg-rrow-n` prints the same
+   one beside the name. */
 .mm-axis-y { position: absolute; top: 8px; left: 16px; font-size: var(--fs-micro); letter-spacing: var(--track-label); color: var(--dim); }
 .mm-legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 8px 2px 2px; font-size: var(--fs-label); color: var(--dim); align-items: center; }
 .mm-legend .mm-key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
@@ -1715,13 +1709,17 @@ body { background: #0a0b0d; }
 .mm-legend .mm-key[data-up="false"] { background: var(--sev-extreme); }
 
 /* relative-rotation graph (RRG-style) */
-.rrg-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+/* min-height so the row does not reflow as the idle hint swaps for the readout */
+.rrg-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 30px; margin-bottom: 12px; flex-wrap: wrap; }
 .rrg-toolbar .seg-btn { padding: 5px 12px; }
 /* the instruction sits where the Sectors/Names switch used to, because the trails
    are hidden until asked for and nothing else on screen says they exist */
-.rrg-hint { font-size: var(--fs-label); color: var(--dim); }
-.rrg-hint b { color: var(--muted); font-weight: 600; }
-.rrg-clear { font-size: var(--fs-label); color: var(--accent); background: transparent;
+/* the hover readout shares this slot, so it is sized for the readout — it is the
+   most informative element in the component and was its faintest */
+.rrg-hint { font-size: var(--fs-data); color: var(--dim); }
+.rrg-hint b { font-size: var(--fs-body); color: var(--text); font-weight: 700; }
+.rrg-clear { font-size: var(--fs-data); color: var(--accent); background: transparent;
   border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--border)); border-radius: var(--radius-sm);
   padding: 4px 11px; cursor: pointer; transition: background .13s ease; }
 .rrg-clear:hover { background: color-mix(in oklch, var(--accent) 12%, transparent); }
@@ -1749,39 +1747,45 @@ body { background: #0a0b0d; }
   stroke-linejoin: round; vector-effect: non-scaling-stroke;
   opacity: 0.85; filter: drop-shadow(0 0 4px color-mix(in oklch, var(--accent) 45%, transparent)); }
 .rrg-tail-pt { fill: var(--accent); }
-/* A soft disc under each head, in the head's own colour. It gives an 11-dot
-   scatter presence at this size without enlarging the dot itself, which is what
-   made the plot read as a handful of specks on a dark field. */
-.rrg-halo { pointer-events: none; transition: r .12s ease, opacity .12s ease; }
-.rrg-halo[data-q="leading"]   { fill: color-mix(in oklch, var(--accent) 16%, transparent); }
-.rrg-halo[data-q="improving"] { fill: color-mix(in oklch, var(--accent) 9%, transparent); }
-.rrg-halo[data-q="weakening"] { fill: color-mix(in oklch, var(--caution) 13%, transparent); }
-.rrg-halo[data-q="lagging"]   { fill: color-mix(in oklch, var(--dim) 12%, transparent); }
-/* A strength RAMP, not four categorical hues — and none of them P&L. A quadrant
-   is a rotation state; green and red mean money moved, and eleven dots split
-   green/red/amber/jade read as four unrelated things rather than as one axis
-   from strong to weak. Jade solid is where you want to be, jade muted is on the
-   way there, caution is rolling over, and lagging recedes into the ink. The
-   corner labels already name the quadrants, so colour only has to rank them. */
-.rrg-head { stroke: var(--panel); stroke-width: 2; transition: r .12s ease, opacity .12s ease; }
-.rrg-head[data-q="leading"]   { fill: var(--accent); }
-/* mixed toward --muted, NOT toward --panel: mixing into the ground dims the dot
-   on black and washes it out on paper, so the same rule that read as "half
-   strength" in dark mode nearly disappeared in light. --muted flips with the
-   theme, so the dot stays a desaturated jade against either ground. */
-.rrg-head[data-q="improving"] { fill: color-mix(in oklch, var(--accent) 55%, var(--muted)); }
-.rrg-head[data-q="weakening"] { fill: var(--caution); }
-.rrg-head[data-q="lagging"]   { fill: var(--dim); }
-/* the glow is jade, matching the trail it belongs to. `currentColor` on an SVG
-   circle resolves to the inherited text colour, so the focused head bloomed
-   near-white — the loudest thing on the chart, and a colour that means nothing
-   here. */
-.rrg-head[data-active] { stroke: color-mix(in oklch, var(--text) 55%, transparent); stroke-width: 1.6;
-  filter: drop-shadow(0 0 4px color-mix(in oklch, var(--accent) 70%, transparent)); }
-/* The axis name in the middle, its two directions pushed to the ENDS of the axis
-   they describe. Adjacent to the name they read as a run-on phrase; at the ends,
-   position states the direction and no arrow glyph is needed — which matters,
-   because an arrow inside a rotated label is rotated too. */
+/* THE MARK. An HTML button in the overlay rather than an SVG circle, for the same
+   reason the text is: it renders at true pixel size instead of scaling with the
+   viewBox, so 30px is 30px at every width with nothing to measure — the lesson the
+   Market Map's tile type already paid for. A dot that has to hold a two-digit
+   numeral cannot be a 9px speck, which is the sizing complaint answered directly:
+   ink-to-plot goes from about 1:7,400 to 1:35.
+   Ring plus tinted disc rather than a solid fill, because that is the only
+   construction where the numeral keeps its contrast across all four themes
+   without hard-coding an ink per quadrant. */
+.rrg-dot { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; cursor: pointer; pointer-events: auto;
+  transition: transform .12s ease, opacity .12s ease; }
+/* a 44px target from a 30px mark — a thumb does not hit 30px reliably */
+.rrg-dot::before { content: ""; position: absolute; inset: -7px; border-radius: 50%; }
+.rrg-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.rrg-dot[data-active] { transform: scale(1.16); z-index: 3; }
+/* The soft disc survives — it is now the ring's own ground, and what keeps the
+   numeral legible where a dot sits over a gridline or its own trail. */
+.rrg-halo { position: absolute; inset: 0; border-radius: 50%; border: 2px solid currentColor;
+  background: color-mix(in oklch, currentColor 20%, var(--panel)); transition: background .12s ease; }
+.rrg-dot[data-active] .rrg-halo { background: color-mix(in oklch, currentColor 34%, var(--panel));
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent); }
+/* the strength ramp, once, as `color` — the ring and the disc both key off it */
+.rrg-dot[data-q="leading"]   { color: var(--accent); }
+.rrg-dot[data-q="improving"] { color: color-mix(in oklch, var(--accent) 55%, var(--muted)); }
+.rrg-dot[data-q="weakening"] { color: var(--caution); }
+.rrg-dot[data-q="lagging"]   { color: var(--dim); }
+.rrg-key { position: relative; font-size: var(--fs-data); font-weight: 700; line-height: 1;
+  color: var(--text); font-variant-numeric: tabular-nums; }
+/* AFTER the base rules, not with the other phone overrides higher up the file:
+   at equal specificity source order decides, and a `.rrg-dot` override placed
+   above `.rrg-dot` silently loses. Measured — the dot stayed 30px at 390px.
+   Same trap `.star.star-lbl` documents. */
+@media (max-width: 640px) {
+  .rrg-dot { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+  .rrg-key { font-size: var(--fs-label); }
+}
+
 .rrg-axis { position: absolute; display: flex; align-items: baseline; justify-content: space-between;
   font-family: var(--font-mono); font-size: var(--fs-micro);
   font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
@@ -1806,7 +1810,6 @@ body { background: #0a0b0d; }
    "100" over "Basic Materials"). The roster's footer states the 100 baseline in
    words, so nothing is lost but the collision. */
 @media (max-width: 640px) { .rrg-origin { display: none; } }
-.rrg-lbl-conn { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.55; }
 
 /* ── the roster beside the plot ──────────────────────────────────────────
    The plot is a fixed 600:400 box capped at 860px, so on a desktop it leaves a
@@ -1815,35 +1818,33 @@ body { background: #0a0b0d; }
    give after you decode eleven dot positions. `minmax(0, …)` on the plot column
    so the SVG can shrink; a grid item's default `min-width: auto` would let it
    push the roster off the panel instead. */
-.rrg-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(268px, 320px);
-  gap: 22px; align-items: stretch; }
-/* the roster is absolute inside this, so the grid row is sized by the PLOT and
-   the roster scrolls to fit it rather than running past the chart in Names mode */
-.rrg-roster-col { position: relative; min-height: 0; }
-/* above the roster in the stacking order, so it sits over the scrolled content */
-.rrg-roster-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; z-index: 2;
-  pointer-events: none; background: linear-gradient(to top, var(--surface), transparent); }
-.rrg-roster { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain;
-  display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-right: 4px; }
+/* The plot gives width back to the roster. It was 860px of near-empty field —
+   490,000px² carrying eleven 9px dots — beside a 320px gutter holding every number
+   the component reports at 9px. Now the plot caps at 620 (so ~620×413 at a desktop
+   width) and the roster takes what is left, which is roughly a 45/55 split: about
+   how the reading actually divides between "where" and "who". */
+.rrg-wrap { display: grid; grid-template-columns: minmax(0, 660px) minmax(300px, 1fr);
+  gap: 26px; align-items: start; }
+/* Two columns of cards once there is room for them, so the roster is a board
+   rather than a tall strip. `auto-fit` covers every width with one rule — the old
+   641–1120px special case is folded into it. */
+.rrg-roster-col { min-width: 0; }
+.rrg-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+  gap: 14px; align-content: start; min-width: 0; }
+.rrg-roster-f { grid-column: 1 / -1; }
 @media (max-width: 1120px) {
   .rrg-wrap { grid-template-columns: 1fr; }
-  /* stacked, there is no height to fit — let it run at its natural size */
-  .rrg-roster-col { position: static; }
-  .rrg-roster { position: static; overflow: visible; padding-right: 0; margin-top: 14px; }
-  .rrg-roster-fade { display: none; }
+  .rrg-roster { margin-top: 16px; }
 }
 /* on a narrow screen the four groups sit side by side rather than in one long
    column under the plot — the whole roster is above the fold either way */
-@media (min-width: 641px) and (max-width: 1120px) {
-  .rrg-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
-  .rrg-roster-f { grid-column: 1 / -1; }
-}
+
 .rrg-qgrp { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 9px 10px 8px;
   background: color-mix(in oklch, var(--panel) 55%, transparent); }
 .rrg-qgrp-h { display: flex; align-items: center; gap: 7px; }
-.rrg-qgrp-t { font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--track-label);
+.rrg-qgrp-t { font-size: var(--fs-label); font-weight: 700; letter-spacing: var(--track-label);
   text-transform: uppercase; color: var(--text); }
-.rrg-qgrp-n { margin-left: auto; font-size: var(--fs-micro); color: var(--dim); font-variant-numeric: tabular-nums; }
+.rrg-qgrp-n { margin-left: auto; font-size: var(--fs-label); color: var(--dim); font-variant-numeric: tabular-nums; }
 /* the key to the head colours, and the only place the four states are defined */
 .rrg-qdot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .rrg-qdot[data-q="leading"]   { background: var(--accent); }
@@ -1852,20 +1853,35 @@ body { background: #0a0b0d; }
 .rrg-qdot[data-q="lagging"]   { background: var(--dim); }
 /* prose, so --font-ui at a readable line height — this is the sentence that does
    the explaining, and .mono would turn it into a code block */
-.rrg-qgrp-d { font-size: var(--fs-label); line-height: 1.5; color: var(--muted); margin: 3px 0 7px; }
+/* the sentence that stops "Weakening" being read backwards — the single most
+   load-bearing text in the component, and it was set at the second-smallest size
+   the scale has */
+.rrg-qgrp-d { font-size: var(--fs-data); line-height: 1.55; color: var(--muted); margin: 4px 0 9px; }
 .rrg-qgrp-e { font-size: var(--fs-micro); color: var(--dim); margin: 4px 0 0; }
-.rrg-rrow { display: grid; grid-template-columns: minmax(0, 1fr) 42px 42px; align-items: center; gap: 6px;
-  width: 100%; padding: 4px 5px; border: 0; border-radius: var(--radius-sm); background: transparent;
+.rrg-rrow { display: grid; grid-template-columns: 20px minmax(0, 1fr) 48px 48px; align-items: center; gap: 8px;
+  width: 100%; min-height: 32px; padding: 5px 6px; border: 0; border-radius: var(--radius-sm); background: transparent;
   color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .12s ease; }
 .rrg-rrow:hover, .rrg-rrow:focus-visible { outline: none; background: var(--surface-2); }
 .rrg-rrow[data-active] { background: color-mix(in oklch, var(--accent) 15%, transparent); }
-.rrg-rrow-l { font-size: var(--fs-label); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rrg-rrow-v { font-size: var(--fs-micro); color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+.rrg-rrow-l { font-size: var(--fs-body); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Ratio and Momentum are the only absolute measurements the component reports,
+   and they were the smallest and faintest text on the panel */
+.rrg-rrow-v { font-size: var(--fs-data); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+/* the key. Same numeral as the dot; that pairing is the whole mechanism */
+.rrg-rrow-n { font-size: var(--fs-label); font-weight: 700; color: var(--dim); text-align: right;
+  font-variant-numeric: tabular-nums; }
+.rrg-rrow[data-active] .rrg-rrow-n { color: var(--accent); }
 .rrg-rrow[data-active] .rrg-rrow-v { color: var(--muted); }
-.rrg-roster-f { font-size: var(--fs-micro); line-height: 1.5; color: var(--dim); margin: 0; }
+.rrg-roster-f { font-size: var(--fs-label); line-height: 1.55; color: var(--dim); margin: 0; }
 .mm-scatter svg { display: block; width: 100%; }
 @media (max-width: 640px) { .mm-scatter svg { min-height: 340px; } .mm-dot-label { font-size: var(--fs-micro); } }
-.mm-rrg-note { font-size: var(--fs-label); line-height: 1.6; color: var(--muted); margin: 10px 2px 2px; max-width: 78ch; }
+/* Full width UNDER both columns, as a grid row of its own. Left in the plot's
+   column it ran eight lines deep while the roster ended level with the chart,
+   which left roughly 840x240 of dead card at the bottom right. It is also no
+   longer `.mono` — five sentences of prose in a monospace face is the trap this
+   file already documents, and at 12px it was a wall. */
+.mm-rrg-note { grid-column: 1 / -1; font-size: var(--fs-data); line-height: 1.65; color: var(--muted);
+  margin: 18px 2px 0; max-width: 96ch; }
 .mm-rrg-note b { color: var(--text); font-weight: 600; }
 
 /* industry-group leaders — RS ranking inside each group */

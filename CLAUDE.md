@@ -422,15 +422,37 @@ reversals are the whole history of this component:
   The default is now where things ARE; where one came from is a question asked of
   one sector at a time, and only the hovered/pinned sector draws its path, in jade,
   with one dot per week so the trail carries its own time scale.
+- **No sector names inside the plot.** Eleven `.rrg-lab` chips each repeated a
+  roster row that says it better, and the stack that kept them from colliding
+  pushed most of them away from the dot they name — measured at up to **77px**,
+  joined back by a hairline. A name sitting nearer some other sector's dot than
+  its own is a wrong reading, not a label, and it cost a three-step decode. They
+  are gone, and with them the two `ResizeObserver`s, the px↔viewBox gap
+  conversion and the two-pass placement — every hard bug this component has had
+  lived in that code.
+- **Identity lives inside the mark.** `.rrg-dot` is an **HTML button in the
+  overlay**, not an SVG circle: it renders at true pixel size instead of scaling
+  with the viewBox, so 30px is 30px at every width with nothing to measure — the
+  lesson the Market Map's tile type already paid for. It carries a rank numeral,
+  and `.rrg-rrow-n` prints the same numeral beside the name in the roster. That
+  pairing is the whole mechanism, and it is also what forces the mark to be big
+  enough to read: **ink-to-plot went from about 1:7,400 to 1:33**. The numeral is
+  a render-local legend keyed to reading order, never an identity — nothing may
+  ever be persisted against it.
 - **The roster beside the plot is not decoration.** A dot's position is the
   reading, but decoding eleven of them is work, and the question actually being
   asked — "who is leading?" — is a list. It also carries the sentence that says
   what each quadrant *means*; "Weakening" is the strong-but-rolling-over corner and
-  everyone reads it backwards. It is absolutely positioned inside its grid column
-  so the row is sized by the **plot**, and it scrolls to fit rather than running
-  past the chart. Its scroll fade is conditional on there actually being more
-  below — shown unconditionally it washed out the footer, which is an affordance
-  pointing at content that does not exist.
+  everyone reads it backwards. It is a two-column board of four cards
+  (`repeat(auto-fit, minmax(238px, 1fr))`, one rule for every width), and since
+  eleven sectors always fit it needs no scroll container — the absolute-positioning
+  trick and its fade existed only for the deleted Names mode.
+- **Nothing on this panel was sized by importance.** Nine text roles, all of them
+  at 9px or 10.5px, in a 1428×788 card — the biggest object on screen was empty
+  plot and the smallest text was Ratio and Momentum, the only measurements the
+  component reports. The plot now caps at **620px** rather than 860 and the roster
+  takes the width back, roughly a 45/55 split; the quadrant sentence, the sector
+  names and the figures all moved up the scale.
 - **The readout sits above the chart, not in it.** Anchored to its dot it has to go
   somewhere, and everywhere inside a plot this dense is on top of something: it
   was measured landing on a neighbour's label chip at 1200/820/700 and on the

@@ -138,8 +138,8 @@ const VIEWS = [
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   { id: "rrgpin",    state: { tt_product: "canslim" }, act: async (p) => {
       await click(p, "Market Map");
-      // a head circle, not the label — the label is in a pointer-events:none overlay
-      await p.locator(".rrg-head").nth(3).click({ force: true });
+      // the mark is an HTML button in the overlay now, not an SVG circle
+      await p.locator(".rrg-dot").nth(3).click();
       await p.waitForTimeout(400);
     } },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
