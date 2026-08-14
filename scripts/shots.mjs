@@ -157,6 +157,14 @@ const VIEWS = [
       await p.locator(".pb-drow").nth(1).click().catch(() => {});
       await p.waitForTimeout(400);
     } },
+  /* The Playbook with the RVOL filter on. A filter that keeps every row and one
+     that keeps none look identical in a diff, and the count beside the chip is
+     the only thing that says which — so the state gets its own shot. */
+  { id: "playbookquiet", state: { tt_product: "canslim", tt_pb_seen: 1 }, act: async (p) => {
+      await click(p, "Playbook");
+      await p.locator(".pb-fchip", { hasText: /^Volume drying up/ }).first().click();
+      await p.waitForTimeout(500);
+    } },
   { id: "playbookhelp", state: { tt_product: "canslim" }, act: (p) => click(p, "Playbook") },
   // the stock drawer is where most of the component surface lives
   { id: "drawer",    state: { tt_product: "canslim" }, act: async (p) => {
@@ -225,6 +233,17 @@ function nameRecord(t, i, idx) {
       stage: 2, stageLabel: "Advancing", off52: (i % 9) + 1, atHigh: i % 4 === 0, ret12m: 15 + i * 6,
       rsNewHigh: i % 3 === 0, rsLeads: i % 5 === 0, adrPct: 2.4, dollarVol: 9e8, distDays: i % 4,
       pocketPivot: i % 6 === 0, udVol: 1 + (i % 5) / 10, above50: true, atLow: false, asOf: day(0),
+      /* RVOL, on a stride co-prime with BOTH the contraction stride (6) and the
+         pivot stride (5) — otherwise the scan's default contraction sort would
+         line up the same names against the same volume branch every time, which
+         is the collision the pivot already hit once. Two of every seven names sit
+         at or under their average, so the "Volume drying up" filter keeps a real
+         subset rather than everything or nothing. */
+      ...(() => {
+        const rvol = +(0.55 + (i % 7) * 0.42).toFixed(2);
+        const volAvg50 = Math.round(3.1e6 + i * 90e3);
+        return { rvol, volAvg50, volD: Math.round(volAvg50 * rvol) };
+      })(),
       /* The RRG's 6-point tail. Without it `rrgOf` returns null for every row and
          the whole rotation panel sat on "Waiting for live data…" in every shot —
          a panel the harness has therefore never actually verified.

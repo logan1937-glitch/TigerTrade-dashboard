@@ -14,7 +14,7 @@
 // its inputs stated (Chandelier: 22-day high − 3·ATR), not advice, and a name
 // with no computable metric shows "—" rather than a filled-in guess.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SearchIcon, Logo, NA, Chip, FigPct } from "./components.jsx";
+import { SearchIcon, Logo, NA, Chip, FigPct, Term } from "./components.jsx";
 import { isLaunchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf, atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
@@ -32,6 +32,7 @@ const val = (v, fmt, why) => (v == null ? <NA why={why} /> : fmt(v));
 export const TIGHT_MAX_CX = 0.55;        // "coiling or tighter"
 export const LIQUID_MIN_DV = 20e6;       // $20M average daily dollar volume
 export const ERN_BLACKOUT_DAYS = 7;      // a print inside a week voids a technical setup
+export const QUIET_MAX_RVOL = 1;         // at or under the name's own 50-day average volume
 
 /* Volatility contraction, as a visual marker. `cx` is the last 10 sessions'
    high-low range over the last 40 sessions' — below 1 means price is
@@ -79,6 +80,13 @@ export const FILTERS = [
     test: (r) => (r.sig.dollarVol ?? 0) >= LIQUID_MIN_DV,
   },
   {
+    id: "quiet", label: "Volume drying up",
+    desc: `last session's volume at or under the 50-day average — RVOL ≤ ${QUIET_MAX_RVOL}`,
+    why: "A contraction is supply exhausting, and that shows up as volume leaving before it shows up in the range. Note the direction is state-dependent: quiet is what you want INSIDE the base, and the opposite of what you want on the day it triggers. This reads ONE session against a 50-day average, so a single quiet day inside a noisy contraction is not the same as volume drying up over weeks.",
+    // a name with no average to compare against is DROPPED, never assumed quiet
+    test: (r) => r.sig.rvol != null && r.sig.rvol <= QUIET_MAX_RVOL,
+  },
+  {
     id: "noern", label: `No earnings ≤ ${ERN_BLACKOUT_DAYS}d`,
     desc: `excludes names reporting within ${ERN_BLACKOUT_DAYS} days`,
     why: "Reports gap through stops. The trailing level below assumes price moves continuously, and an earnings print is exactly when it doesn't.",
@@ -95,6 +103,9 @@ export const SORTS = [
     val: (r) => { const s = r.sig.swing; return s.stop != null && r.px ? (r.px - s.stop) / r.px : Infinity; } },
   { id: "atr", label: "ATR%", desc: "widest average daily range first, as a % of price",
     val: (r) => -(r.sig.swing.atrPct ?? -Infinity) },
+  { id: "rvol", label: "Quietest", desc: "lowest relative volume first — the least traded against its own 50-day average",
+    // ascending, so a name with no average to compare sinks rather than leading
+    val: (r) => (r.sig.rvol == null ? Infinity : r.sig.rvol) },
   { id: "score", label: "Score", desc: "highest leadership score first",
     val: (r) => -(r.score ?? 0) },
 ];
@@ -276,6 +287,7 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
             <div className="pb-row pb-hrow mono">
               <span>Ticker</span><span style={{ textAlign: "right" }}>Price</span>
               <span title="Range contraction as three bars, EMA spread as a percentage">Coil</span>
+              <span style={{ textAlign: "right" }} title="Last session's volume against this name's own 50-day average">RVOL</span>
               <span style={{ textAlign: "right" }}>ATR 14</span>
               <span style={{ textAlign: "right" }}>Stop</span>
             </div>
@@ -292,6 +304,16 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
                     <div className="pb-num mono">{px2(r.px)}
                       {r.chg != null && <span className="pb-sub2 mono" data-up={r.chg >= 0}>{pct(r.chg)}</span>}</div>
                     <div><CxMark cx={s.cx} imp={s.imp} spread={emaSpreadOf(r)} /></div>
+                    {/* Deliberately UNCOLOURED. The Volume tab's gauge tiers this
+                        metric by how unusual it is; here the constructive reading
+                        is the opposite — quiet inside the base — and painting the
+                        same number by a different rule in a second view would give
+                        one metric two colour languages. The filter carries the
+                        judgement; the column carries the number. */}
+                    <div className="pb-num mono">
+                      {r.sig.rvol == null
+                        ? <NA why="RVOL needs a 50-day average volume for this name" />
+                        : `${r.sig.rvol.toFixed(2)}×`}</div>
                     <div className="pb-num mono">{num(s.atr)}
                       {s.atrPct != null && <span className="pb-sub2 mono">{s.atrPct.toFixed(1)}%</span>}</div>
                     <div className="pb-num mono">{px2(s.stop)}
@@ -346,6 +368,10 @@ function HowToRead({ counts, total, onClose }) {
           of each other — the <i>EMA Launchpad</i>. Every timeframe agrees on price, so a resolution
           out of it tends to be decisive. That spread is the percentage under the bars in the{" "}
           <i>Coil</i> column, so both readings of "coiled" are on every row of the scan.</li>
+        <li><b>On quiet volume.</b> Supply leaves before the range does, so a contraction worth having
+          usually comes with volume under its own average — the <i>RVOL</i> column, and the
+          <i>Volume drying up</i> filter. It is one session against a 50-day mean, not a reading of the
+          whole base, and on the day a setup actually triggers you want the opposite.</li>
         <li><b>A level where it fails.</b> The <i>Stop</i> column is a Chandelier Exit: the 22-day
           highest high less 3 × ATR(14). It is arithmetic, not an order. The sizing box divides your
           risk budget by a distance to a stop, and it lets you pick which one — the Chandelier level
@@ -362,6 +388,8 @@ function HowToRead({ counts, total, onClose }) {
             <dt>Price</dt><dd>last quote, with the day's change beneath</dd>
             <dt>Coil</dt><dd>two measures in one cell: the bars are range contraction (10-day ÷ 40-day),
               the percentage is the EMA spread the Launchpad filter tests. Hover for both</dd>
+            <dt>RVOL</dt><dd>last session's volume against the name's own 50-day average. Uncoloured on
+              purpose — quiet is constructive inside a base and unhelpful on the day it triggers</dd>
             <dt>ATR 14</dt><dd>Wilder's average true range, in dollars, with % of price beneath</dd>
             <dt>Stop</dt><dd>the trailing level, with its distance from price beneath</dd>
             <dt>Chart</dt><dd>the jade line is the breakout trigger (the most recent base high) and the
@@ -472,6 +500,15 @@ function Detail({ row, onOpenStock }) {
           s={s.cx != null ? `ratio ${s.cx.toFixed(2)}` : "10-day range ÷ 40-day range"} title={cxNote} />
         <Tile k="Impulse" v={val(s.imp, (x) => pct(x, 1), "The 20-day return needs 20 sessions of closes")}
           s="prior 20-day move" title="The advance a contraction is only meaningful after." />
+        {/* The sub-line says which direction matters and when, because for this
+            method RVOL is not "higher is better" — quiet is the constructive
+            reading inside a base and the wrong one on the day it triggers. */}
+        <Tile k={<Term k="rvol">RVOL</Term>}
+          v={row.sig.rvol == null ? <NA why="RVOL needs a 50-day average volume for this name" />
+            : `${row.sig.rvol.toFixed(2)}×`}
+          s={row.sig.rvol == null ? "last session vs the 50-day average"
+            : row.sig.rvol <= QUIET_MAX_RVOL ? "quiet — at or under its average" : "above its own average"}
+          title="Last session's volume against this name's own 50-day average. One session, not the whole base." />
       </div>
 
       {/* ── Priority 4 ────────────────────────────────────────────────────── */}
