@@ -277,8 +277,6 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
   const shownPass = shownBreakdown.filter((b) => b.pass === true).length;
 
   // order-plan ticket (planning only — not connected to a broker)
-  const [planOpen, setPlanOpen] = useState(false);
-  const [qty, setQty] = useState(100);
 
   // portfolio position for this name — entered here or on the portfolio tab
   const positions = usePositions();
@@ -306,18 +304,12 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
     alerts.set(s.tk, +v.toFixed(2), s.px ?? null);
     setAlertOpen(false);
   };
-  const stop = hasBase ? +(s.pivot * 0.92).toFixed(2) : null;
-  const t1 = hasBase ? +(s.pivot * 1.20).toFixed(2) : null;
-  const t2 = hasBase ? +(s.pivot * 1.25).toFixed(2) : null;
-  const riskPerShare = hasBase ? +(s.px - stop).toFixed(2) : null;
-  const rewardPerShare = hasBase ? +(t1 - s.px).toFixed(2) : null;
-  const rr = hasBase && riskPerShare > 0 ? (rewardPerShare / riskPerShare).toFixed(2) : null;
-  // NOT `s.px || 0`: a name with no quote printed "$0" as a position value, and
-  // "$0" is an answer — it says the position is worth nothing rather than that we
-  // cannot price it. Same for the risk figure sitting beside it.
-  const posValue = s.px != null ? qty * s.px : null;
-  const riskValue = riskPerShare != null && riskPerShare > 0 ? qty * riskPerShare : null;
-  const money = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  /* The staged-order plan is gone, and with it a flat −8% stop, flat +20%/+25%
+     targets and the reward:risk they implied. Those were heuristics wearing the
+     same typography as the measured figures beside them, and the Playbook now
+     sizes the same decision against a real ATR trail or Chandelier level with the
+     arithmetic printed. Two overlapping tools, and this was the one making up its
+     own numbers. */
 
   return (
     <div className="dr" style={{ "--c": "var(--cat-growth)" }}>
@@ -356,11 +348,11 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
         <div className="dr-actions">
           <StarBtn wkey={"st:" + s.tk} kind="stock" refId={s.tk} label />
           <button className="ed-btn" data-on={positions.has(s.tk) || undefined}
-            onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosErn((h && h.ern) || ""); setPosEntry((h && h.entry) || ""); setAlertOpen(false); setPlanOpen(false); setPosOpen((v) => !v); }}>
+            onClick={() => { const h = positions.get(s.tk); setPosSh(h && h.shares != null ? String(h.shares) : ""); setPosCost(h && h.cost != null ? String(h.cost) : ""); setPosErn((h && h.ern) || ""); setPosEntry((h && h.entry) || ""); setAlertOpen(false); setPosOpen((v) => !v); }}>
             <PortfolioIcon />{positions.has(s.tk) ? "Edit position" : "Add position"}
           </button>
           <button className="ed-btn" data-on={!!myAlert || undefined}
-            onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setPosOpen(false); setPlanOpen(false); setAlertOpen((v) => !v); }}>
+            onClick={() => { setAlertVal(String(myAlert?.level ?? s.pivot ?? s.px ?? "")); setPosOpen(false); setAlertOpen((v) => !v); }}>
             <BellIcon />{myAlert ? "Edit alert" : "Set price alert"}
           </button>
           {/* Offered only when the swing block exists: the Playbook drops a name it
@@ -372,8 +364,6 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
               <PlaybookIcon />Open in Playbook
             </button>
           )}
-          {hasBase && <button className="ed-btn ed-btn-primary" onClick={() => { setPosOpen(false); setAlertOpen(false); setPlanOpen((v) => !v); }}>
-            {planOpen ? "Hide plan" : s.status === "buy" ? "Stage order" : "Track pivot"}</button>}
         </div>
 
         {posOpen && (
@@ -454,38 +444,6 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
           </div>
         )}
 
-        {planOpen && hasBase && (
-          <div className="dr-sec dr-plansec">
-            <div className="dr-sec-h"><h3>{s.status === "buy" ? "Staged order plan" : "Pivot watch plan"}</h3><span className="dr-sec-sub mono">planning only — no broker connected</span></div>
-            <div className="dr-buygrid">
-              <div className="dr-bp"><span className="dr-bpk mono">Entry (buy zone)</span><span className="dr-bpv mono">${s.buyLo}–{s.buyHi}</span></div>
-              <div className="dr-bp"><span className="dr-bpk mono">Stop (−8%)</span><span className="dr-bpv mono">${stop}</span></div>
-              <div className="dr-bp"><span className="dr-bpk mono">Target +20%</span><span className="dr-bpv mono">${t1}</span></div>
-              <div className="dr-bp"><span className="dr-bpk mono">Target +25%</span><span className="dr-bpv mono">${t2}</span></div>
-              <div className="dr-bp"><span className="dr-bpk mono">Risk / share</span><span className="dr-bpv mono" data-up={riskPerShare < 0}>${riskPerShare}</span></div>
-              <div className="dr-bp"><span className="dr-bpk mono">Reward : risk</span><span className="dr-bpv mono">{rr == null
-                ? <NA why="Reward:risk needs a measurable base to price the pivot against" />
-                : `${rr}:1`}</span></div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
-              <span className="dr-bpk mono">Shares</span>
-              <input className="search" type="number" min="0" value={qty}
-                onChange={(e) => setQty(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                style={{ width: 110, paddingLeft: 12 }} />
-              <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
-                Position <b style={{ color: "var(--text)" }}>{posValue == null
-                  ? <NA why="No quote for this name — a position cannot be valued without one" />
-                  : `$${money(posValue)}`}</b> · Risk to stop <b style={{ color: "var(--sev-extreme)" }}>{riskValue == null
-                  ? <NA why="Risk to stop needs a measurable base to price the stop against" />
-                  : `$${money(riskValue)}`}</b>
-              </span>
-            </div>
-            <div className="dr-verdict neutral" style={{ marginTop: 12 }}>
-              Planning tool only. TigerTrade is not a broker — this does not place, transmit, or execute any order.
-              Enter and manage real orders with your own brokerage.
-            </div>
-          </div>
-        )}
       </div>
 
       {s.bio && (

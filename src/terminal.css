@@ -1315,7 +1315,6 @@ body { background: #0a0b0d; }
 .dr-actionbar { margin: 18px 26px 2px; padding-top: 16px; border-top: 1px solid var(--border); }
 .dr-actionbar .dr-actions { padding: 0; }
 .dr-actionbar .dr-alert-form, .dr-actionbar .dr-alert { margin-left: 0; margin-right: 0; }
-.dr-actionbar .dr-plansec { padding: 18px 0 0; }
 
 /* stock-specific drawer bits */
 .dr-stockhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
@@ -2071,7 +2070,6 @@ body { background: #0a0b0d; }
   .dr-actionbar .dr-actions { margin-left: 0; margin-right: 0; flex-wrap: wrap; }
   .dr-actionbar .dr-actions > * { flex: 1 1 calc(50% - 4px); }
   .dr-actionbar .dr-alert, .dr-actionbar .dr-alert-form { margin-left: 0; margin-right: 0; }
-  .dr-actionbar .dr-plansec { padding-left: 0; padding-right: 0; }
   .dr-tiles { grid-template-columns: repeat(2, 1fr); }
   .dr-buygrid { grid-template-columns: repeat(2, 1fr); }
   .pchart-toolbar { gap: 6px; }

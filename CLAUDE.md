@@ -323,6 +323,15 @@ fixed` resolves against the nearest *transformed* ancestor, and `.cs-row` carrie
 one, so an in-place popup landed off-screen; portalling to `<body>` instead
 renders it unstyled, because every token lives on the `.app` wrapper.
 
+**The drawer has no trade planner.** It carried a full-width primary button —
+"Stage order" in the buy zone, "Track pivot" otherwise — opening a panel with a
+flat −8% stop, flat +20%/+25% targets and the reward:risk they implied. Those
+were heuristics set in the same type as the measured figures beside them, and the
+Playbook sizes the same decision against a real ATR trail or Chandelier level
+with the arithmetic printed. Two overlapping tools; the one inventing its own
+numbers is gone. Buy-point analysis stays — pivot, buy range and distance from it
+are measurements, not a plan.
+
 **Components** live in `src/`: `components.jsx` (shell, hero, tapes, macro board,
 VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
 (screener + market health), `charts.jsx`, `marketMap.jsx`, `portfolio.jsx`,
