@@ -344,7 +344,7 @@ function HowToRead({ counts, total, onClose }) {
           they fill as it drops — Easing (≤0.80), Coiling (≤0.55), Tight (≤0.35).</li>
         <li><b>Averages coiled.</b> The 21, 50 and 65-day EMAs converge inside {LAUNCHPAD_MAX_SPREAD}%
           of each other — the <i>EMA Launchpad</i>. Every timeframe agrees on price, so a resolution
-          out of it tends to be decisive. That spread is the percentage under the bars in the
+          out of it tends to be decisive. That spread is the percentage under the bars in the{" "}
           <i>Coil</i> column, so both readings of "coiled" are on every row of the scan.</li>
         <li><b>A level where it fails.</b> The <i>Stop</i> column is a Chandelier Exit: the 22-day
           highest high less 3 × ATR(14). It is arithmetic, not an order. The sizing box divides your
