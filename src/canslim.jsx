@@ -31,8 +31,17 @@ const fmtAsOf = (ms) => {
 // genuinely quiet stock, and it should look quiet.
 const SPARK_MIN_SPAN = 8;
 
+/* The viewBox aspect MATCHES the box this renders into, which it did not.
+   `preserveAspectRatio="none"` is what lets the spark be fluid, and it stretches
+   whatever the viewBox says to whatever the CSS box is — a 240-wide viewBox in a
+   302px cell stretched every line 26% horizontally, on top of a cell that was
+   already 7.5:1. Two effects, both bad: a year of price action flattened into a
+   gentle slope so every uptrend looked like every other one, and the SAME series
+   drawn at a different aspect at every viewport, because the cell was fluid and
+   the viewBox was not. 200×46 is the box now, capped in CSS at 200px, so the
+   common case is 1:1 with no stretch at all and a 4.3:1 strip instead of 7.5. */
 function Spark({ data }) {
-  const w = 240, h = 40, pad = 3;
+  const w = 200, h = 46, pad = 3;
   const first = data[0], last = data[data.length - 1];
   if (!first) return <NA why="No daily closes for this name in the latest snapshot" />;
   // Everything is measured against the window's opening price, so the vertical

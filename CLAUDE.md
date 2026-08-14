@@ -407,6 +407,19 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   now comes from a `ResizeObserver` in real pixels, and a label whose fitted size
   lands under 8px is **dropped**; the tile keeps its tooltip and its click.
   Confirm with `scrollWidth > clientWidth` on `.mm-heat-tk`, not by eye.
+- **A fluid box with a fixed viewBox redraws the same data differently at every
+  width.** The screener's trend spark had a 240×40 viewBox in a cell that was
+  `minmax(170px, 1.05fr)` — the widest fluid track in the table — so it rendered
+  302×40 at 1500px with `preserveAspectRatio="none"` stretching every line 26%
+  horizontally, inside a strip that was already 7.5:1. A year of price action
+  flattened into a gentle slope, and every uptrend looked like every other one.
+  The cell is a **fixed 200px** now and `.cs-spark` is exactly 200×46, so the
+  drawing is 1:1 at every viewport. A shape column whose shape depends on the
+  window is not reporting the shape. Capping it also handed ~90px back to the
+  ticker column, which is what was clipping "Robinhood Markets".
+  Note `.cs-row` carries `content-visibility: auto`, so its
+  `contain-intrinsic-size` is a real placeholder height — a stale one makes the
+  scrollbar jump while scrolling. Re-measure it when a row's contents grow.
 - **An SVG viewBox and its container must be the same shape.** `preserveAspect
   Ratio="xMidYMid meet"` letterboxes inside a box of a different aspect — and the
   RRG's labels live in an **HTML overlay positioned in percentages of the box**,

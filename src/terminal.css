@@ -819,7 +819,10 @@ body { background: #0a0b0d; }
 .cs-th:focus-visible { outline: none; color: var(--text); }
 .cs-th:focus-visible .cs-th-ar { opacity: 1; }
 .cs-row { padding: 13px 20px; border-bottom: 1px solid var(--border); transition: background .14s ease, box-shadow .14s ease; cursor: pointer;
-  content-visibility: auto; contain-intrinsic-size: 0 52px; }
+  /* the placeholder height `content-visibility` uses for rows it has not painted.
+     A stale value makes the scrollbar jump as you scroll: measured at 80px now
+     that the trend spark is 46px tall, against a hint that still said 52. */
+  content-visibility: auto; contain-intrinsic-size: 0 80px; }
 /* banding, not borders alone — at 1700px a hairline is the only thing tying a
    ticker to its score eight columns away, and it isn't enough */
 .cs-row:nth-child(2n) { background: color-mix(in oklch, var(--surface) 55%, transparent); }
@@ -851,7 +854,11 @@ body { background: #0a0b0d; }
   background: var(--cat-growth); border-radius: 3px; }
 /* Capped: past ~560px the 4-day sampling shows as long straight segments and the
    line stops looking like the name's real chart, which is the whole point of it. */
-.cs-spark { width: 100%; max-width: 560px; }
+/* EXACTLY the viewBox, and the column is a fixed 200px to match. Anything fluid
+   here means the same series is drawn at a different aspect at every viewport —
+   flattened at 302px, and 25% steeper at 150px. A shape column whose shape
+   depends on the window is not reporting the shape. */
+.cs-spark { width: 200px; max-width: 100%; height: 46px; }
 /* depth below the 52-week high */
 .cs-off { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .cs-off-v { font-size: var(--fs-data); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -869,7 +876,9 @@ body { background: #0a0b0d; }
   background: color-mix(in oklch, var(--muted) 60%, transparent); }
 .cs-off[data-tier="near"] .cs-off-bar i { background: var(--accent); }
 .cs-off[data-tier="far"] .cs-off-bar i { background: color-mix(in oklch, var(--caution) 75%, transparent); }
-.mh-ispark .cs-spark { width: 64px; }
+/* Market Health's inline index sparks keep their own compact box — they sit in a
+   text row, not a table cell, and would otherwise inherit the taller screener one */
+.mh-ispark .cs-spark { width: 64px; height: 34px; }
 .cs-letters { display: flex; gap: 4px; }
 .cs-let { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; font-family: var(--font-mono);
   font-size: var(--fs-label); font-weight: 700; color: var(--dim); background: var(--panel); border: 1px solid var(--border); }
@@ -2841,9 +2850,14 @@ body { background: #0a0b0d; }
    The seams are <span>, so that selector stays correct — but verify it
    after any further column change. */
 .cs-head, .cs-row {
+  /* The Trend track is CAPPED. As `minmax(170px, 1.05fr)` it was the widest fluid
+     column in the table and grew to 302px at 1500 — which is what stretched the
+     sparkline flat and made the same series draw at a different shape on every
+     screen. Capping it hands ~90px back to the two remaining fluid tracks, the
+     ticker and the signals, and the ticker is the one whose names were clipping. */
   grid-template-columns:
-    minmax(140px, 0.5fr) 1px 96px 108px 1px minmax(170px, 1.05fr) 104px 1px
-    178px minmax(96px, 0.45fr) 112px 56px;
+    minmax(140px, 0.62fr) 1px 96px 108px 1px 200px 104px 1px
+    178px minmax(96px, 0.5fr) 112px 56px;
 }
 .cs-seam { background: var(--border); height: 30px; align-self: center; }
 .cs-head .cs-seam { background: var(--border-2); height: 22px; }
