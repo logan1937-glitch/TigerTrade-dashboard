@@ -546,7 +546,7 @@ function RelativeRotation({ rows }) {
         </p>
       </div>
       </div>
-        <p className="mm-rrg-note">
+        <p className="mm-rrg-note rrg-note">
           {/* the axes now name both of their own directions, so this no longer
               repeats them; what is left is what the picture cannot say by itself */}
           <b>Reading it:</b> each numbered dot is one sector today, measured against the S&amp;P 500, and the same

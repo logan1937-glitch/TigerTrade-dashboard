@@ -1823,19 +1823,35 @@ body { background: #0a0b0d; }
    the component reports at 9px. Now the plot caps at 620 (so ~620×413 at a desktop
    width) and the roster takes what is left, which is roughly a 45/55 split: about
    how the reading actually divides between "where" and "who". */
-.rrg-wrap { display: grid; grid-template-columns: minmax(0, 660px) minmax(300px, 1fr);
+/* The roster's minimum is arithmetic, not taste: the longest sector name
+   ("Communication Services") is 168px at --fs-body, a row spends 110px on the
+   numeral column, the two figures and their gaps, and a card spends 22px on
+   padding and border — so 312px per card, 640px for two side by side. Below that
+   a name has to truncate, so the PLOT column gives way first (its min is 0) and
+   the pair stacks entirely at 1240px rather than squeezing the chart to nothing. */
+.rrg-wrap { display: grid; grid-template-columns: minmax(0, 620px) minmax(640px, 1fr);
   gap: 26px; align-items: start; }
-/* Two columns of cards once there is room for them, so the roster is a board
-   rather than a tall strip. `auto-fit` covers every width with one rule — the old
-   641–1120px special case is folded into it. */
+/* A FIXED 2x2, never `auto-fit`. auto-fit sizes the track count from whatever
+   width happens to be available, and measured across ten viewports it produced
+   four columns at 1920 and 1120, three at 1600 and 1000, and two at 1500 — so the
+   board reshaped as the window moved, and at four-across every sector name
+   truncated to 81px. Two columns is also the shape the chart has: Leading and
+   Improving on the top row, Weakening and Lagging beneath, matching `QUADRANTS`. */
 .rrg-roster-col { min-width: 0; }
-.rrg-roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+.rrg-roster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px; align-content: start; min-width: 0; }
 .rrg-roster-f { grid-column: 1 / -1; }
-@media (max-width: 1120px) {
+@media (max-width: 1240px) {
   .rrg-wrap { grid-template-columns: 1fr; }
   .rrg-roster { margin-top: 16px; }
 }
+/* One column at the width where two cards can no longer hold a full sector name,
+   which is 760px and NOT the 640px the rest of the app breaks at. Two cards need
+   638px of roster; the roster gets roughly the viewport less 88px, so 726px is the
+   floor and 760 leaves a margin. At 700 the cards were 298px and "Communication
+   Services" clipped by 14 — the phone breakpoint is not the right number here just
+   because it is the number everywhere else. */
+@media (max-width: 760px) { .rrg-roster { grid-template-columns: 1fr; } }
 /* on a narrow screen the four groups sit side by side rather than in one long
    column under the plot — the whole roster is above the fold either way */
 
@@ -1858,7 +1874,17 @@ body { background: #0a0b0d; }
    the scale has */
 .rrg-qgrp-d { font-size: var(--fs-data); line-height: 1.55; color: var(--muted); margin: 4px 0 9px; }
 .rrg-qgrp-e { font-size: var(--fs-micro); color: var(--dim); margin: 4px 0 0; }
-.rrg-rrow { display: grid; grid-template-columns: 20px minmax(0, 1fr) 48px 48px; align-items: center; gap: 8px;
+/* Fixed number tracks, not `max-content`: every row is its own grid (each row is
+   a button), so content-sized tracks would be measured per row and the two figure
+   columns would jitter from line to line instead of forming a column. 38px holds
+   "105.1" at 12px tabular mono with a pixel to spare; the numeral needs 16. Every
+   pixel taken off these is a pixel the name gets. */
+/* The last track is wider than the one before it ON PURPOSE. Both figures are
+   right-aligned, so a wider track puts its slack to the LEFT of the number —
+   which is the only way to open a gap between two adjacent right-aligned columns
+   without a per-column `gap`, which CSS grid has no way to express. At equal
+   widths "105.1 102.3" read as one twelve-digit blob. */
+.rrg-rrow { display: grid; grid-template-columns: 16px minmax(0, 1fr) 38px 46px; align-items: center; gap: 6px;
   width: 100%; min-height: 32px; padding: 5px 6px; border: 0; border-radius: var(--radius-sm); background: transparent;
   color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .12s ease; }
 .rrg-rrow:hover, .rrg-rrow:focus-visible { outline: none; background: var(--surface-2); }
@@ -1882,6 +1908,16 @@ body { background: #0a0b0d; }
    file already documents, and at 12px it was a wall. */
 .mm-rrg-note { grid-column: 1 / -1; font-size: var(--fs-data); line-height: 1.65; color: var(--muted);
   margin: 18px 2px 0; max-width: 96ch; }
+/* The rotation note SETS ITSELF IN COLUMNS. It is five sentences, and a single
+   96ch measure made it an eight-line block hugging the left edge of a 1400px
+   card — the text trailed off into empty container rather than closing the panel.
+   `column-width` rather than a column count, so the browser picks two columns on a
+   laptop and three on a wide monitor while the measure stays a readable ~62
+   characters either way, and it collapses to one when there is no room. This is
+   also why it needs its own class: `.mm-rrg-note` is shared with the heatmap's
+   two-line caption, which has nothing to balance. */
+.rrg-note { max-width: none; columns: 62ch; column-gap: 40px; }
+@media (max-width: 640px) { .rrg-note { columns: auto; } }
 .mm-rrg-note b { color: var(--text); font-weight: 600; }
 
 /* industry-group leaders — RS ranking inside each group */

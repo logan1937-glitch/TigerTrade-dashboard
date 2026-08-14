@@ -443,10 +443,39 @@ reversals are the whole history of this component:
   reading, but decoding eleven of them is work, and the question actually being
   asked — "who is leading?" — is a list. It also carries the sentence that says
   what each quadrant *means*; "Weakening" is the strong-but-rolling-over corner and
-  everyone reads it backwards. It is a two-column board of four cards
-  (`repeat(auto-fit, minmax(238px, 1fr))`, one rule for every width), and since
-  eleven sectors always fit it needs no scroll container — the absolute-positioning
-  trick and its fade existed only for the deleted Names mode.
+  everyone reads it backwards. Since eleven sectors always fit it needs no scroll
+  container — the absolute-positioning trick and its fade existed only for the
+  deleted Names mode.
+- **A FIXED 2×2, never `auto-fit`.** `auto-fit` sizes the track count from
+  whatever width happens to be there, and measured across ten viewports it gave
+  **four columns at 1920 and 1120, three at 1600 and 1000, two at 1500** — the
+  board reshaped as the window moved, and at four-across every sector name
+  truncated to 81px. 1500px, the only width that had ever been screenshotted, was
+  one of the few that landed on 2×2. Two columns is also the chart's own shape:
+  Leading and Improving on top, Weakening and Lagging beneath, which is the order
+  `QUADRANTS` already declares.
+- **Every width in that grid is arithmetic off the longest sector name.**
+  "Communication Services" is 168px at `--fs-body`; a row spends 122px on the
+  numeral column, the two figures and their gaps, and a card 22px on padding and
+  border — so 312px per card and **640px for two side by side**. That number is
+  the roster column's `minmax` floor, it is why the **plot** column gives way
+  first (its min is 0), and it is why the roster drops to one column at
+  **760px, not the 640px the rest of the app breaks at** — at 700 the cards were
+  298px and the name clipped by 14. Re-derive it if the type scale moves.
+- **The two figure tracks are deliberately unequal** (38px then 46px). Both are
+  right-aligned, so a wider track puts its slack to the *left* of the number,
+  which is the only way to open a gap between adjacent right-aligned columns —
+  CSS grid has no per-column `gap`. At equal widths "105.1 102.3" read as one
+  twelve-digit blob. And they must be fixed px, not `max-content`: each row is its
+  own grid (a button), so content-sized tracks are measured per row and the
+  figures would jitter line to line instead of forming a column.
+- **The rotation note sets itself in columns** (`column-width: 62ch`). Five
+  sentences at a single 96ch measure was an eight-line block hugging the left edge
+  of a 1400px card — text trailing off into empty container instead of closing the
+  panel. A column *width* rather than a count means two columns on a laptop and
+  three on a wide monitor with the measure staying readable either way. It needs
+  its own `.rrg-note` class because `.mm-rrg-note` is shared with the heatmap's
+  two-line caption, which has nothing to balance.
 - **Nothing on this panel was sized by importance.** Nine text roles, all of them
   at 9px or 10.5px, in a 1428×788 card — the biggest object on screen was empty
   plot and the smallest text was Ratio and Momentum, the only measurements the
