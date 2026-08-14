@@ -150,7 +150,11 @@ const VIEWS = [
      never in a picture. `playbookhelp` keeps the explainer covered too. */
   { id: "playbook",  state: { tt_product: "canslim", tt_pb_seen: 1 }, act: async (p) => {
       await click(p, "Playbook");
-      await p.locator(".pb-row").first().click().catch(() => {});
+      /* the SECOND row, not the first. The chart draws a breakout trigger, and the
+         interesting state — the one a breakout scan exists to find — is a trigger
+         price has not reached yet. Row 0 in this fixture has already broken out,
+         so shooting it left the "x% away" reading out of every picture. */
+      await p.locator(".pb-drow").nth(1).click().catch(() => {});
       await p.waitForTimeout(400);
     } },
   { id: "playbookhelp", state: { tt_product: "canslim" }, act: (p) => click(p, "Playbook") },
@@ -262,8 +266,25 @@ function nameRecord(t, i, idx) {
           return +(v * (1 + (amp / 100) * Math.sin((k + i * 3) / 3.7))).toFixed(2);
         });
       })(),
-      pivot: px * 0.96, buyLo: px * 0.96, buyHi: px * 1.01, pctExt: 1.8,
-      baseType: "Cup-with-handle", baseWeeks: 11, baseDepth: 24, status: "buy",
+      /* The base high, and it is NOT below price for every name. Every pivot used
+         to sit 4% under the last price, so every row was "broken out" and the
+         Playbook chart's trigger line could only ever render its already-past
+         branch — the "x% away" reading, which is the state a breakout scan is
+         actually looking for, was unreachable in any shot. Two names in three
+         have not triggered yet now, and `pctExt`/`status` are derived from the
+         same pivot so the screener's badge cannot disagree with the chart. */
+      ...(() => {
+        /* `i % 5`, not `i % 3`. `cx` varies on `i % 6`, and the scan's default
+           sort is by contraction — so a pivot keyed on a stride sharing a factor
+           with 6 puts the SAME names at the top of the list every time, and every
+           visible row took the same branch. Measured: all six top rows read
+           "broken out". Co-prime strides mix; that is the whole trick. */
+        const pivot = +(px * (i % 5 === 0 ? 0.96 : 1.045)).toFixed(2);
+        const pctExt = +(((px - pivot) / pivot) * 100).toFixed(1);
+        return { pivot, buyLo: pivot, buyHi: +(pivot * 1.05).toFixed(2), pctExt,
+          status: pctExt > 5 ? "ext" : pctExt >= -3 ? "buy" : "watch" };
+      })(),
+      baseType: "Cup-with-handle", baseWeeks: 11, baseDepth: 24,
       // swing block (Playbook): spread widens across the set so some names sit
       // inside the 2% Launchpad threshold and some clearly don't
       swing: (() => {

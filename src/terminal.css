@@ -2101,12 +2101,23 @@ body { background: #0a0b0d; }
 .pb-toggle-n { font-size: var(--fs-micro); padding: 1px 5px; border-radius: var(--radius-sm);
   background: color-mix(in oklch, var(--text) 12%, transparent); }
 
-.pb-split { display: grid; grid-template-columns: 35% 65%; gap: 14px; align-items: start; }
+/* The scan needs a PIXEL floor, not a percentage. At a flat 35% the pane is
+   488px at a 1500px viewport — where a company name fits — and 330px at 1000px,
+   where "Advanced Micro Devices", "Constellation Energy" and twenty-two others
+   clip. A name is the one column here carrying prose, so the split gives the
+   scan a floor and the detail pane, which is all figures and reflows happily,
+   gives way first. The floor is 500px because that is what the longest name in
+   the universe needs — "Advanced Micro Devices" still clipped at 460. */
+.pb-split { display: grid; grid-template-columns: minmax(500px, 38%) minmax(0, 1fr); gap: 14px; align-items: start; }
 .pb-scan, .pb-detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
 .pb-detail { padding: 16px 18px 18px; }
 .pb-rows { max-height: 62vh; overflow-y: auto; }
 
-.pb-row { display: grid; grid-template-columns: 1.45fr 0.9fr 1fr 0.75fr 0.9fr; gap: 10px;
+/* The ticker column gets the width, because it is the only one carrying prose.
+   "Constellation Energy" and "Advanced Micro Devices" were clipping at 1.45fr
+   while ATR — a four-character number the phone layout already drops as the least
+   important column — held 0.75fr of the same row. */
+.pb-row { display: grid; grid-template-columns: 2fr 0.85fr 1.05fr 0.6fr 0.85fr; gap: 9px;
   align-items: center; padding: 9px 12px; }
 .pb-hrow { font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase;
   color: var(--dim); border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
@@ -2122,6 +2133,11 @@ body { background: #0a0b0d; }
 .pb-sub2[data-up="false"] { color: var(--sev-extreme); }
 
 /* contraction marker: three bars that fill as the coil tightens */
+/* range contraction and EMA convergence, stacked in one cell — the scan's whole
+   reason for existing, previously only visible after a click */
+.pb-coil { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.pb-coil-sp { font-size: var(--fs-micro); font-weight: 600; color: var(--dim); letter-spacing: var(--track-meta); }
+.pb-coil-sp[data-on] { color: var(--accent); }
 .pb-cx { display: inline-flex; align-items: center; gap: 6px; }
 .pb-cx i { width: 4px; border-radius: 1px; background: var(--border-2); display: block; }
 .pb-cx i:nth-child(1) { height: 7px; }
@@ -2135,40 +2151,106 @@ body { background: #0a0b0d; }
 .pb-cx[data-tier="3"] .pb-cx-l { color: var(--accent); }
 
 .pb-dhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.pb-dhead-r { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.pb-dhead-t { min-width: 0; }
+/* On a phone the verdict badge and the analysis button take more width than the
+   name block has to give, and a flex row does not shrink — it overflows, and the
+   ticker clipped to a single letter. They wrap to their own line instead. */
+@media (max-width: 640px) {
+  .pb-dhead { flex-wrap: wrap; }
+  .pb-dhead-t { flex: 1 1 auto; }
+  .pb-dhead-r { flex: 1 0 100%; }
+  .pb-dhead-r .ed-btn { margin-left: auto; }
+}
+/* The verdict, at verdict size. This was a `Chip` beside the ticker, which put
+   the answer the entire tab scans for at the same weight as an earnings warning
+   and half a symbol away from it. */
+.pb-status { display: inline-flex; align-items: baseline; gap: 8px; padding: 7px 13px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border-2); background: var(--panel); }
+.pb-status[data-on] { border-color: color-mix(in oklch, var(--accent) 45%, var(--border));
+  background: color-mix(in oklch, var(--accent) 13%, transparent); }
+.pb-status-k { font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--track-label);
+  text-transform: uppercase; color: var(--dim); }
+.pb-status[data-on] .pb-status-k { color: var(--accent); }
+.pb-status-v { font-size: var(--fs-data); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pb-status[data-on] .pb-status-v { color: var(--text); }
 .pb-dsym { display: flex; align-items: center; gap: 9px; }
 .pb-dname { font-family: var(--font-display); font-weight: 600; font-size: var(--fs-lead); color: var(--muted); margin: 5px 0 0; }
 .pb-dpx { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
 
 .pb-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
   border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin: 16px 0 0; }
-.pb-tile { background: var(--panel); padding: 11px 12px; display: flex; flex-direction: column; gap: 3px; }
+/* One dense row rather than four cards. The value and its qualifier share a
+   baseline instead of stacking, which takes the bar from 76px to 52px — and the
+   qualifier is the part that says whether the value can be trusted, so it reads
+   better beside the number than under it. */
+.pb-tile { background: var(--panel); padding: 9px 12px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pb-tk2 { font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
-.pb-tv { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-figure); color: var(--text); }
+.pb-tvrow { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.pb-tv { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-lead); color: var(--text); }
 .pb-ts { font-size: var(--fs-micro); color: var(--dim); }
 
-.pb-emas { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.pb-coilsec { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+/* THE RIBBON. Fixed scale, so width means something — see the note in
+   playbook.jsx. The band is the Launchpad threshold drawn at that same scale, so
+   "inside the band" is the test rather than an illustration of it. */
+.pb-ribbon { margin: 12px 0 10px; }
+.pb-ribbon-track { position: relative; height: 30px; border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-2), var(--panel)); border: 1px solid var(--border);
+  overflow: hidden; }
+/* ABOVE the coil, not behind it. A 55%-amber coil rendered over an 11%-jade band
+   hid both the tint and the dashed threshold edges, so a spread that is wider
+   than the band looked like a band that was not there. On top, the edges stay
+   visible and the part of the coil inside the threshold takes the tint. */
+.pb-rb-band { position: absolute; top: 0; bottom: 0; z-index: 2; pointer-events: none;
+  background: color-mix(in oklch, var(--accent) 11%, transparent);
+  border-left: 1px dashed color-mix(in oklch, var(--accent) 40%, transparent);
+  border-right: 1px dashed color-mix(in oklch, var(--accent) 40%, transparent); }
+/* the coil itself sits ON the band: jade when it fits inside, caution when it
+   does not. Never red — a wide spread is a setup that has not formed, not a loss. */
+.pb-rb-coil { position: absolute; top: 7px; bottom: 7px; z-index: 1; border-radius: 3px;
+  background: color-mix(in oklch, var(--caution) 55%, transparent); }
+.pb-ribbon[data-on] .pb-rb-coil { background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in oklch, var(--accent) 55%, transparent); }
+.pb-rb-tick { position: absolute; top: 4px; bottom: 4px; z-index: 3; width: 2px; margin-left: -1px;
+  background: color-mix(in oklch, var(--text) 55%, transparent); border-radius: 1px; }
+.pb-rb-tick[data-k="50"] { opacity: .74; }
+.pb-rb-tick[data-k="65"] { opacity: .5; }
+.pb-rb-px { position: absolute; top: -1px; bottom: -1px; z-index: 4; width: 2px; margin-left: -1px;
+  background: var(--text); border-radius: 1px; box-shadow: 0 0 0 1px var(--panel); }
+.pb-ribbon-ax { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-top: 5px; font-size: var(--fs-micro); color: var(--dim); }
+.pb-rb-verdict { font-weight: 600; color: var(--muted); }
+.pb-rb-verdict[data-on] { color: var(--accent); }
+/* the three EMAs on ONE line: their near-sameness is the reading, and three
+   stacked rows spent 60px of height hiding it */
+.pb-ema-vals { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--fs-data); }
+.pb-ema-val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pb-ema-val i { font-style: normal; font-weight: 500; color: var(--dim); margin-right: 6px;
+  letter-spacing: var(--track-meta); }
+.pb-ema-val[data-px] { margin-left: auto; }
 .pb-ema-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
   font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
 .pb-ema-sp { font-size: var(--fs-label); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--dim); }
 .pb-ema-sp[data-on] { color: var(--accent); }
-/* the three EMAs on one axis — what the spread number describes */
-.pb-emabar { position: relative; height: 26px; margin: 12px 0 10px; border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--surface-2), var(--panel)); border: 1px solid var(--border); }
-.pb-emabar i { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
-  border-radius: 50%; background: var(--accent); border: 1px solid var(--bg); }
-.pb-emabar i[data-k="50"] { opacity: .72; }
-.pb-emabar i[data-k="65"] { opacity: .48; }
-.pb-emabar b { position: absolute; top: 3px; bottom: 3px; width: 2px; margin-left: -1px;
-  background: var(--text); border-radius: 1px; }
-.pb-ema-rows { display: flex; flex-direction: column; gap: 5px; }
-.pb-ema-row { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--fs-data); }
-.pb-ema-k { color: var(--muted); }
-.pb-ema-v { color: var(--text); font-weight: 600; }
 .pb-note { font-size: var(--fs-label); line-height: 1.55; color: var(--dim); margin: 10px 0 0; }
 
 .pb-chart { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 .pb-sparkwrap { position: relative; }
-.pb-spark { width: 100%; height: 92px; display: block; }
+.pb-spark { width: 100%; height: 150px; display: block; }
+/* The two levels that decide the setup, drawn as explicit thresholds. Jade is
+   the trigger because jade is this app's signal colour; amber is the stop
+   because `--caution` is its warning one. Neither may be red or green — those
+   two mean money moved, and a level is arithmetic, not a gain. */
+.pb-lvl { stroke-width: 1.5; }
+.pb-lvl[data-k="trigger"] { stroke: var(--accent); stroke-dasharray: 7 4; }
+.pb-lvl[data-k="stop"] { stroke: var(--caution); stroke-dasharray: 7 4; }
+.pb-lvl-tag { position: absolute; transform: translateY(-50%); font-size: var(--fs-micro);
+  font-weight: 700; letter-spacing: var(--track-meta); pointer-events: none; white-space: nowrap;
+  background: color-mix(in oklch, var(--surface) 84%, transparent); padding: 1px 5px; border-radius: 3px; }
+.pb-lvl-tag[data-k="trigger"] { right: 0; color: var(--accent); }
+.pb-lvl-tag[data-k="stop"] { left: 0; color: var(--caution); }
+.pb-lvl-tag b { font-weight: 500; color: var(--dim); margin-left: 7px; }
 /* price scale, overlaid rather than gridded — two numbers are enough to read the
    shape as prices, and a full axis would crowd a 92px chart */
 .pb-spark-ax { position: absolute; right: 0; font-family: var(--font-mono); font-size: var(--fs-micro);
@@ -2176,14 +2258,11 @@ body { background: #0a0b0d; }
   background: color-mix(in oklch, var(--surface) 72%, transparent); padding: 0 3px; border-radius: 3px; }
 .pb-spark-ax[data-at="hi"] { top: 0; }
 .pb-spark-ax[data-at="lo"] { bottom: 0; }
-.pb-spark-stop { position: absolute; left: 0; transform: translateY(-50%); font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: var(--track-meta); color: var(--sev-extreme); pointer-events: none;
-  background: color-mix(in oklch, var(--surface) 78%, transparent); padding: 0 4px; border-radius: 3px; }
 .pb-chart-l { display: block; font-size: var(--fs-micro); line-height: 1.5; color: var(--dim); margin-top: 7px; }
 .pb-empty { font-size: var(--fs-data); line-height: 1.6; color: var(--dim); margin: 0; padding: 18px; }
 .pb-disc { font-size: var(--fs-label); line-height: 1.6; color: var(--dim); margin: 18px 2px 0; max-width: 82ch; }
 
-@media (max-width: 880px) {
+@media (max-width: 1180px) {
   /* Two panes stop being readable here, so they stack — and the DETAIL comes
      first. The scan is 40+ rows on a phone, so source order put the selected
      name's levels — the entire reason you tapped — below all of them. `order`
@@ -2195,8 +2274,13 @@ body { background: #0a0b0d; }
   .pb-scan { max-height: 62vh; overflow-y: auto; overscroll-behavior: contain; }
   .pb-rows { max-height: none; }
   .pb-tiles { grid-template-columns: repeat(2, 1fr); }
-  .pb-row { grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr; }
+  .pb-row { grid-template-columns: 1.7fr 0.85fr 1fr 0.9fr; }
   .pb-row > *:nth-child(4) { display: none; }   /* ATR — the stop matters more on a phone */
+  /* A 330px pane cannot hold "Advanced Micro Devices" beside a price, a coil and
+     a stop at any column ratio, so the name WRAPS instead of losing its tail.
+     A truncated company name on a scan is a name you cannot identify, and two
+     lines costs 14px. */
+  .pb-drow .cs-name { white-space: normal; overflow: visible; line-height: 1.3; }
 }
 /* .ed-btn carries flex:1 for the drawer's equal-width action row; in the
    Playbook header it sits beside a title block and must size to its label */

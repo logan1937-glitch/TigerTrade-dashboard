@@ -99,14 +99,30 @@ export const SORTS = [
     val: (r) => -(r.score ?? 0) },
 ];
 
-function CxMark({ cx, imp }) {
+/* The scan's coil cell. TWO measures, because "coiled" is two different things
+   and a row showing only one sends you clicking to find the other: the bars are
+   RANGE contraction (`cx`, the 10-day span over the 40-day), and the percentage
+   beside them is EMA convergence — the spread across the 21/50/65, which is the
+   figure the Launchpad filter actually tests. The spread was previously visible
+   only after selecting the row, so the scan could not be scanned for it. */
+function CxMark({ cx, imp, spread }) {
   const { tier, label, note } = cxTier(cx);
+  const coiled = spread != null && spread <= LAUNCHPAD_MAX_SPREAD;
   const title = `${note}${cx != null ? ` (ratio ${cx.toFixed(2)})` : ""}`
-    + `${imp != null ? ` · prior 20-day move ${pct(imp, 1)}` : ""}`;
+    + `${imp != null ? ` · prior 20-day move ${pct(imp, 1)}` : ""}`
+    + `${spread != null ? ` · EMAs ${spread.toFixed(2)}% apart${coiled ? " — inside the Launchpad" : ""}` : ""}`;
   return (
-    <span className="pb-cx" data-tier={tier ?? undefined} title={title}>
-      <i /><i /><i />
-      <span className="pb-cx-l mono">{label}</span>
+    <span className="pb-coil" title={title}>
+      <span className="pb-cx" data-tier={tier ?? undefined}>
+        <i /><i /><i />
+        <span className="pb-cx-l mono">{label}</span>
+      </span>
+      {/* the same NA the rest of the app uses — a name whose EMAs are not all
+          computable has no spread, and 0% would read as perfectly coiled */}
+      <span className="pb-coil-sp mono" data-on={coiled || undefined}>
+        {spread == null ? <NA why="An EMA spread needs all three of the 21, 50 and 65-day averages" />
+          : `${spread.toFixed(2)}%`}
+      </span>
     </span>
   );
 }
@@ -259,7 +275,8 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
           <div className="pb-scan">
             <div className="pb-row pb-hrow mono">
               <span>Ticker</span><span style={{ textAlign: "right" }}>Price</span>
-              <span>Contraction</span><span style={{ textAlign: "right" }}>ATR 14</span>
+              <span title="Range contraction as three bars, EMA spread as a percentage">Coil</span>
+              <span style={{ textAlign: "right" }}>ATR 14</span>
               <span style={{ textAlign: "right" }}>Stop</span>
             </div>
             <div className="pb-rows">
@@ -270,10 +287,11 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
                   <div className="pb-row pb-drow" key={r.tk} data-on={isOn || undefined} role="button" tabIndex={0}
                     aria-label={`${r.tk} — show levels`} onClick={() => pick(r.tk)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(r.tk); } }}>
-                    <div className="pb-tk"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></div>
+                    <div className="pb-tk"><span className="cs-sym">{r.tk}</span>
+                      <span className="cs-name" title={r.name}>{r.name}</span></div>
                     <div className="pb-num mono">{px2(r.px)}
                       {r.chg != null && <span className="pb-sub2 mono" data-up={r.chg >= 0}>{pct(r.chg)}</span>}</div>
-                    <div><CxMark cx={s.cx} imp={s.imp} /></div>
+                    <div><CxMark cx={s.cx} imp={s.imp} spread={emaSpreadOf(r)} /></div>
                     <div className="pb-num mono">{num(s.atr)}
                       {s.atrPct != null && <span className="pb-sub2 mono">{s.atrPct.toFixed(1)}%</span>}</div>
                     <div className="pb-num mono">{px2(s.stop)}
@@ -322,11 +340,12 @@ function HowToRead({ counts, total, onClose }) {
         <li><b>An impulse.</b> Something moved — the <i>Impulse</i> figure is the prior 20-day return.
           Contraction without a preceding advance is just a quiet stock.</li>
         <li><b>Then a contraction.</b> The range tightens: the last 10 sessions' high-low span
-          measured against the last 40. That ratio is the <i>Contraction</i> column, and the three
-          bars fill as it drops — Easing (≤0.80), Coiling (≤0.55), Tight (≤0.35).</li>
+          measured against the last 40. That ratio is the three bars in the <i>Coil</i> column, and
+          they fill as it drops — Easing (≤0.80), Coiling (≤0.55), Tight (≤0.35).</li>
         <li><b>Averages coiled.</b> The 21, 50 and 65-day EMAs converge inside {LAUNCHPAD_MAX_SPREAD}%
           of each other — the <i>EMA Launchpad</i>. Every timeframe agrees on price, so a resolution
-          out of it tends to be decisive.</li>
+          out of it tends to be decisive. That spread is the percentage under the bars in the
+          <i>Coil</i> column, so both readings of "coiled" are on every row of the scan.</li>
         <li><b>A level where it fails.</b> The <i>Stop</i> column is a Chandelier Exit: the 22-day
           highest high less 3 × ATR(14). It is arithmetic, not an order. The sizing box divides your
           risk budget by a distance to a stop, and it lets you pick which one — the Chandelier level
@@ -341,9 +360,13 @@ function HowToRead({ counts, total, onClose }) {
           <div className="pb-help-sh mono">Columns</div>
           <dl className="pb-defs">
             <dt>Price</dt><dd>last quote, with the day's change beneath</dd>
-            <dt>Contraction</dt><dd>10-day ÷ 40-day range. Hover for the ratio and the prior move</dd>
+            <dt>Coil</dt><dd>two measures in one cell: the bars are range contraction (10-day ÷ 40-day),
+              the percentage is the EMA spread the Launchpad filter tests. Hover for both</dd>
             <dt>ATR 14</dt><dd>Wilder's average true range, in dollars, with % of price beneath</dd>
             <dt>Stop</dt><dd>the trailing level, with its distance from price beneath</dd>
+            <dt>Chart</dt><dd>the jade line is the breakout trigger (the most recent base high) and the
+              amber one the Chandelier stop, so how far there is to go and how much is at risk are
+              both on the picture. A level the snapshot did not compute is not drawn</dd>
           </dl>
         </div>
         <div>
@@ -377,9 +400,14 @@ function HowToRead({ counts, total, onClose }) {
 function Detail({ row, onOpenStock }) {
   const s = row.sig.swing;
   const spread = emaSpreadOf(row);
+  const coiled = spread != null && spread <= LAUNCHPAD_MAX_SPREAD;
   const { label: cxLabel, note: cxNote } = cxTier(s.cx);
   const riskPct = s.stop != null && row.px ? ((row.px - s.stop) / row.px) * 100 : null;
 
+  /* Ordered as the decision is made, not as the data happens to sit in the
+     object: WHO is this, IS IT COILED, what are the levels, what size, then the
+     picture. The coil used to sit below the metrics bar, so the one thing this
+     tab exists to find was the third thing you read. */
   return (
     <>
       <div className="pb-dhead">
@@ -387,7 +415,6 @@ function Detail({ row, onOpenStock }) {
         <Logo ticker={row.tk} size={38} />
         <div className="pb-dhead-t">
           <div className="pb-dsym"><span className="dr-sym">{row.tk}</span>
-            {spread != null && spread <= LAUNCHPAD_MAX_SPREAD && <Chip tone="signal">Launchpad</Chip>}
             {/* caution, not the severity ramp: a report date ahead is a warning
                 about gap risk, and it can never borrow red — red means money moved */}
             {row.ern && row.ern.days <= ERN_BLACKOUT_DAYS && (
@@ -397,9 +424,41 @@ function Detail({ row, onOpenStock }) {
             <span className="dr-chg mono" data-up={row.chg == null ? undefined : row.chg >= 0}><FigPct v={row.chg} /></span>
             <span className="dr-grp mono">{row.sector}</span></div>
         </div>
-        {onOpenStock && <button className="ed-btn" onClick={() => onOpenStock(row)}>Full analysis →</button>}
+        <div className="pb-dhead-r">
+          {/* PROMINENT, because it is the verdict the whole tab scans for. A
+              `Chip` beside the ticker said the same thing at chip size and got
+              lost between the symbol and an earnings warning. */}
+          <span className="pb-status" data-on={coiled || undefined}
+            title={spread == null ? "The EMA spread is not measurable for this name"
+              : `The 21, 50 and 65-day EMAs span ${spread.toFixed(2)}% — the Launchpad threshold is ${LAUNCHPAD_MAX_SPREAD}%`}>
+            <span className="pb-status-k mono">{spread == null ? "Coil" : coiled ? "Coiled" : "Not coiled"}</span>
+            <span className="pb-status-v mono">
+              {spread == null ? <NA why="An EMA spread needs all three of the 21, 50 and 65-day averages" />
+                : `${spread.toFixed(2)}%`}</span>
+          </span>
+          {onOpenStock && <button className="ed-btn" onClick={() => onOpenStock(row)}>Full analysis →</button>}
+        </div>
       </div>
 
+      {/* ── Priority 2: the coil itself ───────────────────────────────────── */}
+      <div className="pb-coilsec">
+        <div className="pb-ema-h mono">EMA Launchpad
+          <span className="pb-ema-sp mono">21 · 50 · 65-day convergence</span>
+        </div>
+        <EmaRibbon row={row} />
+        {/* The three values on ONE line. They were three stacked rows, which is
+            what made a convergence measure read as scattered text: the whole
+            point is that these numbers are nearly the same, and stacking them
+            spends 60px of height hiding it. */}
+        <div className="pb-ema-vals mono">
+          {[["21", s.e21], ["50", s.e50], ["65", s.e65]].map(([k, v]) => (
+            <span className="pb-ema-val" key={k}><i>{k}d</i>{val(v, px2, `The ${k}-day EMA needs ${k} sessions of closes`)}</span>
+          ))}
+          <span className="pb-ema-val" data-px=""><i>price</i>{val(row.px, px2, "No quote for this name in the nightly snapshot")}</span>
+        </div>
+      </div>
+
+      {/* ── Priority 3: the levels, one dense row ─────────────────────────── */}
       <div className="pb-tiles">
         <Tile k="ATR (14)" v={val(s.atr, (x) => num(x), "ATR(14) needs 14 true ranges of history")}
           s={s.atrPct != null ? `${s.atrPct.toFixed(2)}% of price` : "as a % of price, once ATR resolves"} />
@@ -415,32 +474,12 @@ function Detail({ row, onOpenStock }) {
           s="prior 20-day move" title="The advance a contraction is only meaningful after." />
       </div>
 
-      <div className="pb-emas">
-        <div className="pb-ema-h mono">EMA Launchpad
-          <span className="pb-ema-sp mono" data-on={spread != null && spread <= LAUNCHPAD_MAX_SPREAD ? "" : undefined}>
-            {spread == null ? "not measurable" : `${spread.toFixed(2)}% spread`}</span>
-        </div>
-        <EmaBar row={row} />
-        <div className="pb-ema-rows">
-          {[["21-day EMA", s.e21], ["50-day EMA", s.e50], ["65-day EMA", s.e65]].map(([k, v]) => (
-            <div className="pb-ema-row" key={k}><span className="pb-ema-k mono">{k}</span><span className="pb-ema-v mono">{px2(v)}</span></div>
-          ))}
-        </div>
-        <p className="pb-note mono">
-          The three averages are {spread == null ? "not all computable for this name"
-            : spread <= LAUNCHPAD_MAX_SPREAD
-              ? `within ${LAUNCHPAD_MAX_SPREAD}% of each other — coiled`
-              : `${spread.toFixed(2)}% apart, wider than the ${LAUNCHPAD_MAX_SPREAD}% Launchpad threshold`}.
-        </p>
-      </div>
-
+      {/* ── Priority 4 ────────────────────────────────────────────────────── */}
       <Sizing px={row.px} stop={s.stop} atr={s.atr} />
 
       <div className="pb-chart">
         {row.spark && row.spark.length > 1 && row._sparkReal
-          ? <><Sparkline data={row.spark} stop={s.stop} />
-              <span className="pb-chart-l mono">Daily closes · dotted line is the window's open, dashed red the
-                Chandelier stop · full interactive chart in the stock drawer</span></>
+          ? <Sparkline data={row.spark} stop={s.stop} pivot={row.sig.pivot} px={row.px} />
           : <span className="pb-chart-l mono">No price series for this name yet.</span>}
       </div>
     </>
@@ -501,6 +540,8 @@ function Sizing({ px, stop, atr }) {
         <span className="pb-ema-sp mono">risk budget ÷ distance to stop</span>
       </div>
 
+      {/* one inline toolbar: which stop, its multiple, the account and the risk —
+          four controls on a single row rather than a stacked form */}
       <div className="pb-size-in">
         <span className="pb-size-seg">
           {BASES.map((b) => (
@@ -564,44 +605,102 @@ function Sizing({ px, stop, atr }) {
   );
 }
 
+/* label on one line, value and its qualifier sharing the next. Three stacked
+   lines made a four-metric bar 76px tall; the qualifier is what says whether the
+   value can be trusted, so it belongs beside the number rather than under it. */
 const Tile = ({ k, v, s, title }) => (
   <div className="pb-tile" title={title}>
-    <span className="pb-tk2 mono">{k}</span><span className="pb-tv">{v}</span><span className="pb-ts mono">{s}</span>
+    <span className="pb-tk2 mono">{k}</span>
+    <span className="pb-tvrow"><span className="pb-tv">{v}</span><span className="pb-ts mono">{s}</span></span>
   </div>
 );
 
-/* the three EMAs on one axis — the visual the spread number describes */
-function EmaBar({ row }) {
+/* THE COIL, drawn to a FIXED scale.
+
+   The previous version normalised the three EMAs to their own min and max and
+   spread them across 8%-92% of the track — so the dots sat in the same three
+   places whether the averages were 0.1% apart or 10%, and the picture said
+   nothing the number beside it had not already said. A convergence visual that
+   cannot show convergence is decoration.
+
+   The window is +/-3% of the middle EMA, fixed, so a tight coil renders as a
+   tight cluster and a wide one spills toward the edges. The jade band is the
+   Launchpad threshold at true scale, which makes the test literal: inside the
+   band IS coiled. A spread too wide for +/-3% widens the window rather than
+   clipping, and the end labels print whatever the window ended up being — the
+   scale is never silently different from the one being read. */
+const RIBBON_HALF = 3;
+function EmaRibbon({ row }) {
   const { e21, e50, e65 } = row.sig.swing;
-  if (e21 == null || e50 == null || e65 == null) return null;
-  const vals = [e21, e50, e65], lo = Math.min(...vals), hi = Math.max(...vals);
-  const span = hi - lo || 1;
-  const padded = (v) => 8 + ((v - lo) / span) * 84;      // keep the end dots inside the track
+  if (e21 == null || e50 == null || e65 == null) {
+    return <p className="pb-note mono">
+      <NA why="The ribbon needs all three of the 21, 50 and 65-day EMAs" /> Not all three averages are
+      computable for this name, so there is no convergence to draw.</p>;
+  }
+  const vals = [e21, e50, e65];
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const mid = (lo + hi) / 2;
+  const spread = ((hi - lo) / lo) * 100;
+  const half = Math.max(RIBBON_HALF, spread * 0.72);
+  // percent along the track for a price, centred on the middle EMA
+  const pos = (v) => 50 + ((v / mid - 1) * 100 / half) * 50;
+  const clamp = (n) => Math.max(0, Math.min(100, n));
+  const bandL = clamp(pos(mid * (1 - LAUNCHPAD_MAX_SPREAD / 200)));
+  const bandR = clamp(pos(mid * (1 + LAUNCHPAD_MAX_SPREAD / 200)));
+  const coilL = clamp(pos(lo)), coilR = clamp(pos(hi));
+  const coiled = spread <= LAUNCHPAD_MAX_SPREAD;
+  const pxIn = row.px != null && Math.abs(row.px / mid - 1) * 100 <= half;
+
   return (
-    <div className="pb-emabar">
-      {[["21", e21], ["50", e50], ["65", e65]].map(([k, v]) => (
-        <i key={k} style={{ left: `${padded(v)}%` }} data-k={k} title={`${k}-day EMA ${px2(v)}`} />
-      ))}
-      {row.px != null && row.px >= lo && row.px <= hi && <b style={{ left: `${padded(row.px)}%` }} title={`price ${px2(row.px)}`} />}
+    <div className="pb-ribbon" data-on={coiled || undefined}>
+      <div className="pb-ribbon-track">
+        {/* the threshold at true scale — "inside this band" IS the Launchpad test */}
+        <i className="pb-rb-band" style={{ left: `${bandL}%`, width: `${bandR - bandL}%` }}
+          title={`The ${LAUNCHPAD_MAX_SPREAD}% Launchpad band`} />
+        {/* the coil: the span the three averages actually occupy. A floor of 1.2%
+            of the track so a very tight coil is still a visible mark rather than
+            a zero-width rectangle that renders as nothing at all. */}
+        <i className="pb-rb-coil" style={{ left: `${coilL}%`, width: `${Math.max(1.2, coilR - coilL)}%` }}
+          title={`The 21, 50 and 65-day EMAs span ${spread.toFixed(2)}%`} />
+        {[["21", e21], ["50", e50], ["65", e65]].map(([k, v]) => (
+          <i key={k} className="pb-rb-tick" data-k={k} style={{ left: `${clamp(pos(v))}%` }}
+            title={`${k}-day EMA ${px2(v)}`} />
+        ))}
+        {pxIn && <i className="pb-rb-px" style={{ left: `${clamp(pos(row.px))}%` }} title={`price ${px2(row.px)}`} />}
+      </div>
+      <div className="pb-ribbon-ax mono">
+        <span>−{half.toFixed(1)}%</span>
+        <span className="pb-rb-verdict" data-on={coiled || undefined}>
+          {spread.toFixed(2)}% {coiled ? "inside" : "outside"} the {LAUNCHPAD_MAX_SPREAD}% band
+        </span>
+        <span>+{half.toFixed(1)}%</span>
+      </div>
     </div>
   );
 }
 
-// Enlarged sparkline from the snapshot's sampled closes — real data, coarse by
-// design; the drawer's PriceChart is the full-resolution view. It carries the
-// Chandelier stop because that line is the whole argument of this tab: the shape
-// only means something next to the level where it stops meaning something.
-// A stop further than this below the low would flatten the price action into a
-// band at the top of the box, so past it the line is dropped and the caption
-// says the trail is that far away rather than drawing a misleading chart.
-const STOP_MAX_DROP = 0.35;
-function Sparkline({ data, stop }) {
-  const n = data.length, W = 560, H = 92, padT = 8, padB = 10;
+/* The price picture, with the two levels that decide whether the setup is worth
+   anything drawn ON it: the breakout TRIGGER above and the trailing STOP below.
+   A shape on its own is a silhouette; the same shape between two levels tells you
+   how far there is to go and how much is at risk, which is the entire argument of
+   this tab. It was 92px tall with one dashed line hugging the floor.
+
+   Both lines are gated on a level the snapshot actually computed. The trigger is
+   `sig.pivot` — the high of the most recent base — and is drawn only when the
+   snapshot supplies it, never from the editorial curve in tt.js, because a
+   fabricated buy point on a trading screen is the worst thing this file could
+   render. A level far outside the window would flatten the price action into a
+   band, so past that it is dropped and the caption says how far away it is
+   instead of drawing a misleading chart. */
+const LEVEL_MAX_DROP = 0.35;
+function Sparkline({ data, stop, pivot, px }) {
+  const n = data.length, W = 560, H = 150, padT = 10, padB = 12;
   const lo0 = Math.min(...data), hi0 = Math.max(...data);
   // a breached trail sits above price — it belongs on the chart just as much
-  const showStop = stop != null && stop > lo0 * (1 - STOP_MAX_DROP) && stop < hi0 * 1.25;
-  const lo = showStop ? Math.min(lo0, stop) : lo0;
-  const hi = showStop ? Math.max(hi0, stop) : hi0;
+  const showStop = stop != null && stop > lo0 * (1 - LEVEL_MAX_DROP) && stop < hi0 * 1.25;
+  const showTrig = pivot != null && pivot > lo0 * (1 - LEVEL_MAX_DROP) && pivot < hi0 * 1.25;
+  const lo = Math.min(lo0, showStop ? stop : Infinity, showTrig ? pivot : Infinity);
+  const hi = Math.max(hi0, showStop ? stop : -Infinity, showTrig ? pivot : -Infinity);
   const span = hi - lo || 1;
   const x = (i) => (i / (n - 1)) * W;
   const y = (v) => H - padB - ((v - lo) / span) * (H - padT - padB);
@@ -609,27 +708,60 @@ function Sparkline({ data, stop }) {
   const up = data[n - 1] >= data[0];
   const c = up ? "var(--cat-growth)" : "var(--sev-extreme)";
   const fmt = (v) => (v >= 1000 ? v.toFixed(0) : v.toFixed(2));
+  // how far price has to travel to trigger — the number the trigger line exists
+  // to make readable at a glance
+  const toTrig = showTrig && px != null ? ((pivot - px) / px) * 100 : null;
+
   return (
-    <div className="pb-sparkwrap">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="pb-spark" role="img"
-        aria-label={`price from ${fmt(data[0])} to ${fmt(data[n - 1])}`}>
-        {/* fill to the opening close, not the floor — the shaded area is the move */}
-        <path d={`${d} L${W},${y(data[0])} L0,${y(data[0])} Z`} fill={c} opacity=".11" />
-        <line x1="0" y1={y(data[0])} x2={W} y2={y(data[0])} stroke="var(--border-2)" strokeWidth="1"
-          strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
-        {showStop && (
-          <line x1="0" y1={y(stop)} x2={W} y2={y(stop)} stroke="var(--sev-extreme)" strokeWidth="1.25"
-            strokeDasharray="6 4" opacity=".8" vectorEffect="non-scaling-stroke" />
+    <>
+      <div className="pb-sparkwrap">
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="pb-spark" role="img"
+          aria-label={`price from ${fmt(data[0])} to ${fmt(data[n - 1])}`}>
+          {/* fill to the opening close, not the floor — the shaded area is the move */}
+          <path d={`${d} L${W},${y(data[0])} L0,${y(data[0])} Z`} fill={c} opacity=".11" />
+          {/* The window's open used to be a third horizontal line. With a trigger
+              and a stop on the chart it was one line too many, and it is the least
+              informative of the three — the shaded fill already shows the move
+              against it. */}
+          {showTrig && (
+            <line x1="0" y1={y(pivot)} x2={W} y2={y(pivot)} className="pb-lvl" data-k="trigger"
+              vectorEffect="non-scaling-stroke" />
+          )}
+          {showStop && (
+            <line x1="0" y1={y(stop)} x2={W} y2={y(stop)} className="pb-lvl" data-k="stop"
+              vectorEffect="non-scaling-stroke" />
+          )}
+          <path d={d} fill="none" stroke={c} strokeWidth="2"
+            strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {/* the scale, so the shape reads as prices instead of a silhouette. A bound
+            a level already sets is labelled by that level's own chip — printing the
+            same number twice reads as two different prices. */}
+        {!(showStop && hi === stop) && !(showTrig && hi === pivot) && <span className="pb-spark-ax" data-at="hi">{fmt(hi)}</span>}
+        {!(showStop && lo === stop) && !(showTrig && lo === pivot) && <span className="pb-spark-ax" data-at="lo">{fmt(lo)}</span>}
+        {showTrig && (
+          /* right-anchored, because the stop tag is left-anchored: the two levels
+             can land within a few pixels of each other (a name well off its high
+             puts the base high just under the trail) and two left-anchored tags
+             then print on top of one another */
+          <span className="pb-lvl-tag mono" data-k="trigger" style={{ top: `${(y(pivot) / H) * 100}%` }}>
+            trigger {fmt(pivot)}{toTrig != null && <b>{toTrig >= 0 ? `${toTrig.toFixed(1)}% away` : "broken out"}</b>}
+          </span>
         )}
-        <path d={d} fill="none" stroke={c} strokeWidth="2"
-          strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      </svg>
-      {/* the scale, so the shape is readable as prices instead of a silhouette.
-          A bound the stop set is already labelled by the stop marker — printing
-          the same number twice reads as two different levels. */}
-      {!(showStop && hi === stop) && <span className="pb-spark-ax" data-at="hi">{fmt(hi)}</span>}
-      {!(showStop && lo === stop) && <span className="pb-spark-ax" data-at="lo">{fmt(lo)}</span>}
-      {showStop && <span className="pb-spark-stop mono" style={{ top: `${(y(stop) / H) * 100}%` }}>stop {fmt(stop)}</span>}
-    </div>
+        {showStop && (
+          <span className="pb-lvl-tag mono" data-k="stop" style={{ top: `${(y(stop) / H) * 100}%` }}>
+            stop {fmt(stop)}
+          </span>
+        )}
+      </div>
+      <span className="pb-chart-l mono">
+        Daily closes from the nightly snapshot.
+        {showTrig ? <> The jade line is the <b>breakout trigger</b> — the high of the most recent base.</>
+          : <> No base high computed for this name, so no trigger line is drawn.</>}
+        {showStop ? <> The amber line is the <b>Chandelier stop</b>, 22-day high − 3 × ATR.</>
+          : <> The trailing stop is too far outside this window to plot.</>}
+        {" "}Full interactive chart in the stock drawer.
+      </span>
+    </>
   );
 }

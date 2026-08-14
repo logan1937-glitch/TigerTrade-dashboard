@@ -175,6 +175,36 @@ Thresholds are named exports (`LAUNCHPAD_MAX_SPREAD` 2%,
 with AND; the chip counts are measured against the **full** measurable set, not
 the post-filter one, so they don't move as you stack.
 
+**The detail pane is ordered as the decision is made:** who is this → is it
+coiled → what are the levels → what size → the picture. The coil used to sit
+*below* the metrics bar, so the one thing this tab exists to find was the third
+thing you read. Two related rules:
+
+- **The EMA ribbon is drawn to a FIXED scale** (±3% of the middle EMA), and the
+  jade band is the `LAUNCHPAD_MAX_SPREAD` threshold at that same scale, so
+  "inside the band" *is* the test rather than an illustration of it. It used to
+  normalise the three EMAs to their own min and max across 8–92% of the track —
+  which put the dots in the same three places whether the averages were 0.1%
+  apart or 10%. A convergence visual that cannot show convergence is decoration.
+  A spread too wide for ±3% widens the window and the end labels print whatever
+  the window became; the scale is never silently different from the one on screen.
+- **The scan shows BOTH coils.** "Coiled" is two different measurements — `cx`
+  (10-day range ÷ 40-day, the three bars) and the EMA spread (what the Launchpad
+  filter actually tests) — and the spread used to appear only after selecting a
+  row, so the scan could not be scanned for the thing it screens on.
+- **The chart carries the trigger and the stop as explicit lines**, jade and
+  amber. Neither may be red or green: a level is arithmetic, not money moved.
+  The trigger is `sig.pivot` and is drawn **only when the snapshot computed it**
+  — never from `tt.js`'s editorial curve, because a fabricated buy point is the
+  worst thing this file could render. A level too far outside the window is
+  dropped and the caption says so rather than flattening the price action.
+- **`.pb-split` gives the scan a PIXEL floor** (`minmax(500px, 38%)`), because a
+  flat 35% is 488px at 1500 and 330px at 1000 — and the ticker column is the only
+  one carrying prose. 500px is what the longest name in the universe needs;
+  re-derive it if the type scale moves. Stacked (≤1180px) the name **wraps**
+  rather than truncating: a clipped company name on a scan is a name you cannot
+  identify, and two lines cost 14px.
+
 **Serverless endpoints** (`api/`):
 
 | File | Does |
