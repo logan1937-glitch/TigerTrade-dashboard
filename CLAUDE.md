@@ -360,7 +360,11 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   strip so an overflowing filter row scrolls under the thumb instead of dragging
   the topbar sideways. **Adding a control to a filter row means re-measuring
   `scrollWidth` at 390px** — a page that slides sideways reads as broken, and a
-  screenshot taken before anything scrolls it looks perfect.
+  screenshot taken before anything scrolls it looks perfect. Hit twice now:
+  adding a sixth Playbook filter chip and a fifth sort put `.pb-filters` at
+  362<426 and the document at 440 against a 390 viewport, so `.pb-filters .seg`
+  carries the same scroll strip `.filters .seg` does. The chips wrap fine — it is
+  always the `.seg`, one flex item at max-content, and a flex item does not shrink.
 - **On a phone the bottom tab bar owns product/search/watch, and the topbar must
   not duplicate them.** `.nav-pills`, `.cmdk-btn` and `.watch-btn` are hidden
   ≤640px — six controls in a 390px bar left the product switcher rendering as a
