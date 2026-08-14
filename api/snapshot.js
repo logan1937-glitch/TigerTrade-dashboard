@@ -33,7 +33,7 @@ const BLOB_KEY = "snapshot.json";
    be missing with nothing to explain why. Bump this whenever compute() gains or
    renames a field: a mismatch makes the stored copy stale by definition and the
    first request after deploy recomputes and rewrites it. */
-const SCHEMA = 11;   // 11: idx tags now populate from the committed index lists
+const SCHEMA = 12;   // 12: every covered name carries its listing exchange in `idx`
 const hasBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 
@@ -68,6 +68,44 @@ async function writeBlob(obj, key = BLOB_KEY) {
   } catch (e) { console.error("blob write:", e); }
 }
 
+/* Listing exchange from Yahoo's own chart meta, which every bars fetch already
+   receives and used to throw away — so this costs no request, on either tier,
+   and covers the CORE names too. That last part is the whole reason it is done
+   here rather than off FMP's screener: the screener runs only in the extended
+   pass, so tagging from it would have produced a "Nasdaq-listed" filter that
+   omitted Apple, Microsoft and Nvidia. A filter that silently drops the most
+   obvious members of the thing it names is the Dow/Nasdaq bug again.
+
+   Only the two main boards are tagged. NYSE American (ASE) and NYSE Arca (PCX)
+   are genuinely different markets, so a name there is left UNTAGGED rather than
+   folded into "NYSE" — it then appears under neither filter, which is a stated
+   gap rather than a wrong label. */
+const EXCH_TAG = {
+  NMS: "nasdaq", NGM: "nasdaq", NCM: "nasdaq",   // Global Select / Global / Capital
+  NYQ: "nyse",
+};
+/* Adds the listing tag to a meta record's `idx` without mutating the input or
+   duplicating a tag. A name Yahoo did not classify keeps its `idx` untouched —
+   never tagged as a guess. */
+export function withExch(rec, bars) {
+  const tag = bars && bars.exch;
+  if (!rec || !tag) return rec;
+  const idx = Array.isArray(rec.idx) ? rec.idx : [];
+  return idx.includes(tag) ? rec : { ...rec, idx: [...idx, tag] };
+}
+
+export function exchTag(meta) {
+  if (!meta) return null;
+  const code = typeof meta.exchangeName === "string" ? meta.exchangeName.trim().toUpperCase() : "";
+  if (EXCH_TAG[code]) return EXCH_TAG[code];
+  // `exchangeName` is the stable field; the full name is a readable fallback for
+  // the day Yahoo changes a code
+  const full = typeof meta.fullExchangeName === "string" ? meta.fullExchangeName.trim() : "";
+  if (/^nasdaq/i.test(full)) return "nasdaq";
+  if (/^nyse$/i.test(full)) return "nyse";
+  return null;
+}
+
 async function yahooBars(symbol) {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
@@ -89,7 +127,7 @@ async function yahooBars(symbol) {
         low: fin(q.low ? q.low[i] : null), close: fin(close), volume: fin(q.volume ? q.volume[i] : null) });
     }
     // one implementation, shared with /api/yahoo — see api/_quote.js for why
-    return { rows, quote: quoteFromChart(meta, rows) };
+    return { rows, quote: quoteFromChart(meta, rows), exch: exchTag(meta) };
   } catch { return null; }
 }
 
@@ -703,9 +741,11 @@ async function compute() {
   });
   const market = computeMarketHealth(indices, tickers.map((t) => ({ chg: quotes[t]?.changePercentage, sig: sig[t] })));
 
-  // keep meta only for covered names (trims payload)
+  // keep meta only for covered names (trims payload), and stamp the listing
+  // exchange onto `idx` beside the index memberships — same field, same filter,
+  // so the screener needs no second code path to read it
   const metaOut = {};
-  for (const t of Object.keys(quotes)) metaOut[t] = meta[t];
+  for (const t of Object.keys(quotes)) metaOut[t] = withExch(meta[t], data[t]);
 
   const changes = detectChanges(prev, sig, metaOut);
   const earnings = await fmpEarnings(Object.keys(quotes));
@@ -759,7 +799,7 @@ async function computeExt() {
     sig[t] = cs;
   }
   const metaOut = {};
-  for (const t of Object.keys(quotes)) metaOut[t] = meta[t];
+  for (const t of Object.keys(quotes)) metaOut[t] = withExch(meta[t], data[t]);
   let asOf = 0;
   for (const t of Object.keys(quotes)) { const ts = quotes[t].timestamp; if (ts) asOf = Math.max(asOf, ts); }
 
