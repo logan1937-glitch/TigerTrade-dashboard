@@ -8,7 +8,7 @@
 import { swingMetrics, launchpad, LAUNCHPAD_MAX_SPREAD, atrTrail, ATR_TRAIL_MULT, peakSince,
   computeSignals, compactSig } from "../src/signals.js";
 import { quoteFromChart } from "../api/_quote.js";
-import { extUniverse, exchTag, withExch } from "../api/snapshot.js";
+import { extUniverse } from "../api/snapshot.js";
 import { parsePositions, parseNum, parseDate, splitCsvLine } from "../src/importPositions.js";
 
 let pass = 0, fail = 0;
@@ -345,34 +345,6 @@ console.log("\n— peak since entry —");
   const l = parsePositions(lots);
   eq("repeated lots collapse to one position", l.rows.length, 1);
   eq("and the collapse is counted", l.lots, 1);
-}
-
-/* ── listing exchange, off Yahoo's chart meta ─────────────────────────────
-   The tag decides which names a "Nasdaq-listed" filter keeps, so a wrong or
-   over-eager mapping is a screener that quietly answers a different question. */
-{
-  eq("Nasdaq Global Select is nasdaq", exchTag({ exchangeName: "NMS" }), "nasdaq");
-  eq("Nasdaq Global Market is nasdaq", exchTag({ exchangeName: "NGM" }), "nasdaq");
-  eq("Nasdaq Capital Market is nasdaq", exchTag({ exchangeName: "NCM" }), "nasdaq");
-  eq("NYSE is nyse", exchTag({ exchangeName: "NYQ" }), "nyse");
-  eq("codes are case-insensitive", exchTag({ exchangeName: " nyq " }), "nyse");
-  // the two that must NOT be folded in: different markets, so no tag at all
-  eq("NYSE American is untagged", exchTag({ exchangeName: "ASE" }), null);
-  eq("NYSE Arca is untagged", exchTag({ exchangeName: "PCX" }), null);
-  eq("an unknown venue is untagged", exchTag({ exchangeName: "XETRA" }), null);
-  eq("no meta is untagged", exchTag(null), null);
-  eq("the full name is a fallback", exchTag({ fullExchangeName: "NasdaqGS" }), "nasdaq");
-  eq("and it does not match NYSE Arca", exchTag({ fullExchangeName: "NYSEArca" }), null);
-
-  const stamped = withExch({ name: "Apple", idx: ["sp500", "ndx"] }, { exch: "nasdaq" });
-  eq("the tag joins the index memberships", stamped.idx.join(","), "sp500,ndx,nasdaq");
-  eq("an untagged name keeps its idx", withExch({ idx: ["sp500"] }, { exch: null }).idx.join(","), "sp500");
-  eq("no bars leaves the record alone", withExch({ idx: ["sp500"] }, null).idx.join(","), "sp500");
-  eq("the tag is not duplicated", withExch({ idx: ["nyse"] }, { exch: "nyse" }).idx.join(","), "nyse");
-  // the input must not be mutated — meta is reused across the payload build
-  const src = { idx: ["sp500"] };
-  withExch(src, { exch: "nasdaq" });
-  eq("the source record is untouched", src.idx.join(","), "sp500");
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILURES"} — ${pass} passed, ${fail} failed`);

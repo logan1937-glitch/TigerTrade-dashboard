@@ -118,14 +118,6 @@ const VIEWS = [
   /* An index filter whose tag no name carries. It is a real production state —
      the Nasdaq and Dow constituent endpoints are gated above FMP's Starter plan
      — and it used to render as an empty board with nothing to explain it. */
-  /* The listing-exchange filter. A filter that keeps everything and one that
-     keeps nothing are indistinguishable in a diff, and this one reads its tag
-     from a field the snapshot has to populate for every covered name — so the
-     shot is the proof the tag survived the payload, not just the UI. */
-  { id: "screenerexch", state: { tt_product: "canslim" }, act: async (p) => {
-      await p.locator(".seg-btn", { hasText: /^Nasdaq-listed$/ }).first().click();
-      await p.waitForTimeout(500);
-    } },
   { id: "screeneridx", state: { tt_product: "canslim" }, act: async (p) => {
       await p.locator('.seg-btn', { hasText: /^Dow 30$/ }).first().click();
       await p.waitForTimeout(500);
@@ -347,7 +339,7 @@ function nameRecord(t, i, idx) {
 function extFixture() {
   const quotes = {}, sig = {}, meta = {};
   EXT_TK.forEach((t, k) => {
-    const r = nameRecord(t, TK_ORDER.indexOf(t), ["ext", TK_ORDER.indexOf(t) % 2 === 0 ? "nasdaq" : "nyse"]);
+    const r = nameRecord(t, TK_ORDER.indexOf(t), ["ext"]);
     quotes[t] = r.quote; sig[t] = r.sig; meta[t] = r.meta;
   });
   return { schema: 10, tier: "ext", generatedAt: new Date(1767225600000).toISOString(), source: "fixture",
@@ -372,13 +364,7 @@ function fixture() {
     // Dow — and some are in NO index, so "Any index" is visibly wider than "S&P 500"
     // deliberately NO "dow" anywhere: the `screeneridx` view needs a filter whose
     // tag nothing carries, which is exactly the production failure being covered
-    /* Listing exchange rides in the same `idx` array the snapshot puts it in.
-       On a stride co-prime with the `ndx` stride (3) so the two do not line up,
-       and a slice is deliberately left UNLISTED — Yahoo does not classify every
-       venue, and a name on NYSE American is tagged neither, which is the state
-       the two chips have to render honestly. */
-    const venue = i % 7 === 6 ? [] : [i % 2 === 0 ? "nasdaq" : "nyse"];
-    const idx = i % 9 === 8 ? [...venue] : ["sp500", ...(i % 3 === 0 ? ["ndx"] : []), ...venue];
+    const idx = i % 9 === 8 ? [] : ["sp500", ...(i % 3 === 0 ? ["ndx"] : [])];
     const r = nameRecord(t, i, idx);
     quotes[t] = r.quote; sig[t] = r.sig; meta[t] = r.meta; earnings[t] = r.earn;
   });

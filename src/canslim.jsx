@@ -17,8 +17,7 @@ const SUBTABS = [["screener", "Screener"], ["map", "Market Map"], ["health", "Ma
   ["playbook", "Playbook"], ["portfolio", "Portfolio"]];
 
 // so the empty-filter panel can name the lens the user actually picked
-const IDX_LABEL = { sp500: "S&P 500", ndx: "Nasdaq 100", dow: "Dow 30",
-  nasdaq: "Nasdaq-listed", nyse: "NYSE-listed" };
+const IDX_LABEL = { sp500: "S&P 500", ndx: "Nasdaq 100", dow: "Dow 30" };
 
 const fmtAsOf = (ms) => {
   try { return new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
@@ -296,15 +295,6 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
               ["sp500", "S&P 500", "S&P 500 constituents"],
               ["ndx", "Nasdaq 100", "Nasdaq-100 constituents — mostly a subset of the S&P 500"],
               ["dow", "Dow 30", "Dow Jones Industrial Average — entirely inside the S&P 500"],
-              /* LISTING VENUE, not index membership — which is why they sit after
-                 the three index chips rather than among them. Taken from the
-                 exchange Yahoo reports on the bars every name already has, so
-                 these cover the core universe too, not just the extended tier.
-                 NYSE American and NYSE Arca names are untagged rather than folded
-                 into NYSE: they are different markets, and a stated gap beats a
-                 wrong label. */
-              ["nasdaq", "Nasdaq-listed", "Every loaded name listed on the Nasdaq — the exchange, not the Nasdaq-100. Load \"Beyond index\" first to include mid-caps outside the S&P 500."],
-              ["nyse", "NYSE-listed", "Every loaded name listed on the NYSE proper. NYSE American and NYSE Arca are separate markets and are not counted here."],
               ["ext", "Beyond index", "The largest US names outside the S&P 500 — mid-caps, where leaders usually are before they are added. Loaded on demand."]].map(([id, l, t]) => (
               <button key={id} className="seg-btn" data-active={idxF === id}
                 onClick={() => { if (id === "ext" && onLoadExt) onLoadExt(); setIdxF(id); }} title={t}>{l}</button>
