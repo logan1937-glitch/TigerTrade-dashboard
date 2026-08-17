@@ -236,8 +236,25 @@ so a position sized in one is monitored on the same number in the other.
 
 ## Design system
 
-`src/terminal.css` (~2,350 lines) is the whole design system: 48 distinct custom
+`src/terminal.css` (~3,000 lines) is the whole design system: 48 distinct custom
 properties across four themes.
+
+**Dead rules accumulate here faster than anywhere else**, because a deleted
+component leaves its stylesheet behind and nothing fails. A sweep found 47 class
+names in this file with no literal match anywhere in `src/` — leftovers from the
+Catalysts tab, the drawer's trade planner, the rotation graph's in-plot labels and
+several earlier passes — worth 66 whole rules and 6.5KB. Re-run it when a
+component is removed: collect every `.class` in the stylesheet, drop the ones
+whose name appears nowhere in the `.jsx`/`.js` sources, then delete only the rules
+whose EVERY selector is dead. Check for dynamically built class names first
+(`className={"a" + …}`) — there are three, and all of them concatenate literals.
+
+**`--fs-micro` (9px) is for CHROME, not for readings.** Column headers, field
+labels, chip counts, eyebrows. The moment a measurement lands there the hierarchy
+inverts, because the label and the number it describes become the same size —
+measured on the Playbook, where 123 of ~485 text nodes were the scan's own
+figures (the day's change, ATR%, distance to stop) rendered at the size of the
+word "Ticker" above them. Secondary measurements belong at `--fs-label`.
 
 It implements the **Ember** brand handoff. One rule governs it: **amber is
 brand, jade is signal and interaction, green and red are P&L and nothing else.**
