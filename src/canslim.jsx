@@ -498,7 +498,7 @@ function MarketHealth({ market }) {
       <div className="mh-grid">
         <div className="mh-card mh-trend reveal" style={{ "--i": 0 }}>
           <span className="mh-k mono">Market trend</span>
-          <span className="mh-trend-v" style={m.trend !== "Confirmed Uptrend" ? { color: m.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--sev-high)" } : undefined}>{m.trend}</span>
+          <span className="mh-trend-v" style={m.trend !== "Confirmed Uptrend" ? { color: m.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--caution)" } : undefined}>{m.trend}</span>
           <p className="mh-note">{m.trendNote}</p>
           <div className="mh-dist">
             <span className="mh-k mono">Distribution days</span>
@@ -635,7 +635,9 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
               <>
                 <div className="statcell reveal" data-soon={market.trend === "Confirmed Uptrend"} data-tone={market.trend === "Confirmed Uptrend" ? "good" : market.trend === "Market In Correction" ? "bad" : "warn"} style={{ "--i": 0 }}>
                   <div className="lab">Market Trend</div>
-                  <div className="val" style={{ fontSize: 18, color: market.trend === "Confirmed Uptrend" ? "var(--cat-growth)" : market.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--sev-high)" }}>{market.trend}</div>
+                  <div className="val" /* jade, not the P&L green: "buying permitted" is the signal this method waits
+   for, and a market regime is not money that moved */
+              style={{ fontSize: 18, color: market.trend === "Confirmed Uptrend" ? "var(--accent)" : market.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--caution)" }}>{market.trend}</div>
                   <div className="tm mono">{market.trend === "Confirmed Uptrend" ? "buying permitted" : "risk management first"}</div>
                 </div>
                 <div className="statcell reveal" data-tone={market.distDays <= 3 ? "good" : market.distDays <= 5 ? "warn" : "bad"} style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">{market.distDays}</div><div className="tm mono">S&amp;P · rolling 25-session</div></div>

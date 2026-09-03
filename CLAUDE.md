@@ -298,10 +298,13 @@ wrapper or nothing will look right.
 `--text --muted --dim` · `--accent --accent-2 --accent-ink` ·
 `--brand --brand-ink` · `--pl-up --pl-down` · `--cat-growth --sev-high --sev-extreme` ·
 `--mark-tile --mark-tile-line --mark-ink` ·
-`--radius-sm 7px` (buttons, chips) · `--radius-md 11px` (inputs, logo tiles) ·
-`--radius 14px` (**cards and panels** — every rule that uses it is one, and the
-lone `calc(var(--radius) + 2px)` lands on the 16px the system gives large
-section containers) · `--font-ui --font-display --font-mono` ·
+`--radius-sm 6px` (buttons, inputs) · `--radius-md 11px` (logo tiles) ·
+`--radius-chip 4px` · `--radius-panel 8px` (**data panels and table containers**,
+and what `--radius` now aliases to — every existing call site is a panel) ·
+`--radius-float 10px` (drawer, popup) · `--radius-hero 14px` (**marketing only**
+— the old `--radius`, kept for `.hero-cover .hero-left` and the landing page).
+One 14px value used to do hero cards AND table containers; a large corner on a
+dense board is one of the tells that reads as generated. · `--font-ui --font-display --font-mono` ·
 `--track-display --track-label --track-meta --track-data --track-wide`
 
 Use tokens. Never hard-code a hex — it will be wrong in three of four themes.

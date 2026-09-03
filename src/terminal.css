@@ -47,7 +47,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
   --panel:     #0E0805;
   --surface:   #160D08;
   --surface-2: #2A1A12;
-  --border:    rgba(255,255,255,0.08);
+  --border:    rgba(255,255,255,0.11);   /* was 0.08 — carries the separation the panel shadow used to */
   --border-2:  rgba(255,255,255,0.16);
   --text:      #F1E9E2;
   --muted:     #C0B2A3;   /* 9.5:1 on bg — secondary text stays readable at small sizes */
@@ -86,9 +86,17 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
      tiles, 14px cards and panels. `--radius` IS the card step — every rule that
      uses it is a card or a panel — and the one `calc(var(--radius) + 2px)` lands
      on the 16px the spec gives large section containers. */
-  --radius:    14px;
-  --radius-sm: 7px;
+  /* Round 2 ("Ember Hardened"): one 14px value was doing hero cards AND table
+     containers. A marketing surface may be soft; a 500-row board may not — a
+     large radius on a dense data panel is one of the tells that reads as
+     generated. The scale is assigned by what a thing IS. */
+  --radius-hero:  14px;   /* marketing surfaces only — the old --radius */
+  --radius-float: 10px;   /* drawer, popup, menu — things above the plane */
+  --radius-panel:  8px;   /* data panels, table containers, KPI cards */
+  --radius:    var(--radius-panel);   /* every existing call site is a panel */
+  --radius-sm: 6px;
   --radius-md: 11px;
+  --radius-chip: 4px;
   --display-weight: 700;
   --display-tracking: var(--track-display);
   --display-transform: none;
@@ -108,7 +116,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
   --panel:     #F0E6DA;        /* insets / chips */
   --surface:   #FFFFFF;        /* cards lift off the paper */
   --surface-2: #F0E6DA;        /* hover / raised */
-  --border:    rgba(42,26,18,0.12);
+  --border:    rgba(42,26,18,0.14);       /* was 0.12 — paper hides a hairline */
   --border-2:  rgba(42,26,18,0.26);
   --text:      #1C120C;
   --muted:     #5E5044;        /* deeper than the system's #6E5E50: these are
@@ -195,8 +203,14 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
   /* Base elevation, so a non-obsidian direction still gets a shadow rather than
      an invalid `var()` that silently resolves to nothing. The obsidian and light
      blocks below refine these. */
-  --lift-1: inset 0 1px 0 var(--edge-hi);
-  --lift-2: inset 0 1px 0 var(--edge-hi), 0 18px 46px -30px rgba(0,0,0,0.7);
+  /* A shadow is a claim about depth, and `--lift-2` ended in a 46px blur under
+     panels that are welded to the page — nine surfaces claimed it and only the
+     glossary popup actually floats. Two levels now, with meanings. The old names
+     stay as aliases so no call site breaks mid-sweep. */
+  --lift-flat:  inset 0 1px 0 var(--edge-hi);
+  --lift-float: inset 0 1px 0 var(--edge-hi), 0 12px 28px -18px rgba(0,0,0,0.62);
+  --lift-1: var(--lift-flat);
+  --lift-2: var(--lift-float);
   min-height: 100vh;
   background: var(--bg-grad), var(--bg);
   background-attachment: fixed;
@@ -354,10 +368,14 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .hero-right { display: flex; align-items: stretch; justify-content: flex-end; gap: 20px; flex: 0 1 auto; flex-wrap: wrap; }
 /* shared panel chrome — same surface gradient, border, edge highlight and depth
    on the left identity card, the macro board AND the VIX panel: one card system */
+/* The hero panels are the app's marketing surface and keep --radius-hero; the
+   data panels below them drop to --radius-panel. That split is the point of the
+   scale — a 14px corner on a table container is one of the tells. */
+.hero-cover .hero-left { border-radius: var(--radius-hero); }
 .hero-cover .hero-left, .macroboard, .vixpanel {
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 86%, transparent), color-mix(in oklch, var(--surface) 60%, transparent));
   border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-flat);
 }
 .macroboard { display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
   flex: 0 1 268px; width: auto; min-width: 246px; padding: 18px 20px; }
@@ -523,7 +541,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .statstrip-card .statgrid {
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 86%, transparent), color-mix(in oklch, var(--surface) 60%, transparent));
   border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-flat);
   overflow: hidden;   /* clips rails + dividers to the rounded corners */
 }
 .statstrip-card .statcell { padding: 18px 22px 18px 26px; }   /* labels breathe off the tone rails */
@@ -544,13 +562,19 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .statcell[data-tone]::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; border-radius: 0 2px 2px 0;
 }
-.statcell[data-tone="good"]::before { background: var(--cat-growth); }
-.statcell[data-tone="warn"]::before { background: var(--sev-high); }
+/* A MARKET REGIME IS NOT MONEY MOVED. "Confirmed Uptrend" was drawn in the P&L
+   green and a middling tape in `--sev-high`, which is the red-borrowing that
+   `--caution` exists to prevent — the round-2 handoff caught this and it is the
+   same category error the rotation graph's quadrants had. The ramp is now the
+   app's signal vocabulary: jade for the condition this method requires, caution
+   for deteriorating, and the severity band only at the far end. */
+.statcell[data-tone="good"]::before { background: var(--accent); }
+.statcell[data-tone="warn"]::before { background: var(--caution); }
 .statcell[data-tone="bad"]::before  { background: var(--sev-extreme); }
 .statcell[data-tone="info"]::before { background: var(--accent); }
 /* faint state wash so the whole tile carries a whisper of its color */
-.statcell[data-tone="good"] { background: color-mix(in oklch, var(--cat-growth) 4%, transparent); }
-.statcell[data-tone="warn"] { background: color-mix(in oklch, var(--sev-high) 4%, transparent); }
+.statcell[data-tone="good"] { background: color-mix(in oklch, var(--accent) 4%, transparent); }
+.statcell[data-tone="warn"] { background: color-mix(in oklch, var(--caution) 4%, transparent); }
 .statcell[data-tone="bad"]  { background: color-mix(in oklch, var(--sev-extreme) 5%, transparent); }
 
 /* ============================ SUB NAV ============================ */
@@ -619,7 +643,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
      as unfinished directly under the hero */
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 92%, transparent), color-mix(in oklch, var(--surface) 68%, transparent));
   border: 1px solid var(--border-2); border-radius: var(--radius);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-flat);
   cursor: pointer; transition: transform .14s ease, border-color .14s ease, background .14s ease, box-shadow .2s ease;
   overflow: hidden;
 }
@@ -743,7 +767,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .cs-panel {
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 55%, transparent), transparent 220px);
   border: 1px solid var(--border-2); border-radius: var(--radius);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-flat);
 }
 .cs-head, .cs-row {
   display: grid;
@@ -1537,7 +1561,8 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .mh-grid { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 14px; align-items: start; }
 .mh-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
 .mh-k { font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); display: block; margin-bottom: 10px; }
-.mh-trend-v { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-figure); color: var(--cat-growth); display: block; }
+/* the default is the "Confirmed Uptrend" case, which is a signal, not a gain */
+.mh-trend-v { font-family: var(--font-display); font-weight: 800; font-size: var(--fs-figure); color: var(--accent); display: block; }
 .mh-note { font-family: var(--font-ui); font-size: var(--fs-data); line-height: 1.5; color: var(--muted); margin: 8px 0 16px; }
 .mh-dist { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--border); }
 .mh-dots { display: flex; gap: 5px; }
@@ -2342,7 +2367,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
   display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 15px; min-width: 0;
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 92%, transparent), color-mix(in oklch, var(--surface) 66%, transparent));
   border: 1px solid var(--border-2); border-radius: var(--radius);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-flat);
 }
 .vol-tk { font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
 .vol-tv { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2); line-height: 1.1; color: var(--text); letter-spacing: var(--track-data); }
@@ -2358,7 +2383,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
   padding: 16px 18px 18px;
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 55%, transparent), transparent 200px);
   border: 1px solid var(--border-2); border-radius: var(--radius);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-flat);
 }
 .vol-ph { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
 .vol-phk { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
@@ -2610,7 +2635,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .mm-etf-tbl {
   background: linear-gradient(180deg, color-mix(in oklch, var(--surface) 55%, transparent), transparent 200px);
   border: 1px solid var(--border-2); border-radius: var(--radius);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-flat);
 }
 .mm-etf-row { display: grid; grid-template-columns: 54px minmax(0, 1.1fr) 84px 72px minmax(130px, 1.5fr) 58px 62px;
   align-items: center; gap: 12px; padding: 9px 16px; width: 100%; text-align: left; }
@@ -2858,7 +2883,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
   background: linear-gradient(180deg,
     color-mix(in oklch, var(--surface) 90%, transparent),
     color-mix(in oklch, var(--surface) 55%, transparent));
-  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--lift-2);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--lift-flat);
 }
 .pf-risk-seam { background: var(--border); height: 76px; }
 .pf-risk-v {
@@ -2958,7 +2983,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .term-pop { position: fixed; z-index: 190;
   display: flex; flex-direction: column; gap: 8px;
   padding: 13px 15px; border-radius: var(--radius-sm);
-  background: var(--panel); border: 1px solid var(--border-2); box-shadow: var(--lift-2);
+  background: var(--panel); border: 1px solid var(--border-2); box-shadow: var(--lift-float);
   font-family: var(--font-ui); font-size: var(--fs-data); line-height: 1.55;
   letter-spacing: 0; text-transform: none; text-align: left; text-wrap: pretty; }
 .term-pop-t { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 700;
