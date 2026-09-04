@@ -400,7 +400,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenStock && onOpenStock({ tk: r.tk }); } }}>
                   <div className="cs-tk"><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span>
                     {r.name && r.name !== r.tk && <span className="cs-name">{r.name}</span>}</span></div>
-                  <div className="pf-num mono">{r.shares != null ? r.shares.toLocaleString() : <span className="pf-untracked">tracking</span>}
+                  <div className="pf-num mono">{r.shares != null ? r.shares.toLocaleString() : <Chip tone="absent">tracking</Chip>}
                     {r.cost != null && <span className="pf-sub mono">@ {money(r.cost)}</span>}</div>
                   <div className="pf-num mono">{r.px != null ? money(r.px) : <NA why="No quote for this name in the nightly snapshot" />}
                     {r.chg != null && <span className="pf-sub mono" data-up={r.chg >= 0}>{pctS(r.chg)}</span>}</div>
@@ -453,7 +453,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
                           {r.ern ? `${r.ern.est ? "~" : ""}${r.ern.days === 0 ? "today" : `${r.ern.days}d`}` : "set date"}
                         </button>
                         {r.ern && r.ern.mine && <i className="pf-ernmine">yours</i>}
-                        {r.ern && r.ern.days <= 7 && <span className="pf-ernflag mono">event risk</span>}
+                        {r.ern && r.ern.days <= 7 && <Chip tone="caution">event risk</Chip>}
                       </>
                     )}</div>
                   <div style={{ textAlign: "right" }}>

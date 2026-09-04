@@ -258,8 +258,14 @@ export function NA({ why, blocking, focusable }) {
 }
 
 /* ── one chip, five tones ─────────────────────────────────────────────────
-   `.cs-stage`, `.cs-ern`, `.subtab-n`, the status pills and the live tag were
-   the same object drawn five ways — three paddings, two radii, four sizes.
+   The status pills were the same object drawn five ways — three paddings, two
+   radii, four sizes. Round 2 finished the rollout: the portfolio's "tracking"
+   and "event risk" flags, the drawer's alert and earnings tags and the
+   portfolio subtab's count are all this component now.
+   Two badges deliberately did NOT convert. `.live-tag` is a single ● glyph,
+   and wrapping a bullet in a bordered pill makes it worse, not more
+   consistent. `.pb-fn` is a count that sits INSIDE a filter button, so a chip
+   there is a box in a box — the thing this pass exists to reduce.
    Tone carries the meaning: neutral · brand (amber, brand and primary) ·
    signal (jade, live and interactive) · caution (amber-yellow, a warning that
    is NOT a loss) · absent (dashed, a stated gap).

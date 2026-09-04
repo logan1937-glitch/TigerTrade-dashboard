@@ -88,10 +88,14 @@ const WATCHED = [
 ];
 
 const VIEWS = [
-  /* the landing page. It answers "/" only for a visitor who has NOT accepted the
-     disclaimer, so this view deliberately does not seed tt_disclaimer_ack_v1 —
-     seeding it is exactly what would route the shot to the terminal instead. */
-  { id: "landing", path: "/", noAck: true, state: { } },
+  /* The landing page, at `/start`. It used to answer `/` for a visitor who had not
+     accepted the disclaimer, and this view shot that path — but the terminal is
+     the front door now (LANDING_FOR_NEW_VISITORS in main.jsx), so `/` renders the
+     app and this shot silently stopped covering the landing at all. Pointing it
+     at the explicit route is what keeps the page verified.
+     Still no `tt_disclaimer_ack_v1`: the landing is what a first-time visitor
+     sees when you send them the link, and that is the state worth photographing. */
+  { id: "landing", path: "/start", noAck: true, state: { } },
   { id: "radar",     state: { tt_product: "radar",   tt_tab: "radar" } },
   { id: "timeline",  state: { tt_product: "radar",   tt_tab: "timeline" } },
   // seeded with a HELD off-universe name (NBIS, not in the S&P snapshot) carrying

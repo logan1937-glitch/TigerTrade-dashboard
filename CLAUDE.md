@@ -664,12 +664,20 @@ chromium and seeding state.
 
 ## The landing page
 
-`/` answers with whichever surface the visitor came for, decided in `main.jsx`:
-an explicit path always wins (`/start` is the landing, `/terminal` the app), a
-URL carrying app state (`?ev=`, `?tk=`, `?p=`, `?tab=`) is a deep link and goes
-straight to the terminal, a visitor who has accepted the disclaimer has used this
-before and gets the terminal, and only a genuinely new visitor on a bare `/` sees
-the landing. `LANDING_FOR_NEW_VISITORS` flips that last rule in one line. The
+**The terminal is the front door.** `LANDING_FOR_NEW_VISITORS` is now `false`, so
+a bare `/` renders the app for everyone — the landing survives at `/start` and
+`/welcome` and is one link away when you want to show somebody. The page itself
+is good and its copy is specific rather than generic; what read as cheesy was the
+SHAPE, a three-screen scroll with a hero, product sections and feature-card grids,
+which is the standard marketing pattern whatever the words say. The product is the
+better argument: the first screen already carries the market trend, distribution
+days and a board of real names. The disclaimer gate is unaffected — it lives in
+`App.jsx`, not the router, so a first-time visitor still meets it.
+An explicit path always wins, and a URL carrying app state (`?ev=`, `?tk=`, `?p=`,
+`?tab=`) is a deep link straight to the terminal.
+**The `landing` shot must point at `/start`.** It used to shoot `/`, and when the
+flag flipped it silently started photographing the terminal instead — a shot that
+covers nothing looks exactly like a shot that passes. The
 alternative — landing on `/`, terminal on `/terminal` — breaks every `?ev=` deep
 link the app writes and every bookmark anyone already has.
 

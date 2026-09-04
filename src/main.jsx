@@ -24,7 +24,17 @@ import { useStored } from './store.js'
      · everyone else — a genuinely new visitor on a bare `/` — gets the landing
 
    One constant flips the last rule if that judgement turns out wrong. */
-const LANDING_FOR_NEW_VISITORS = true;
+/* FALSE: the terminal is the front door. The landing still exists and still
+   answers `/start` — it is a good page and its copy is specific rather than
+   generic — but a three-screen scroll with a hero, product sections and
+   feature-card grids is the standard marketing shape, and that shape is what
+   read as cheesy regardless of the words in it. The product is the better
+   argument: the terminal's first screen already shows the market trend,
+   distribution days and a screener full of real names.
+   Nothing is lost — `/start` and `/welcome` still render it, so it is one link
+   away when you want to show somebody, and the disclaimer gate is unaffected
+   because it lives in App.jsx, not here. Flip this back to re-enable it. */
+const LANDING_FOR_NEW_VISITORS = false;
 
 function pickSurface() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";

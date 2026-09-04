@@ -660,7 +660,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
         <div className="subnav">
           {SUBTABS.map(([id, l]) => (
             <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>{l}
-              {id === "portfolio" && posRows.length > 0 && <span className="subtab-n mono">{posRows.length}</span>}</button>
+              {id === "portfolio" && posRows.length > 0 && <Chip tone="signal">{posRows.length}</Chip>}</button>
           ))}
         </div>
       </div>

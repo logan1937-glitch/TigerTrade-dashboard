@@ -748,9 +748,9 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock, events: allEv
                         <small className="mono">RS {s.rs ?? <NA why="RS needs a 12-month return to rank against the universe" />}
                           {" · score "}{s.score ?? <NA why="The momentum score needs a signal bundle — none in the snapshot for this name" />}
                           {a && (a.hitAt
-                            ? <span className="wl-alert mono" data-hit>alert hit ${a.level}</span>
-                            : <span className="wl-alert mono">alert ${a.level}</span>)}
-                          {s.ern && s.ern.days <= 7 && <span className="wl-alert mono" data-ern>{s.ern.est ? "~" : ""}{s.ern.days === 0 ? "E·today" : `E-${s.ern.days}`}</span>}
+                            ? <Chip tone="caution">alert hit ${a.level}</Chip>
+                            : <Chip tone="signal">alert ${a.level}</Chip>)}
+                          {s.ern && s.ern.days <= 7 && <Chip tone="caution">{s.ern.est ? "~" : ""}{s.ern.days === 0 ? "E·today" : `E-${s.ern.days}`}</Chip>}
                         </small>
                       </span>
                       <span className="wl-px mono">{s.px != null ? "$" + fmtPx2(s.px) : <NA why="No quote for this name in the nightly snapshot" />}

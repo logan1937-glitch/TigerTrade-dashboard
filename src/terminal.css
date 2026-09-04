@@ -1060,13 +1060,6 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .wl-px small { font-size: var(--fs-label); font-weight: 400; }
 .wl-px small[data-up="true"] { color: var(--cat-growth); }
 .wl-px small[data-up="false"] { color: var(--sev-extreme); }
-.wl-alert { margin-left: 7px; padding: 1px 6px; border-radius: 4px; font-size: var(--fs-micro); letter-spacing: var(--track-meta);
-  background: color-mix(in oklch, var(--accent) 12%, transparent); color: color-mix(in oklch, var(--accent) 80%, var(--text));
-  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); }
-.wl-alert[data-hit] { background: color-mix(in oklch, var(--brand) 16%, transparent); color: color-mix(in oklch, var(--brand) 85%, var(--text));
-  border-color: color-mix(in oklch, var(--brand) 40%, transparent); }
-.wl-alert[data-ern] { background: color-mix(in oklch, var(--sev-high) 14%, transparent); color: color-mix(in oklch, var(--sev-high) 85%, var(--text));
-  border-color: color-mix(in oklch, var(--sev-high) 40%, transparent); }
 
 /* ============================ TOP BAR EXTRAS ============================ */
 .live { display: flex; align-items: center; gap: 7px; padding: 0 4px; }
@@ -1404,14 +1397,6 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .dr-fund { background: var(--surface); padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; }
 .dr-fk { font-size: var(--fs-data); color: var(--dim); }
 .dr-fv { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
-
-/* ============================== PORTFOLIO ============================== */
-/* item 04's remaining two: the sub-tab count and the live tag were the chip at
-   two more sizes and a third radius. Same object, same geometry now. */
-.subtab-n { margin-left: 6px; font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: var(--track-label); padding: 3px 7px; border-radius: 5px; vertical-align: middle;
-  background: color-mix(in oklch, var(--accent) 12%, transparent); color: var(--accent);
-  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent); }
 /* auto-fit, not a fixed 4: adding the open-risk tile made a 5th wrap onto its
    own row with three empty cells beside it */
 .pf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--border);
@@ -1439,11 +1424,7 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 .pf-sub { font-size: var(--fs-label); font-weight: 500; color: var(--dim); }
 .pf-sub[data-up="true"] { color: var(--cat-growth); }
 .pf-sub[data-up="false"] { color: var(--sev-extreme); }
-/* a position entered without a share count: tracked, but contributing no size */
-.pf-untracked { font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--track-meta); text-transform: uppercase;
-  color: var(--dim); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px 5px; }
 .pf-wbar { display: block; height: 2px; border-radius: 2px; background: var(--accent); opacity: .5; margin-top: 2px; }
-.pf-ernflag { font-size: var(--fs-micro); letter-spacing: var(--track-meta); text-transform: uppercase; color: var(--sev-high); }
 /* the whole Next-ern cell is the control for setting a date — a name no feed
    covers shows "set date" here rather than a dead em dash */
 .pf-erncell { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
@@ -2842,6 +2823,20 @@ body:has(.app[data-mode="light"]) { background: #FAF6F1; }
 /* ---- 04 · one chip, five tones ----------------------------- */
 /* Replaces .cs-stage, .cs-ern, .subtab-n, the status chips and the
    live tag. .cs-let keeps its 22x22 square but inherits type here. */
+/* ── every figure in mono, the sweep round 1 missed ────────────────────────
+   Table cells were done; the headline numbers were not, and they sat on the
+   display face — which has PROPORTIONAL figures, so the digits shift width as
+   a value changes and a column of them ripples. `"zero" 1` is the slashed zero:
+   at 11px an O and a 0 are the same shape otherwise. Only selectors that exist
+   in this app — the handoff also lists `.mh-val`, `.radar-count`, `.vix-val`
+   and `.pb-shares`, none of which are class names here. */
+.cs-score, .hero-kpi b, .pf-risk-v, .statcell .val, .mh-trend-v, .vol-tv {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: 0;
+}
+
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 700;
