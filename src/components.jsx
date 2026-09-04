@@ -860,7 +860,7 @@ export function VixPanel({ vix, settled }) {
 
 /* ---------------------------- STAT STRIP --------------------------- */
 // derives the five countdown cells from the (possibly live re-dated) event list
-const STAT_IDS = [[2, "NEXT FOMC"], [10, "NEXT CPI"], [3, "NEXT WITCHING"], [5, "NEXT RUSSELL"], [16, "US MIDTERMS"]];
+const STAT_IDS = [[2, "Next FOMC"], [10, "Next CPI"], [3, "Next witching"], [5, "Next Russell"], [16, "US midterms"]];
 export function StatStrip({ events }) {
   const horizon = 150;
   const byId = events ? Object.fromEntries(events.map((e) => [e.id, e])) : null;

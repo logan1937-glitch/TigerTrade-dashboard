@@ -469,7 +469,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             <div className="pf-panel">
               <div className="pf-ph mono">Earnings ahead · your book</div>
               {ernAhead.length === 0
-                ? <p className="pf-pempty mono">No report dates for these names yet. The feeds don't cover every
+                ? <p className="pf-pempty">No report dates for these names yet. The feeds don't cover every
                     listing — open a name and set its date under <b>Edit position</b> to put it on this calendar.</p>
                 : (
                   <>
@@ -502,7 +502,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
               {impliedUsd != null
                 ? <p className="pf-plead mono">A 1-day move of the size the options market is pricing is worth
                     about <b>±{compact(impliedUsd).replace("−", "")}</b> on this book.</p>
-                : <p className="pf-pempty mono">Awaiting the VIX feed for the implied-move estimate.</p>}
+                : <p className="pf-pempty">Awaiting the VIX feed for the implied-move estimate.</p>}
               <div className="pf-plist">
                 {nextEvents.map((e) => (
                   <div className="pf-pitem" key={e.id} data-soon={e.t >= -7 || undefined}>
@@ -517,7 +517,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             <div className="pf-panel">
               <div className="pf-ph mono">Open risk · by position</div>
               {risk.usd == null
-                ? <p className="pf-pempty mono">Needs a share count and an ATR. ATR arrives with the nightly
+                ? <p className="pf-pempty">Needs a share count and an ATR. ATR arrives with the nightly
                     snapshot; add sizes to the positions you actually hold and this ranks what each one is
                     risking from here.</p>
                 : (
@@ -551,7 +551,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             <div className="pf-panel">
               <div className="pf-ph mono">Book health · stage mix</div>
               {health.measured === 0
-                ? <p className="pf-pempty mono">No stage read for these names yet — it comes from daily history
+                ? <p className="pf-pempty">No stage read for these names yet — it comes from daily history
                     in the nightly snapshot.</p>
                 : (
                   <>
@@ -585,7 +585,7 @@ export function PortfolioView({ rows = [], onOpenStock, events = [], vix = null 
             <div className="pf-panel">
               <div className="pf-ph mono">Sector weight</div>
               {sectors.length === 0
-                ? <p className="pf-pempty mono">{rows.length > 0 && tot.unsized === rows.length
+                ? <p className="pf-pempty">{rows.length > 0 && tot.unsized === rows.length
                     ? "Add share counts to weight the book by sector." : "Awaiting live prices."}</p>
                 : (
                   <div className="pf-plist">

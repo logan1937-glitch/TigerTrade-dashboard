@@ -257,7 +257,7 @@ export function VolView({ flow, vol, vix, asOf, onOpenStock }) {
       <div className="wrap vol">
         <div className="vol-head">
           <div className="vol-kicker mono">Volume &amp; flow</div>
-          <p className="vol-sub mono">
+          <p className="vol-sub">
             The session's volume block is missing from the snapshot, so nothing here can be drawn.
             It is computed nightly from the same daily bars the screener uses — if it is absent,
             that run did not complete. Nothing on this page is estimated in its place.
@@ -271,7 +271,7 @@ export function VolView({ flow, vol, vix, asOf, onOpenStock }) {
     <div className="wrap vol">
       <div className="vol-head">
         <div className="vol-kicker mono">Volume &amp; flow · session of {stamp}</div>
-        <p className="vol-sub mono">
+        <p className="vol-sub">
           Where capital actually traded across the S&amp;P 500, and which way it leaned. The index is
           a weighted sum, so the names taking the most money are the ones setting it — and heavy
           volume into <i>declining</i> names is distribution, which is what precedes a volatility

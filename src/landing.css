@@ -53,7 +53,13 @@
 @media (min-width: 1900px) { .lp-hero-grid { padding-left: max(28px, calc((100vw - 1780px) / 2)); } }
 .lp-hero-l { min-width: 0; }
 
-.lp-pill { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px;
+/* The two caps labels on this page are DELIBERATE — a marketing eyebrow and a
+   table's column strip, where a shout is the idiom. They redeclare the tracking
+   token the way `.shout` does rather than hard-coding a letter-spacing, because
+   0.10em is what makes caps readable and the app-wide value is now tuned for
+   sentence case. */
+.lp-pill { --track-label: 0.085em;
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px;
   font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 600;
   letter-spacing: var(--track-label); text-transform: uppercase; color: var(--accent);
   background: color-mix(in oklch, var(--accent) 10%, transparent);
@@ -91,6 +97,7 @@
   grid-template-columns: minmax(120px,1fr) 92px 86px minmax(90px,1fr) 64px; gap: 14px;
   padding: 9px 18px; border-block: 1px solid var(--border-2);
   background: color-mix(in oklch, var(--surface-2) 70%, transparent);
+  --track-label: 0.085em;
   font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 600;
   letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted); }
 .lp-panel-labs span:nth-child(2), .lp-panel-labs span:nth-child(5) { text-align: right; }

@@ -9,12 +9,14 @@
 const TT = {};
 
 /* ---------------------------------- categories / severity / stats --------- */
+/* Sentence case, like every other label in the product. These were authored in
+   caps, so the stylesheet's case token cannot reach them. */
 TT.CATEGORIES = [
-  { id: "cb",     label: "CB / LIQ",  color: "var(--cat-cb)" },
-  { id: "flows",  label: "FLOWS",     color: "var(--cat-flows)" },
-  { id: "growth", label: "GROWTH",    color: "var(--cat-growth)" },
-  { id: "data",   label: "DATA",      color: "var(--cat-data)" },
-  { id: "geo",    label: "GEO / REG", color: "var(--cat-geo)" },
+  { id: "cb",     label: "Central banks", color: "var(--cat-cb)" },
+  { id: "flows",  label: "Flows",         color: "var(--cat-flows)" },
+  { id: "growth", label: "Growth",        color: "var(--cat-growth)" },
+  { id: "data",   label: "Data",          color: "var(--cat-data)" },
+  { id: "geo",    label: "Geopolitics",   color: "var(--cat-geo)" },
 ];
 TT.CAT_MAP = Object.fromEntries(TT.CATEGORIES.map((c) => [c.id, c]));
 TT.SEV = { extreme: 4, high: 3, medium: 2, low: 1 };
@@ -200,7 +202,7 @@ const _SHORT = { 1: "BoJ Decision", 2: "FOMC", 3: "Quad Witching", 4: "S&P Rebal
   // the calendar always shows the REAL current month, with event cells derived
   // from the (re-dated) event list rather than a hardcoded table
   const yr = now.getFullYear(), mi = now.getMonth();
-  const MONTH_NAMES = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   TT.MONTH = { name: `${MONTH_NAMES[mi]} ${yr}`, year: yr, monthIndex: mi,
     firstDow: new Date(yr, mi, 1).getDay(), days: new Date(yr, mi + 1, 0).getDate(), today: now.getDate() };
   TT.calEventsByDay = {};

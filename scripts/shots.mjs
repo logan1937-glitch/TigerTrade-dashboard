@@ -596,7 +596,55 @@ for (const theme of themes) {
       const file = path.join(OUT, `${v.id}-${theme}-${WIDTH}w.png`);
       await page.screenshot({ path: file, fullPage: flag("full") });
       shot++;
-      console.log(`  ✓ ${path.relative(ROOT, file)}${errors.length ? `   ⚠ ${errors.length} page error(s): ${errors[0]}` : ""}`);
+      /* A page that slides sideways reads as broken, and a screenshot taken
+         before anything has scrolled it looks perfect — which is why this has
+         now shipped five times: the hero tooltip, the filter rows, the Playbook
+         chips, the topbar, and the hero tooltip AGAIN at a width nobody
+         re-measured. Measuring it by hand only happens when someone remembers
+         to; measuring it on every shot happens always. The offender is named
+         because `scrollWidth` alone says there is a problem and nothing about
+         where. */
+      const over = await page.evaluate(() => {
+        const de = document.documentElement;
+        if (de.scrollWidth <= de.clientWidth) return null;
+        const lim = de.clientWidth;
+        /* How far past the viewport edge a node is ACTUALLY visible.
+           `getBoundingClientRect()` is unclipped, which blames the wrong element
+           twice over: the marquee tape is one `width: max-content` track holding
+           ~6000px of quotes inside `overflow: hidden`, and the closed drawer
+           sits at `translateX(100%)`, ~620px out. So clamp to every clipping
+           ancestor, and discard `position: fixed` subtrees outright — fixed is
+           out of flow against the viewport and cannot extend `scrollWidth` at
+           all, however far it runs. */
+        const visibleRight = (el) => {
+          let r = el.getBoundingClientRect().right;
+          for (let p = el; p && p !== de; p = p.parentElement) {
+            const cs = getComputedStyle(p);
+            if (cs.position === "fixed") return -1;
+            if (p === el) continue;
+            const ov = cs.overflowX;
+            if (ov === "hidden" || ov === "clip" || ov === "auto" || ov === "scroll") {
+              r = Math.min(r, p.getBoundingClientRect().right);
+            }
+          }
+          return r;
+        };
+        const worst = [...document.querySelectorAll("body *")]
+          .map((el) => ({ el, right: visibleRight(el), w: el.getBoundingClientRect().width }))
+          .filter((x) => x.w > 0 && x.right > lim + 1)
+          // the deepest node that overruns is the one to fix; its ancestors
+          // only overrun because it does
+          .filter(({ el }) => ![...el.children].some((c) => visibleRight(c) > lim + 1))
+          .sort((a, b) => b.right - a.right)[0];
+        return {
+          doc: de.scrollWidth, view: lim,
+          who: worst ? `${worst.el.tagName.toLowerCase()}.${(worst.el.className || "").toString().split(" ")[0]} → ${Math.round(worst.right)}px` : "(clipped subtree — check scroll containers)",
+        };
+      });
+      if (over) failed++;
+      console.log(`  ${over ? "⚠" : "✓"} ${path.relative(ROOT, file)}`
+        + (over ? `   OVERFLOW: document ${over.doc} > viewport ${over.view} · widest: ${over.who}` : "")
+        + (errors.length ? `   ⚠ ${errors.length} page error(s): ${errors[0]}` : ""));
     } catch (e) {
       failed++;
       console.log(`  ✗ ${v.id} (${theme}): ${String(e.message).split("\n")[0]}`);

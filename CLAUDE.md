@@ -248,6 +248,25 @@ component is removed: collect every `.class` in the stylesheet, drop the ones
 whose name appears nowhere in the `.jsx`/`.js` sources, then delete only the rules
 whose EVERY selector is dead. Check for dynamically built class names first
 (`className={"a" + …}`) — there are three, and all of them concatenate literals.
+The sweep also reports two false positives and one deliberate survivor: `.w3`
+comes from `w3.org` inside a data-URI, `.tnum` is a paired utility, and **`.shout`
+is the documented opt-in for `--label-case`** — currently unused on purpose, and
+it must stay, because without the hatch the next person who needs one caps label
+will write `text-transform: uppercase` and break the token.
+
+**CASE IS A TOKEN, and the default is sentence case.** Seventy-one rules set
+`text-transform: uppercase` — every field label, column header, stat caption, the
+subnav, the filter chips — so about fifteen tracked all-caps strings shared one
+screen and the reading order went flat: "MARKET TREND" competed with the figure
+it labels. Caps also cost ~12% more width and throw away word-shape, which is
+what makes a label scannable peripherally. Every one of those rules now reads
+`text-transform: var(--label-case)`, `--label-case` is `none` on `:root`, and
+`.shout` opts a selector back in. Tracking moves *with* case — 0.10em is right
+for caps and looks broken under lowercase — so `.shout` redeclares
+`--track-label` / `--track-wide` / `--track-meta` rather than setting
+`letter-spacing`, and every rule already reading those tokens follows along.
+**A label authored in caps in the JSX cannot be reached by the token** —
+`TT.CATEGORIES` and `STAT_IDS` had to be re-cased at the source.
 
 **`--fs-micro` (9px) is for CHROME, not for readings.** Column headers, field
 labels, chip counts, eyebrows. The moment a measurement lands there the hierarchy
@@ -270,12 +289,47 @@ is not a gain. Its heads are now a strength *ramp* rather than four categorical
 hues: jade solid leading, desaturated jade improving, `--caution` weakening,
 `--dim` lagging. Four hues also fails CVD, and the corner labels already name the
 quadrants, so colour only has to rank them — `.rrg-qdot` keys that ramp in both
-the roster and the plot's four corner captions. Still on P&L green and
-open to the same argument: the LEADERS pass letters and the buy-status pill. `--pl-up` /
-`--pl-down` are the names to reach for; `--cat-growth` / `--sev-extreme` still
-resolve to them because the Growth event category and the Extreme severity band
-have always been drawn in those hues, and separating those two from P&L is the
-one piece of the rule still outstanding.
+the roster and the plot's four corner captions. Four more came off in the
+polish pass: the **LEADERS pass letters** in both the screener and the drawer,
+the **buy-status pill** (jade in the zone, `--caution` extended, `--dim`
+watching — three states of price against a pivot, which is a signal), the
+screener's **RS bar** (it was the P&L green on every row, so a name could show
+green RS beside a red change; it follows the off-high pattern now — jade inside
+the 80+ leadership band, neutral below), and Market Health's **breadth meters**
+(% above 50-day, up $-volume — a proportion of the universe, not a gain).
+`--pl-up` / `--pl-down` are the names to reach for; `--cat-growth` /
+`--sev-extreme` still resolve to them because the Growth event category and the
+Extreme severity band have always been drawn in those hues, and separating those
+two from P&L is the one piece of the rule still outstanding.
+
+**Chrome is the other thing that reads as generated, and it is counted in
+BOXES.** The stylesheet had 102 `border: 1px solid` declarations and the
+screener drew about 280 filled green squares on one screen. Three rules came out
+of the polish pass:
+
+- **Nesting depth is the tell, not any single border.** The radar's left column
+  was a bordered panel holding three bordered counters, a bordered catalyst card
+  and three more bordered cells — four levels, so the eye read frames before
+  figures and the thing the panel exists to announce had no more emphasis than
+  the counters above it. Only the next catalyst keeps a container now; that is
+  what makes it the headline. Same move on the screener's market-state strip, the
+  portfolio tiles, the Playbook metric bar and the drawer's signal grid: **label
+  and value pairs separated by space, one hairline under the group.**
+- **No bevels.** `--lift-flat` was `inset 0 1px 0 var(--edge-hi)` — a 1px white
+  line along the top of nineteen panels, saying "raised physical object". It is
+  `none`. A panel is separated by its ground and its hairline.
+- **The `gap: 1px` over a `--border` ground draws cell walls cheaply, and it also
+  draws a wall around NOTHING.** Eight drawer metrics in a three-column grid left
+  a grey slab in the ninth slot that read as a broken panel. If a grid can be
+  partly filled, it cannot use that trick.
+
+**`auto-fit` / `auto-fill` are banned wherever the item count is FIXED.** They
+size the track count from whatever width happens to be there, so the block
+reshapes as the window moves and only the width you screenshotted looks
+considered. Caught three more times after the rotation roster: the Market Map's
+eleven sector tiles went 8-across-then-3 at 1500px (now a fixed 6, dropping to 4
+under 1240px), the portfolio's four KPI tiles, and the Playbook's five metric
+cells. Eleven into six is a shape; 8+3 is an accident that looks like one.
 
 **Everything hangs off one wrapper.** `App.jsx:642` renders:
 
@@ -319,9 +373,21 @@ always sits on a dark tile (`--mark-tile` is `#241610` dark / `#1C120C` light);
 amber-deep `#A9531A` exists for text on paper, and putting it on near-black would
 throw the contrast away.
 
-**Two faces, and the split is by content, not by size.** Space Grotesk is the UI
+**Two faces, and the split is by content, not by size.** **Inter Tight** is the UI
 and display face; IBM Plex Mono carries **every number**, plus eyebrows and field
-labels. `.mono` sets it along with `tabular-nums` — a proportional face made
+labels. It was Space Grotesk, whose quirks — the single-storey `a`, the flat-sided
+`S`, the wide `x` — read as personality on a landing page and as noise across 500
+dense rows, and which is the most recognisable "designed in 2024" display face
+there is. Inter Tight keeps a neutral grotesque skeleton, sets tight enough that
+headings hold without extra weight, and has true tabular figures. Two things
+came with the swap: `.app` carried `font-feature-settings: " cv01", "cv11",
+"ss03"`, where the **leading space made the first token invalid** and `cv11` asks
+for exactly the single-storey `a` being removed — it is now `"cv05" 1`, the
+tailed lowercase l, the one glyph that has to be told from `1` and `I` on a
+screen of tickers; and the global `letter-spacing` dropped from -0.01em to
+-0.004em, because Inter Tight is already drawn tight and the extra closes
+counters at 12px and below.
+`.mono` sets the mono face along with `tabular-nums` — a proportional face made
 price columns ripple as digits changed width, which is the exact scanning motion
 a tape exists to remove. The trap: `.mono` marks *data*, not *small text*. It
 was applied to sentence copy back when the mono token was also Space Grotesk and
@@ -394,6 +460,14 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   362<426 and the document at 440 against a 390 viewport, so `.pb-filters .seg`
   carries the same scroll strip `.filters .seg` does. The chips wrap fine — it is
   always the `.seg`, one flex item at max-content, and a flex item does not shrink.
+  **And the tooltip fix was scoped to `@media (max-width: 640px)`, which is only
+  the width it was measured at.** The dot sits at the END of the title, so on the
+  radar — the longest title — `left: 0` plus 340px put its right edge at 783
+  against a **700px** viewport, and the page slid sideways there for as long as it
+  had been fixed on a phone. The anchoring is unconditional now; only the
+  full-bleed variant stays in the phone block. Fixing a layout bug at one width
+  and measuring at that width proves nothing about the others — which is why the
+  harness now measures **every** shot, and why the sweep runs 390/700/1000/1200/1500.
 - **On a phone the bottom tab bar owns product/search/watch, and the topbar must
   not duplicate them.** `.nav-pills`, `.cmdk-btn` and `.watch-btn` are hidden
   ≤640px — six controls in a 390px bar left the product switcher rendering as a
@@ -440,6 +514,19 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   Note `.cs-row` carries `content-visibility: auto`, so its
   `contain-intrinsic-size` is a real placeholder height — a stale one makes the
   scrollbar jump while scrolling. Re-measure it when a row's contents grow.
+- **`.cs-row`'s twelve tracks are a HARD MINIMUM, and the overflow probe cannot
+  see it.** They sum to 1025px; add 11 × 14px of gap and 40px of padding and the
+  table needs **1219px**, while `.wrap` gives `100% - 56px`. Below a ~1275px
+  viewport the Buy Status and Score columns were simply cut off — not scrollable,
+  not dropped, just gone, with nothing on screen saying so, on every 1280×800 and
+  1366×768 laptop. It never tripped the document-overflow check because the table
+  is clipped by its own scroll container, which is exactly the blind spot that
+  measurement has: `scrollWidth` catches a page that slides sideways, not a panel
+  that quietly eats its own columns. **Any change to that template means
+  re-adding the tracks and comparing against 1144 (a 1200px viewport).** The band
+  from 881px to 1275px now scrolls the table horizontally; above it nothing does.
+  Reclaiming the Leadership track when the LEADERS tiles became letters (178px →
+  110px) is what moved the fit from 1343 to 1275.
 - **An SVG viewBox and its container must be the same shape.** `preserveAspect
   Ratio="xMidYMid meet"` letterboxes inside a box of a different aspect — and the
   RRG's labels live in an **HTML overlay positioned in percentages of the box**,
@@ -608,6 +695,26 @@ keying it off `i` alone (co-prime with the sector stride) averaged every sector 
 within a point of 100 and piled all eleven heads into one blob at the origin.
 A fixture that under-varies doesn't fail — it just stops testing.
 Read the PNGs — page errors are reported inline next to each shot.
+
+**Every shot now also MEASURES horizontal overflow**, because the trap below has
+shipped four times and measuring it by hand only happens when someone remembers
+to. After each screenshot the harness compares
+`documentElement.scrollWidth` against `clientWidth`, and on a mismatch prints
+`OVERFLOW: document N > viewport M · widest: <tag>.<class> → Npx`, marks the
+shot ⚠ and counts it as a failure. A clean sweep means running the widths that
+actually break: 390 (phone), 700, 1000, 1200 (the topbar's crowded band) and 1500.
+
+**Naming the culprit took three tries, and the two dead ends are the interesting
+part.** The element reported is the *deepest* node that overruns — its ancestors
+only overrun because it does, so blaming the outer container sends you to the
+wrong file. But `getBoundingClientRect()` is **unclipped**, so two whole classes
+of element outrank every real offender: anything inside `overflow: hidden` (the
+marquee tape is one `width: max-content` track holding ~6000px of quotes, and it
+was blamed first), and anything inside a `position: fixed` subtree (the closed
+drawer sits at `translateX(100%)`, ~1320px out, and was blamed second — fixed is
+out of flow against the viewport and cannot extend `scrollWidth` at all). The
+probe walks ancestors and clamps to any clipping box, and discards fixed
+subtrees outright. Only then did it name `span.infodot-pop`.
 
 The radar's 4th tab used to be **Catalysts** (internal id `playbook`) — a third
 rendering of the same event set as Radar and Full Timeline. It is now

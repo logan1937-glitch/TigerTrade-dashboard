@@ -114,15 +114,21 @@ const Seam = () => <span className="cs-seam" aria-hidden="true" />;
 
 /* Three states of one measurement — price against the pivot — so all three are
    askable from the pill itself rather than from a legend somewhere else. */
+/* Price against the pivot is a SIGNAL, not money moved, so it reads in the app's
+   signal vocabulary rather than the P&L pair: jade for the condition the method
+   wants, caution for one that has run past it, neutral for one still waiting. */
 const STATUS_MAP = {
-  buy:   ["In Buy Zone", "var(--cat-growth)", "buyZone"],
-  ext:   ["Extended",    "var(--sev-high)",   "extended"],
-  watch: ["Watch",       "var(--cat-data)",   "watchStatus"],
+  buy:   ["In Buy Zone", "var(--accent)",  "buyZone"],
+  ext:   ["Extended",    "var(--caution)", "extended"],
+  watch: ["Watch",       "var(--dim)",     "watchStatus"],
 };
+/* Not a pill. Forty bordered, filled capsules down one column was the last big
+   run of chrome in the table, and the status is one word — colour and weight say
+   it without a container. */
 function StatusPill({ status }) {
   const [label, color, key] = STATUS_MAP[status];
   return (
-    <span className="badge badge-cat" style={{ "--c": color }}>
+    <span className="cs-bstat" style={{ "--c": color }}>
       <Term k={key}>{label}</Term>
     </span>
   );
@@ -413,7 +419,11 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             <Seam />
             <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : <NA why="No quote for this name in the nightly snapshot" />}</span>
               <span className="cs-chg" data-up={r._ret == null ? undefined : r._ret >= 0}><FigPct v={r._ret} /></span></div>
-            <div className="cs-rs mono" title={tf === "1Y" ? "Relative-strength rank over 12 months" : `Relative-strength rank over the selected ${tf} window`}>
+            {/* `lead` only at 80+, the band the model screens on — and only when
+                there IS a rank, since `null >= 80` is false but `undefined` is
+                what must reach the DOM so no tier is claimed for a missing one */}
+            <div className="cs-rs mono" data-tier={r._rs == null ? undefined : r._rs >= 80 ? "lead" : "base"}
+              title={tf === "1Y" ? "Relative-strength rank over 12 months" : `Relative-strength rank over the selected ${tf} window`}>
               {r._rs != null ? r._rs : <NA why="RS is a percentile of return across the loaded universe — this name has no return to rank" />}{r._rs != null && <i style={{ width: r._rs + "%" }} />}</div>
             <Seam />
             {/* `_sparkReal` = the snapshot answered for this name; without it the
@@ -533,8 +543,12 @@ function MarketHealth({ market }) {
           <span className="mh-k mono">{liveMh ? `Breadth · tracked universe (${b.n})` : "Breadth"}</span>
           <div className="mh-breadth">
             <div className="mh-b"><span className="mh-bk mono">New 52-wk highs / lows</span><span className="mh-bv mono"><b className="up">{b.newHighs}</b> / <b className="dn">{b.newLows}</b></span></div>
-            {b.pctAbove50 != null && <div className="mh-b"><span className="mh-bk mono">% above 50-day</span><span className="mh-bv mono">{b.pctAbove50}%</span><BarMeter value={b.pctAbove50} c="var(--cat-growth)" /></div>}
-            {b.upVolPct != null && <div className="mh-b"><span className="mh-bk mono">Up $-volume</span><span className="mh-bv mono">{b.upVolPct}%</span><BarMeter value={b.upVolPct} c="var(--cat-growth)" /></div>}
+            {/* Breadth is a PROPORTION OF THE UNIVERSE, not money moved — jade,
+                like every other measured signal on this board. Drawn in the P&L
+                green these read as a gain, and a healthy breadth reading on a
+                down day put a green bar under a red tape. */}
+            {b.pctAbove50 != null && <div className="mh-b"><span className="mh-bk mono">% above 50-day</span><span className="mh-bv mono">{b.pctAbove50}%</span><BarMeter value={b.pctAbove50} c="var(--accent)" /></div>}
+            {b.upVolPct != null && <div className="mh-b"><span className="mh-bk mono">Up $-volume</span><span className="mh-bv mono">{b.upVolPct}%</span><BarMeter value={b.upVolPct} c="var(--accent)" /></div>}
             <div className="mh-b"><span className="mh-bk mono">Adv/Dec ratio</span><span className="mh-bv mono">{b.advDec}:1</span></div>
           </div>
         </div>

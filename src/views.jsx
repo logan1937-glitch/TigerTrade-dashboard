@@ -45,7 +45,10 @@ export function CalendarView({ rows = [], onOpenStock }) {
       <div className="cal-head">
         <div className="cal-title">{m.name}</div>
         <div className="cal-headr">
-          <div className="count mono" style={{ color: "var(--dim)", letterSpacing: ".08em", textTransform: "uppercase", fontSize: 11 }}>
+          {/* was an inline style block — hard-coded 11px, .08em and its own
+              uppercase, none of which the design system could reach. `.listmeta
+              .count` is the shared voice for exactly this line. */}
+          <div className="cal-count">
             {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
             {nErn > 0 && <> · <span style={{ color: "var(--cat-growth)" }}>{nErn} report{nErn === 1 ? "s" : "s"}</span></>}
           </div>

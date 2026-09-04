@@ -107,7 +107,7 @@ function SectorEtfs({ sectors, onSelectSector }) {
 
   if (!rows.length) {
     return (
-      <p className="mm-etf-empty mono">
+      <p className="mm-etf-empty">
         Sector ETF data is missing from this snapshot. It is fetched nightly from index
         data — nothing here is estimated in its absence.
       </p>
@@ -541,7 +541,7 @@ function RelativeRotation({ rows }) {
             </div>
           );
         })}
-        <p className="rrg-roster-f mono">
+        <p className="rrg-roster-f">
           Ranked by RS-Ratio. The two figures are Ratio and Momentum, both against 100.
         </p>
       </div>

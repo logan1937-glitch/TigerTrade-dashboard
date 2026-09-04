@@ -470,7 +470,7 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
           ) : (
             <p className="dr-bio" style={{ opacity: .65 }}>{prof === "loading" ? "Loading company profile…" : "Company profile unavailable for this name."}</p>
           )}
-          <p className="dr-bio-note mono">Ranked on technical momentum (RS, stage, breakout) — no curated buy-point base for this name.</p>
+          <p className="dr-bio-note">Ranked on technical momentum (RS, stage, breakout) — no curated buy-point base for this name.</p>
         </div>
       )}
 

@@ -201,8 +201,8 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
     <div className="wrap pb-wrap">
       <div className="pb-head">
         <div>
-          <div className="pb-kicker mono">Momentum swing setups</div>
-          <p className="pb-sub mono">
+          <div className="pb-kicker">Momentum swing setups</div>
+          <p className="pb-sub">
             Find a name that moved, then went quiet, with its moving averages coiled — and know
             where it stops working. <b>{base.length}</b> names measurable from the current snapshot.
           </p>
@@ -323,7 +323,7 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
                 );
               })}
               {list.length === 0 && (
-                <p className="pb-empty mono">
+                <p className="pb-empty">
                   Nothing passes {activeFilters.map((f) => f.label).join(" + ") || "the current filters"} right now.
                   That is a real reading, not missing data — every one of the {base.length} measurable
                   names was tested and none met it. Drop a filter to widen the scan.
@@ -334,13 +334,13 @@ export function PlaybookView({ rows = [], onOpenStock, onLookup, lookupBusy, loo
 
           <div className="pb-detail" ref={detailRef}>
             {active ? <Detail row={active} onOpenStock={onOpenStock} /> : (
-              <p className="pb-empty mono">Select a name on the left.</p>
+              <p className="pb-empty">Select a name on the left.</p>
             )}
           </div>
         </div>
       )}
 
-      <p className="pb-disc mono">
+      <p className="pb-disc">
         Not financial advice. Information provided for educational and research purposes.
         Methodologies inspired by classic momentum and trend-following strategies.
       </p>
@@ -618,17 +618,17 @@ function Sizing({ px, stop, atr }) {
               s={shares ? "rounded down" : "budget < 1 share at this stop"} />
             <Tile k="Position" v={usd(value)} s={value ? `${((value / account) * 100).toFixed(0)}% of account` : "no shares to value"} />
           </div>
-          <p className="pb-note mono">
+          <p className="pb-note">
             Risking <b>{usd(budget)}</b> ({riskPct}% of {usd(account)}) at <b>{px2(dist)}</b> a share.
             {" "}{def.note}
           </p>
           {value > account && (
-            <p className="pb-note mono">That position is larger than the account — this stop is tight
+            <p className="pb-note">That position is larger than the account — this stop is tight
               enough that a {riskPct}% risk implies more shares than you can hold unlevered.</p>
           )}
         </>
       ) : (
-        <p className="pb-note mono">
+        <p className="pb-note">
           {def.id === "chand" && dist != null && dist <= 0
             ? <>The Chandelier level sits above price — already breached, so there is no long-side distance
               to size against. Switch to <b>ATR trail</b> to size on a stop measured down from the current
@@ -670,7 +670,7 @@ const RIBBON_HALF = 3;
 function EmaRibbon({ row }) {
   const { e21, e50, e65 } = row.sig.swing;
   if (e21 == null || e50 == null || e65 == null) {
-    return <p className="pb-note mono">
+    return <p className="pb-note">
       <NA why="The ribbon needs all three of the 21, 50 and 65-day EMAs" /> Not all three averages are
       computable for this name, so there is no convergence to draw.</p>;
   }

@@ -18,7 +18,7 @@ import { Drawer, EventDrawerBody, StockDrawerBody, WatchlistBody } from "./drawe
 import { CanslimView } from "./canslim.jsx";
 
 /* fixed presentation settings (the prototype's design-tool tweaks, pinned for production) */
-const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "grotesk", GLOW = "on", SHOW_BOARDS = true;
+const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "tight", GLOW = "on", SHOW_BOARDS = true;
 
 export default function App() {
   const [product, setProduct] = useStored("tt_product", "radar");
