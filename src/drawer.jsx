@@ -226,7 +226,7 @@ const briefDesc = (t) => {
 
 export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
   const s = stock;
-  const statusMap = { buy: ["In Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
+  const statusMap = { buy: ["In Buy Zone", "var(--pl-up)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
   const [stLabel, stColor] = statusMap[s.status] || [null, null];
   const hasBase = s.pivot != null;                  // buy-point base (technical when history exists)
   const hasChart = s.closes && s.closes.length > 0; // real EOD history loaded
@@ -312,7 +312,7 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
      own numbers. */
 
   return (
-    <div className="dr" style={{ "--c": "var(--cat-growth)" }}>
+    <div className="dr" style={{ "--c": "var(--pl-up)" }}>
       <div className="dr-top">
         <div className="dr-top-l">
           <span className="dr-kicker mono">{s.sector} · {s.group}</span>
@@ -666,7 +666,7 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock, events: allEv
   const w = useWatch();
   const { byTicker } = useCanslim();
   const alerts = useAlerts();
-  const statusMap = { buy: ["Buy Zone", "var(--cat-growth)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
+  const statusMap = { buy: ["Buy Zone", "var(--pl-up)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
   const statusOf = (st) => statusMap[st] || [null, "var(--dim)"];   // signals-only names can have no status
   /* Resolve against the MERGED event list, not the curated template. The live
      economic calendar appends releases that exist only in that merge, so
@@ -740,7 +740,7 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock, events: allEv
                   // NOT `(s.chg || 0) >= 0` — that made an unknown change render green
                   const up = s.chg != null && s.chg >= 0;
                   return (
-                    <div className="wl-row wl-stock" key={s.tk} style={{ "--c": a?.hitAt ? "var(--brand)" : "var(--cat-growth)" }}
+                    <div className="wl-row wl-stock" key={s.tk} style={{ "--c": a?.hitAt ? "var(--accent)" : "var(--border-2)" }}
                       onClick={() => onPickStock(s)} role="button" tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPickStock(s); } }}>
                       <span className="wl-sym">{s.tk}</span>

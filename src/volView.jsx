@@ -52,10 +52,10 @@ const shares = (v) => {
 // The VIX bands the rest of the terminal uses, so a level reads the same here
 // as it does on the cover.
 const BANDS = [
-  { max: 15, k: "Low", c: "var(--cat-growth)" },
+  { max: 15, k: "Low", c: "var(--pl-up)" },
   { max: 20, k: "Normal", c: "var(--accent)" },
   { max: 28, k: "Elevated", c: "var(--sev-high)" },
-  { max: Infinity, k: "Stress", c: "var(--sev-extreme)" },
+  { max: Infinity, k: "Stress", c: "var(--pl-down)" },
 ];
 const bandOf = (v) => (v == null ? { k: "—", c: "var(--muted)" } : BANDS.find((b) => v < b.max));
 

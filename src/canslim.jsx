@@ -52,18 +52,20 @@ function Spark({ data }) {
   const y = (p) => mid - (p / span) * amp;
   const pts = pcts.map((p, i) => `${((i / (data.length - 1)) * w).toFixed(1)},${y(p).toFixed(2)}`);
   const net = (last / first - 1) * 100;
-  /* One colour, and it is brand amber — the reference draws it that way and the
-     rule agrees. A trend line is a SHAPE, not money moved: a falling amber line
-     still reads as falling because it goes down, and the Δ column an inch to the
-     left already carries the sign in the P&L pair. Spending green and red on a
-     channel that is redundant with its own neighbour is exactly what costs them
-     their meaning everywhere else.
+  /* NEUTRAL. A trend line is a SHAPE, not money moved: a falling line reads as
+     falling because it goes down, and the Δ column an inch to the left already
+     carries the sign in the P&L pair. Spending a hue on a channel that is
+     redundant with its own neighbour is exactly what costs hues their meaning
+     everywhere else.
 
-     This replaces an earlier "polarity follows net direction" rule. That rule
-     was solving a real problem — a downtrend drawn in green — but the fix was
-     the wrong axis: the answer is not to switch between P&L colours, it is not
-     to use them here at all. */
-  const c = "var(--brand)";
+     Two earlier rules stood here. First "polarity follows net direction", which
+     was solving a real problem — a downtrend drawn in green — with the wrong
+     fix: the answer was never to pick between P&L colours here. Then brand
+     amber, which was right while amber was a UI colour. Under the monochrome
+     system amber is the mark and nothing else, so the line is drawn in --muted:
+     the shape carries the reading, and forty of these down one column no longer
+     tint the whole board. */
+  const c = "var(--muted)";
   // fill to the unchanged line rather than to the floor of the box, so the shaded
   // area is the gain (or the loss) and not just "there is a line here"
   const area = `0,${mid} ${pts.join(" ")} ${w},${mid}`;
@@ -157,10 +159,10 @@ function periodReturn(s, tf) {
 
 /* ---------- what changed today (day-over-day snapshot diff) ---------- */
 const CHANGE_META = [
-  { key: "newBreakouts", label: "New breakouts", note: "into Stage 2 (advancing)", color: "var(--cat-growth)" },
+  { key: "newBreakouts", label: "New breakouts", note: "into Stage 2 (advancing)", color: "var(--pl-up)" },
   { key: "enteredBuyZone", label: "Entered buy zone", note: "back at a pivot", color: "var(--accent)" },
-  { key: "newHighs", label: "New 52-wk highs", note: "", color: "var(--cat-growth)" },
-  { key: "rolledOver", label: "Rolled over", note: "Stage 2 → topping / declining", color: "var(--sev-extreme)" },
+  { key: "newHighs", label: "New 52-wk highs", note: "", color: "var(--pl-up)" },
+  { key: "rolledOver", label: "Rolled over", note: "Stage 2 → topping / declining", color: "var(--pl-down)" },
 ];
 function ChangesPanel({ changes, onOpenStock }) {
   const [open, setOpen] = useState(true);
@@ -508,7 +510,7 @@ function MarketHealth({ market }) {
       <div className="mh-grid">
         <div className="mh-card mh-trend reveal" style={{ "--i": 0 }}>
           <span className="mh-k mono">Market trend</span>
-          <span className="mh-trend-v" style={m.trend !== "Confirmed Uptrend" ? { color: m.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--caution)" } : undefined}>{m.trend}</span>
+          <span className="mh-trend-v" style={m.trend !== "Confirmed Uptrend" ? { color: m.trend === "Market In Correction" ? "var(--pl-down)" : "var(--caution)" } : undefined}>{m.trend}</span>
           <p className="mh-note">{m.trendNote}</p>
           <div className="mh-dist">
             <span className="mh-k mono">Distribution days</span>
@@ -622,50 +624,66 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
     : live.status === "loading"
       ? "Connecting to data feed…"
       : "Demo prices · not live";
-  const dotColor = isLive ? "var(--accent)" : live.status === "loading" ? "var(--accent)" : "var(--sev-extreme)";
+  const dotColor = isLive ? "var(--accent)" : live.status === "loading" ? "var(--accent)" : "var(--pl-down)";
 
   return (
     <>
-      <div className="hero">
-        <div className="hero-glow" />
-        <div className="wrap hero-row">
-          <div className="hero-left">
-            <div className="hero-eyebrow mono"><span className="hero-pulse" style={{ background: dotColor }} />{isLive ? "Live relative-strength leadership" : "Relative-strength leadership"}</div>
-            <h1 className="hero-title">Leadership Screener<InfoDot text="The full S&P 500 ranked on real relative strength, stage, and breakout quality — the market's leaders surface first, with a buy-point read on every name." /></h1>
-            <span className="hero-meta" style={!isLive && live.status !== "loading" ? { color: "var(--sev-extreme)" } : undefined}>{meta}</span>
-          </div>
-          <div className="hero-signals">
-            <span className="hero-badge" style={{ "--accent": "var(--cat-growth)", color: "var(--cat-growth)" }}>
-              <span className="pulse" style={{ background: "var(--cat-growth)" }} />{buyCount} in buy zone</span>
-            <span className="hero-badge">{leaders} A-grade leaders</span>
-          </div>
-        </div>
-      </div>
+      {/* THE COVER: one calm block, then density.
+          The page used to open with an eyebrow, a 28px page title, a meta line
+          and a four-up stat card — four levels of heading before a single
+          measurement. The title was also redundant: the product switcher in the
+          topbar already says "Leadership Screener", highlighted.
 
-      <div className="statstrip statstrip-card">
+          It now reads the way the decision is made. The market regime is the
+          first thing a leadership method checks, and if it says correction the
+          rest of the page is not actionable — so the regime IS the headline, at
+          display size with air around it, and everything else steps down to a
+          quiet row of facts. Below the hairline nothing is calm again. */}
+      <div className="cover">
         <div className="wrap">
-          <div className="statgrid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {market ? (
-              <>
-                <div className="statcell reveal" data-soon={market.trend === "Confirmed Uptrend"} data-tone={market.trend === "Confirmed Uptrend" ? "good" : market.trend === "Market In Correction" ? "bad" : "warn"} style={{ "--i": 0 }}>
-                  <div className="lab">Market Trend</div>
-                  <div className="val" /* jade, not the P&L green: "buying permitted" is the signal this method waits
-   for, and a market regime is not money that moved */
-              style={{ fontSize: 18, color: market.trend === "Confirmed Uptrend" ? "var(--accent)" : market.trend === "Market In Correction" ? "var(--sev-extreme)" : "var(--caution)" }}>{market.trend}</div>
-                  <div className="tm mono">{market.trend === "Confirmed Uptrend" ? "buying permitted" : "risk management first"}</div>
-                </div>
-                <div className="statcell reveal" data-tone={market.distDays <= 3 ? "good" : market.distDays <= 5 ? "warn" : "bad"} style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">{market.distDays}</div><div className="tm mono">S&amp;P · rolling 25-session</div></div>
-                <div className="statcell reveal" data-tone="info" style={{ "--i": 2 }}><div className="lab">Last Power Day</div><div className="val">{(market.lastFTD || "—").toUpperCase()}</div><div className="tm mono">1.25%+ gain on volume</div></div>
-                <div className="statcell reveal" data-tone={market.breadth.newHighs > market.breadth.newLows ? "good" : market.breadth.newLows > market.breadth.newHighs ? "bad" : "info"} style={{ "--i": 3 }}><div className="lab">New Highs / Lows</div><div className="val">{market.breadth.newHighs} / {market.breadth.newLows}</div><div className="tm mono">tracked universe ({market.breadth.n})</div></div>
-              </>
-            ) : (
-              <>
-                <div className="statcell reveal" style={{ "--i": 0 }}><div className="lab">Market Trend</div><div className="val" style={{ fontSize: 18 }}>—</div><div className="tm mono">awaiting live data</div></div>
-                <div className="statcell reveal" style={{ "--i": 1 }}><div className="lab">Distribution Days</div><div className="val">—</div><div className="tm mono">rolling 25-session</div></div>
-                <div className="statcell reveal" style={{ "--i": 2 }}><div className="lab">Last Power Day</div><div className="val">—</div><div className="tm mono">1.25%+ gain on volume</div></div>
-                <div className="statcell reveal" style={{ "--i": 3 }}><div className="lab">New Highs / Lows</div><div className="val">—</div><div className="tm mono">tracked universe</div></div>
-              </>
-            )}
+          <div className="cover-top">
+            {/* The H1 is the PAGE, not the reading. "Confirmed Uptrend" is the
+                biggest thing on screen and the right visual headline, but it is
+                a data value that changes daily — as the document's heading it
+                would tell a screen reader (and a search engine) that this page
+                is about an uptrend rather than about the screener. So the small
+                eyebrow carries the heading semantics and the figure below is
+                content. */}
+            <h1 className="cover-eyebrow">
+              <span className="hero-pulse" style={{ background: dotColor }} />
+              Leadership Screener
+              <InfoDot text="The full S&P 500 ranked on real relative strength, stage, and breakout quality — the market's leaders surface first, with a buy-point read on every name." />
+            </h1>
+            <span className="cover-asof mono" style={!isLive && live.status !== "loading" ? { color: "var(--pl-down)" } : undefined}>{meta}</span>
+          </div>
+
+          {/* Never a fabricated regime: with no market payload this is a dash
+              that says why, not an optimistic default. */}
+          <div className="cover-fig" data-state={market ? (market.trend === "Confirmed Uptrend" ? "ok" : market.trend === "Market In Correction" ? "bad" : "warn") : undefined}>
+            {market ? market.trend : <NA why="The market-health block is missing from this snapshot — trend, distribution days and breadth all ride on it" />}
+          </div>
+          <div className="cover-sub">
+            {market
+              ? (market.trend === "Confirmed Uptrend" ? "Buying permitted" : "Risk management first")
+              : "Awaiting live data"}
+          </div>
+
+          <div className="cover-facts">
+            <div className="fact"><span className="fact-k">Distribution days</span>
+              <span className="fact-v mono">{market ? market.distDays : <NA why="Needs the market-health block from the snapshot" />}</span>
+              <span className="fact-s">S&amp;P · rolling 25-session</span></div>
+            <div className="fact"><span className="fact-k">Last power day</span>
+              <span className="fact-v mono">{market && market.lastFTD ? market.lastFTD : <NA why="No 1.25%+ up day on rising volume in the window" />}</span>
+              <span className="fact-s">1.25%+ gain on volume</span></div>
+            <div className="fact"><span className="fact-k">New highs / lows</span>
+              <span className="fact-v mono">{market ? `${market.breadth.newHighs} / ${market.breadth.newLows}` : <NA why="Needs the market-health block from the snapshot" />}</span>
+              <span className="fact-s">{market ? `tracked universe (${market.breadth.n})` : "tracked universe"}</span></div>
+            <div className="fact"><span className="fact-k">In buy zone</span>
+              <span className="fact-v mono">{buyCount}</span>
+              <span className="fact-s">price against its pivot</span></div>
+            <div className="fact"><span className="fact-k">A-grade leaders</span>
+              <span className="fact-v mono">{leaders}</span>
+              <span className="fact-s">score 93+</span></div>
           </div>
         </div>
       </div>

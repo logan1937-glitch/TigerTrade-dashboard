@@ -61,7 +61,7 @@ function SectorMap({ rows, tf, onSelectSector }) {
     <div className="mm-tiles">
       {sectors.map((s) => {
         const up = s.med >= 0;
-        const pol = up ? "var(--cat-growth)" : "var(--sev-extreme)";
+        const pol = up ? "var(--pl-up)" : "var(--pl-down)";
         const frac = Math.abs(s.med) / maxAbs;
         // magnitude lives in the METER (length), not a flooded tint — the card
         // keeps a whisper of polarity so the wall of sectors stays calm
@@ -226,7 +226,7 @@ function IndustryGroups({ rows, onOpenStock }) {
       {shown.length ? shown.map((g) => (
         <div className="ig-group" key={g.group}>
           <div className="ig-group-head">
-            <span className="ig-strength" style={{ background: `color-mix(in oklch, var(--cat-growth) ${Math.round((g.med / maxMed) * 55 + 12)}%, transparent)` }} />
+            <span className="ig-strength" style={{ background: `color-mix(in oklch, var(--pl-up) ${Math.round((g.med / maxMed) * 55 + 12)}%, transparent)` }} />
             <span className="ig-group-name">{g.group}</span>
             <span className="ig-group-meta mono">{g.n} name{g.n === 1 ? "" : "s"}{g.strong ? ` · ${g.strong} A-grade` : ""}</span>
             <span className="ig-group-med mono" title="Median momentum score">MOM {Math.round(g.med)}</span>
@@ -681,7 +681,7 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
             const alpha = flat ? 0 : Math.min(0.44, 0.08 + (Math.abs(t.chg) / maxAbs) * 0.36);
             const fill = flat
               ? "color-mix(in oklch, var(--text) 5%, var(--surface))"
-              : `color-mix(in oklch, ${up ? "var(--cat-growth)" : "var(--sev-extreme)"} ${Math.round(alpha * 100)}%, var(--surface))`;
+              : `color-mix(in oklch, ${up ? "var(--pl-up)" : "var(--pl-down)"} ${Math.round(alpha * 100)}%, var(--surface))`;
             /* Type scaled to the TILE, which is the whole difference between a
                treemap and a grid of coloured rectangles. A fixed 10.5px ticker
                gave the largest holding in the market the same label as a sliver,

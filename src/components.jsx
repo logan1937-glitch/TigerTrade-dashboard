@@ -205,7 +205,7 @@ function RiskSpectrum({ vix, macro }) {
   const implied = lvl != null ? (lvl / Math.sqrt(252)).toFixed(2) : null;
   const twoY = macro && macro.rates ? macro.rates.find((r) => r.k === "2Y") : null;
   const liq = twoY == null || twoY.bp == null ? null : twoY.bp > 0 ? "Tightening" : twoY.bp < 0 ? "Easing" : "Neutral";
-  const liqColor = liq === "Tightening" ? "var(--sev-high)" : liq === "Easing" ? "var(--cat-growth)" : "var(--muted)";
+  const liqColor = liq === "Tightening" ? "var(--sev-high)" : liq === "Easing" ? "var(--pl-up)" : "var(--muted)";
   const reg = VIX_REGIME(lvl);
   if (implied == null && liq == null && lvl == null) return null;
   return (
@@ -603,7 +603,7 @@ export function StockTape({ rows, quotes, asOf, tried = 0, ok = 0, onPick }) {
         const up = known ? +chg >= 0 : null;
         return (
           <button key={copy + "-" + r.tk} className="tick-item mono"
-            style={{ "--c": up == null ? "var(--muted)" : up ? "var(--cat-growth)" : "var(--sev-extreme)" }}
+            style={{ "--c": up == null ? "var(--muted)" : up ? "var(--pl-up)" : "var(--pl-down)" }}
             onClick={() => onPick(r)} tabIndex={copy ? -1 : 0} aria-hidden={copy ? true : undefined}
             title={`${r.name} · score ${r.score}`
               + (known ? (q ? `\nQuote ${stamp || "just now"} — refreshed live` : "\nFrom the nightly snapshot") : "\nNo change figure from the feed for this name")}>
@@ -625,7 +625,7 @@ function MiniSpark({ data }) {
   const w = 172, h = 20, max = Math.max(...data), min = Math.min(...data);
   const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / (max - min || 1)) * (h - 3) - 1.5}`).join(" ");
   const up = data[data.length - 1] >= data[0];
-  const c = up ? "var(--sev-extreme)" : "var(--cat-growth)";   // rising inflation reads hot
+  const c = up ? "var(--pl-down)" : "var(--pl-up)";   // rising inflation reads hot
   return <svg className="mb-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"><polyline points={pts} fill="none" stroke={c} strokeWidth="1.4" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
@@ -744,10 +744,10 @@ const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 const fmtShortDate = (iso) => { const [y, m, d] = String(iso).split("-"); return m ? `${MON[+m - 1]} ${+d}` : iso; };
 const VIX_REGIME = (v) =>
   v == null ? { k: "—", c: "var(--muted)" } :
-  v < 15 ? { k: "Low", c: "var(--cat-growth)" } :
+  v < 15 ? { k: "Low", c: "var(--pl-up)" } :
   v < 20 ? { k: "Normal", c: "var(--accent)" } :
   v < 28 ? { k: "Elevated", c: "var(--sev-high)" } :
-           { k: "Stress", c: "var(--sev-extreme)" };
+           { k: "Stress", c: "var(--pl-down)" };
 
 // the volatility cover panel — replaces the radar: current VIX + regime, an
 // interactive ~3-month trend (50-day avg line, hover crosshair), 52-wk range

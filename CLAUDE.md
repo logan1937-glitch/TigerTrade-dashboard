@@ -275,32 +275,58 @@ measured on the Playbook, where 123 of ~485 text nodes were the scan's own
 figures (the day's change, ATR%, distance to stop) rendered at the size of the
 word "Ticker" above them. Secondary measurements belong at `--fs-label`.
 
-It implements the **Ember** brand handoff. One rule governs it: **amber is
-brand, jade is signal and interaction, green and red are P&L and nothing else.**
-Green/red are the only colours in the product that mean money moved, so spending
-them on a decorative success state costs them that meaning. Four surfaces have
-been taken off them because they are not money: the screener's **trend spark**
-(one brand amber, because a line's direction is its shape and the Δ column an
-inch away already carries the sign), the **score** column's top tier (amber —
-a leadership score is a model output), **off-high** (jade for the leadership
-band, `--caution` beyond it — a distance is a signal), and the **rotation
-graph's quadrants** — leading was green, lagging red, for a rotation state that
-is not a gain. Its heads are now a strength *ramp* rather than four categorical
-hues: jade solid leading, desaturated jade improving, `--caution` weakening,
-`--dim` lagging. Four hues also fails CVD, and the corner labels already name the
-quadrants, so colour only has to rank them — `.rrg-qdot` keys that ramp in both
-the roster and the plot's four corner captions. Four more came off in the
-polish pass: the **LEADERS pass letters** in both the screener and the drawer,
-the **buy-status pill** (jade in the zone, `--caution` extended, `--dim`
-watching — three states of price against a pivot, which is a signal), the
-screener's **RS bar** (it was the P&L green on every row, so a name could show
-green RS beside a red change; it follows the off-high pattern now — jade inside
-the 80+ leadership band, neutral below), and Market Health's **breadth meters**
-(% above 50-day, up $-volume — a proportion of the universe, not a gain).
-`--pl-up` / `--pl-down` are the names to reach for; `--cat-growth` /
-`--sev-extreme` still resolve to them because the Growth event category and the
-Extreme severity band have always been drawn in those hues, and separating those
-two from P&L is the one piece of the rule still outstanding.
+**THE ONLY COLOUR IN THE PRODUCT IS MONEY MOVED.** This replaces the earlier
+"amber is brand, jade is signal, green and red are P&L". That rule was coherent
+but it licensed FOUR colour families on a single screener row — amber, jade,
+green/red, and `--caution` — and with four families nothing can be emphatic,
+because everything already is. Colour is now a scarce resource spent on one
+thing: the P&L pair. Everything else — selection, interaction, state, severity,
+rank — is carried by **lightness and weight on a neutral ramp**.
+
+That is what an institutional terminal actually is, and it is why one reads as
+expensive. It also means a gain or a loss is the only saturated pixel in view,
+so the eye finds it without looking for it.
+
+- **`--accent` IS the text colour.** `#EDEDEF` in dark, `#18181B` in light. Every
+  one of the ~100 `var(--accent)` call sites still says "this is selected", and
+  now renders it as *the brightest thing* rather than the most colourful one;
+  the fills that were a jade slab became a white tint. Keeping the token name is
+  why the sweep did not need 100 hand edits.
+- **Amber is the BRAND and never data.** `--brand` survives for the mark, the
+  logo tile and the landing page. Anything amber inside the app is now a bug —
+  the trend spark, the score's top tier, the RS↑ flag, the alert badge and the
+  RVOL bars all came off it.
+- **Event categories are NOMINAL, so they are not hues at all.** Five categorical
+  colours on 7px dots was the single largest spend of colour in the product.
+  Nominal data also cannot be ranked, so a neutral *ramp* would be a lie about
+  it: all five take `--dim`, and the label beside every dot ("Central banks",
+  "Geopolitics") identifies it — as it always did. The dot was a second copy.
+- **Severity IS ordinal, so it ramps** — by lightness: `--sev-extreme` is
+  `--text`, high is `--muted`, medium and low are `--dim`.
+- **`--caution` is the middle of that ramp, not a hue.** It was `#E8B04B`.
+  A warning cannot borrow a colour when the only colour left is money.
+- **`--cat-growth` and `--sev-extreme` are no longer aliases of the P&L pair.**
+  That aliasing meant a down day and an "Extreme" macro event were literally the
+  same red. 113 call sites were repointed at `--pl-up` / `--pl-down` first —
+  behaviour-identical, since the aliases resolved there anyway — which is what
+  freed the category and severity tokens to be redefined. **New code showing a
+  gain or a loss uses `--pl-up` / `--pl-down` and nothing else.**
+
+The pair itself is tuned rather than inherited: `#34D399` / `#F87171` in dark
+(was `#3BD685` / `#FF5C5C`, whose red was near-maximum saturation, so a down day
+read as an error state), `#05966A` / `#DC2626` on paper. The two are matched in
+luminance so a column of losses does not shout over a column of gains.
+
+**The ground is NEUTRAL, in both modes.** `#0B0B0C` page → `#121214` panel →
+`#1A1A1D` raised → `#202024` hover, and `#FAFAFA` → `#FFFFFF` → `#E9E9EC` on
+paper. Four clean value steps, because depth now comes from lightness rather
+than from borders — which is how a dense board separates a dozen regions without
+drawing a dozen boxes. Deliberately not pure black: small white type on `#000`
+halates on a large monitor, which is why trading terminals avoid it. And
+deliberately not the old warm ink — warmth tinted every grey slightly orange,
+which is what made them read muddy, and it pushed the P&L red closer to the page
+it sits on. `--bg-grad` is `none` in both modes: a decorative radial light source
+behind the header is the single clearest "generated" tell in the file.
 
 **Chrome is the other thing that reads as generated, and it is counted in
 BOXES.** The stylesheet had 102 `border: 1px solid` declarations and the
@@ -350,7 +376,11 @@ wrapper or nothing will look right.
 **Token families** (read `src/terminal.css:34-165` for the real values):
 `--bg --panel --surface --surface-2` · `--border --border-2` ·
 `--text --muted --dim` · `--accent --accent-2 --accent-ink` ·
-`--brand --brand-ink` · `--pl-up --pl-down` · `--cat-growth --sev-high --sev-extreme` ·
+`--brand --brand-ink` (**brand surfaces only**) · `--pl-up --pl-down` (**the only
+hue in the product**) · `--caution` (mid of the neutral ramp) ·
+`--cat-cb --cat-flows --cat-growth --cat-data --cat-geo` (all `--dim`; nominal,
+so not ranked) · `--sev-extreme --sev-high --sev-medium --sev-low` (ordinal, so
+a lightness ramp) ·
 `--mark-tile --mark-tile-line --mark-ink` ·
 `--radius-sm 6px` (buttons, inputs) · `--radius-md 11px` (logo tiles) ·
 `--radius-chip 4px` · `--radius-panel 8px` (**data panels and table containers**,
@@ -362,6 +392,30 @@ dense board is one of the tells that reads as generated. · `--font-ui --font-di
 `--track-display --track-label --track-meta --track-data --track-wide`
 
 Use tokens. Never hard-code a hex — it will be wrong in three of four themes.
+
+**CALM TOP, DENSE BOARD — `.cover`.** Every screener-product view opens with one
+display-scale primary reading, air around it, a quiet five-up row of supporting
+facts, one hairline, and then nothing on the page is calm again. That split is
+the whole layout thesis: institutional density is what the board below the rule
+is for, and a first-time visitor needs one thing to read before they meet it.
+The page used to open with an eyebrow, a 28px page title, a meta line and a
+bordered four-up stat card — four levels of heading before a single measurement,
+and the title was redundant with the product switcher in the topbar, which says
+the same words and is highlighted.
+
+The market regime is the headline because a leadership method checks it first:
+if it says correction, nothing below is actionable. Two rules on it —
+**the figure is never coloured by state** (a regime cannot borrow a hue when the
+only hue is money moved, so "Confirmed Uptrend" and "Market In Correction" are
+both `--text` and the sub-line carries the reading in *words*: "Buying
+permitted" / "Risk management first"), and **it is never fabricated** — with no
+market payload it is an `<NA>` naming the missing block, not an optimistic
+default. `.cover-facts` is a fixed five tracks, dropping to three then two.
+
+The RADAR still opens with the older hero and has not been converted. Its shape
+is a three-panel board rather than a table, so its primary figure is a different
+question (the next catalyst countdown, most likely) — worth doing deliberately
+rather than by analogy.
 
 **The mark is three tapered slashes, and its geometry is fixed** (`BrandMark` in
 `components.jsx`, mirrored by `public/icon.svg`): a 10×10 grid in a `0 0 100 100`
@@ -395,11 +449,23 @@ the distinction cost nothing; the moment it became a real monospace, fifteen
 rules of body prose turned into code blocks. Prose takes `--font-ui` at 1.6 —
 check what a `.mono` span actually contains before adding one.
 
-**Light mode is paper, not an inverted dark theme.** `#FAF6F1` warm paper with
-`#FFFFFF` cards — never pure white for the page, or the brand temperature is
-gone. Amber and jade are tuned to glow on black and fall under 3:1 there, so the
-hues stay and the values deepen: `#A9531A` and `#0B7A6E` are the only approved
-values for text on light surfaces.
+**Light mode is paper, not an inverted dark theme** — but it is NEUTRAL paper
+now, `#FAFAFA` with `#FFFFFF` cards. It was `#FAF6F1` warm, which existed to sit
+beside an amber-led UI; with amber gone from the interface that was just a page
+that looked slightly yellow for no reason, and it tinted every grey on it. Still
+never pure white for the page itself, or the cards have nothing to lift off:
+`#FFF` on `#FAFAFA` is a ~2% luminance step, so a soft shadow does the
+separating and `--border` drops to 10%.
+
+**A CUSTOM PROPERTY SUBSTITUTES AGAINST THE ELEMENT ITS DECLARATION SITS ON.**
+The category and severity tokens are written in terms of the neutral ramp
+(`--cat-geo: var(--dim)`), and they were first declared on `:root` — where
+`--dim` does not exist, because every theme token lives on `.app`. The whole
+declaration then becomes invalid at computed-value time and the token is simply
+unset, which renders as the *previous* colour rather than as nothing, so it
+looks like the change silently failed. They are declared on `.app` instead,
+which is also the element `--dim` is re-cascaded on for light mode — so one
+definition serves both themes and the two cannot drift.
 
 **`glossary.js` defines every term the UI shows that a reader could take
 differently than we mean it**, and `<Term k="...">` renders one. It is a button,

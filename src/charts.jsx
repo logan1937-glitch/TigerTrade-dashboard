@@ -149,7 +149,7 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
         <g clipPath={`url(#${clipId})`}>
           {buyLo != null && (
             <rect x="0" y={y(buyHi)} width={W} height={Math.max(0, y(buyLo) - y(buyHi))}
-              fill="color-mix(in oklch, var(--cat-growth) 13%, transparent)" />
+              fill="color-mix(in oklch, var(--pl-up) 13%, transparent)" />
           )}
           {pivot != null && <line x1="0" y1={y(pivot)} x2={W} y2={y(pivot)} className="chart-pivot" />}
           {visVol.map((v, j) => j < nGrow && (

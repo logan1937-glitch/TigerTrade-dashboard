@@ -50,7 +50,7 @@ export function CalendarView({ rows = [], onOpenStock }) {
               .count` is the shared voice for exactly this line. */}
           <div className="cal-count">
             {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
-            {nErn > 0 && <> · <span style={{ color: "var(--cat-growth)" }}>{nErn} report{nErn === 1 ? "s" : "s"}</span></>}
+            {nErn > 0 && <> · <span style={{ color: "var(--pl-up)" }}>{nErn} report{nErn === 1 ? "s" : "s"}</span></>}
           </div>
           <div className="cal-scope">
             <button className="seg-btn" data-active={scope === "yours" || undefined} onClick={() => setScope("yours")}

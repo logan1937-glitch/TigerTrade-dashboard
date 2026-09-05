@@ -743,7 +743,7 @@ function Sparkline({ data, stop, pivot, px }) {
   const y = (v) => H - padB - ((v - lo) / span) * (H - padT - padB);
   const d = data.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const up = data[n - 1] >= data[0];
-  const c = up ? "var(--cat-growth)" : "var(--sev-extreme)";
+  const c = up ? "var(--pl-up)" : "var(--pl-down)";
   const fmt = (v) => (v >= 1000 ? v.toFixed(0) : v.toFixed(2));
   // how far price has to travel to trigger — the number the trigger line exists
   // to make readable at a glance
