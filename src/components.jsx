@@ -892,18 +892,32 @@ export function StatStrip({ events }) {
 }
 
 /* ------------------------------ SUBNAV ----------------------------- */
-export function SubNav({ tab, setTab, counts }) {
-  const tabs = [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["vol", "Volume"]];
+export const RADAR_TABS = [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["vol", "Volume"]];
+
+/* THE VIEW TABS ARE PART OF THE SHELL, not part of the page.
+   They used to render inside each product, below the cover — about 370px down,
+   in --dim, under a display-size headline and five stats. Two failures: a
+   first-time visitor did not see that four more views existed, and the moment
+   you scrolled into the 500-row board they left the screen entirely, so
+   mid-session there was no visible way to change view at all.
+
+   Now they are a second row of the sticky shell, directly under the product
+   switcher. The two nav levels sit adjacent, so they read as one system —
+   product above, views below — rather than as two unrelated controls at
+   opposite ends of the page. `badges` is a map so a tab can carry a count
+   without this component knowing what any of them mean. */
+export function SubNav({ tabs, tab, setTab, badges }) {
   return (
-    <div className="wrap">
-      <div className="subnav">
+    <nav className="navrow" aria-label="Views">
+      <div className="wrap navrow-in">
         {tabs.map(([id, label]) => (
-          <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>
-            {label}{id === "radar" && counts != null && <span className="subtab-ct mono">{counts}</span>}
+          <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}
+            aria-current={tab === id ? "page" : undefined}>
+            {label}{badges && badges[id] != null && <span className="subtab-ct mono">{badges[id]}</span>}
           </button>
         ))}
       </div>
-    </div>
+    </nav>
   );
 }
 

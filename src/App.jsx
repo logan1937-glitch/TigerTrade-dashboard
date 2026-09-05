@@ -5,7 +5,7 @@ import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings,
 import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
 import { fetchProfile } from "./profile.js";
-import { WatchCtx, CanslimCtx, AlertCtx, PosCtx, TopBar, Hero, StatStrip, SubNav, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape, tapePicks } from "./components.jsx";
+import { WatchCtx, CanslimCtx, AlertCtx, PosCtx, TopBar, Hero, StatStrip, SubNav, RADAR_TABS, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape, tapePicks } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
 import { VolView } from "./volView.jsx";
@@ -15,7 +15,7 @@ import { useStored } from "./store.js";
 // the windows the screener can rank on — RS and score are precomputed for each
 export const RANK_TFS = ["1D", "1W", "1M", "3M", "1Y"];
 import { Drawer, EventDrawerBody, StockDrawerBody, WatchlistBody } from "./drawer.jsx";
-import { CanslimView } from "./canslim.jsx";
+import { CanslimView, SUBTABS } from "./canslim.jsx";
 
 /* fixed presentation settings (the prototype's design-tool tweaks, pinned for production) */
 const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "tight", GLOW = "on", SHOW_BOARDS = true;
@@ -30,6 +30,13 @@ export default function App() {
      an unscoped migration bounced anyone deep-linking that one to the radar's
      Volume tab — a tab id is only unique within its product. */
   useEffect(() => { if (product === "radar" && tab === "playbook") setTab("vol"); }, [product, tab, setTab]);
+  /* One stored `tab` serves both products, so it can hold an id belonging to the
+     OTHER one — after a product switch, or from a `?tab=` deep link. Each product
+     validates it against its own list and falls back to its first view, which is
+     why the nav row can live in the shell without either product being able to
+     select nothing. */
+  const radarTab = RADAR_TABS.some(([id]) => id === tab) ? tab : "radar";
+  const csTab = SUBTABS.some(([id]) => id === tab) ? tab : "screener";
   const [mode, setMode] = useStored("tt_mode", "dark");
 
   const [cats, setCats] = useState(() => new Set());
@@ -840,6 +847,16 @@ export default function App() {
         <TopBar product={product} setProduct={setProduct} onOpenCmd={() => setCmdOpen(true)}
           onOpenWatch={() => { setEvDrawer(null); setStockDrawer(null); setWatchOpen(true); }} watchCount={watchApi.count} alertHits={alertApi.hits}
           mode={mode} onToggleMode={() => setMode((m) => (m === "light" ? "dark" : "light"))} />
+        {/* The view tabs are the shell's second row, directly under the product
+            switcher and sticky with it — not buried in the page. `tab` is
+            validated against the ACTIVE product's list, so a stored id from the
+            other product selects the first view rather than nothing. */}
+        <SubNav tabs={product === "radar" ? RADAR_TABS : SUBTABS}
+          tab={product === "radar" ? radarTab : csTab}
+          setTab={setTab}
+          badges={product === "radar"
+            ? { radar: events.length }
+            : (posRows.length > 0 ? { portfolio: posRows.length } : null)} />
         {product === "radar"
           ? <CatalystTape events={upcoming} onSelect={openEvent} />
           : <StockTape rows={csData.list} quotes={tapeQ.quotes} asOf={tapeQ.asOf}
@@ -848,17 +865,16 @@ export default function App() {
           <>
             <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showBoards={SHOW_BOARDS} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />
             <StatStrip events={allEvents} />
-            <SubNav tab={tab} setTab={setTab} counts={events.length} />
-            {tab === "radar" && <RadarView {...radarProps} />}
-            {tab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
-            {tab === "calendar" && <CalendarView rows={calErn} onOpenStock={openStock} />}
-            {tab === "vol" && <VolView flow={flow} vol={vol} vix={vix} asOf={live.asOf} onOpenStock={openStock} />}
+            {radarTab === "radar" && <RadarView {...radarProps} />}
+            {radarTab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
+            {radarTab === "calendar" && <CalendarView rows={calErn} onOpenStock={openStock} />}
+            {radarTab === "vol" && <VolView flow={flow} vol={vol} vix={vix} asOf={live.asOf} onOpenStock={openStock} />}
           </>
         ) : (
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr}
             posRows={posRows} events={upcoming} vix={vix} sectors={sectors}
-            ext={ext} onLoadExt={loadExt} initialTab={tab} onTabChange={setTab}
+            ext={ext} onLoadExt={loadExt} tab={csTab} setTab={setTab}
             pbFocus={pbFocus} onPbFocused={() => setPbFocus(null)} />
         )}
 

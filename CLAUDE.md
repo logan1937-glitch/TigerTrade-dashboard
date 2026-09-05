@@ -417,6 +417,28 @@ is a three-panel board rather than a table, so its primary figure is a different
 question (the next catalyst countdown, most likely) — worth doing deliberately
 rather than by analogy.
 
+**THE VIEW TABS ARE SHELL CHROME, NOT PAGE CONTENT.** `SubNav` renders as a
+second sticky row directly under the product switcher, for both products, from
+`App.jsx` — not from inside either view. It used to render below the cover,
+about 370px down the page, in `--dim`: a first-time visitor did not see that
+four more views existed, and the moment you scrolled into the 500-row board it
+left the screen entirely, so mid-session there was no visible way to change view
+at all. Three consequences worth knowing:
+
+- **One stored `tt_tab` serves both products**, so it can hold an id belonging to
+  the other one after a switch or from a `?tab=` deep link. `App` validates it
+  against `RADAR_TABS` and the exported `SUBTABS` separately (`radarTab`,
+  `csTab`), each falling back to its own first view. That is what lets one nav
+  component serve both without either being able to select nothing.
+- **The screener's tab state moved from `CanslimView` up to `App`**, because the
+  control that changes it now lives in the shell. `SUBTABS` is exported rather
+  than duplicated, which preserves the original point — the list of valid ids
+  lives with the views, not with the chrome.
+- **The shell is 106px, not 58px**, which the table's max-height depends on. See
+  the `.cs-panel-scroll` note below. The sticky offset is
+  `calc(58px + env(safe-area-inset-top))`, because the topbar takes the notch
+  inset and a flat 58 slides the row under it on every notched phone.
+
 **The mark is three tapered slashes, and its geometry is fixed** (`BrandMark` in
 `components.jsx`, mirrored by `public/icon.svg`): a 10×10 grid in a `0 0 100 100`
 box, heads at y 52/38/22 stepping up 14 units, all feet on y 82, 13 units wide at
@@ -546,12 +568,15 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   contain `.hero-glow`, which is `inset: 0` and could never overflow anyway —
   what it actually clipped was the InfoDot tooltip on both hero titles, cut off
   mid-sentence. Before adding an overflow guard, check what it costs.
-- **`.cs-panel-scroll`'s max-height is arithmetic, not taste.** The screener's
-  rows scroll inside the panel. At full page scroll its top lands at
-  `100vh − panelHeight − (tail below the panel)`; that tail is ~166px, so the
-  height must stay at `100vh − 240px` or so for the top to clear the 58px
-  topbar — otherwise the sticky column labels end up behind it. Changing what
-  sits under the table means re-measuring `.cs-panel-scroll` at full scroll.
+- **`.cs-panel-scroll`'s max-height is arithmetic, and it TRACKS THE SHELL
+  HEIGHT.** The screener's rows scroll inside the panel. At full page scroll its
+  top lands at `100vh − panelHeight − (tail below the panel)`; that tail is
+  ~166px, so the panel must satisfy `panelHeight ≤ 100vh − (166 + shell)` for
+  the sticky column labels to clear the shell instead of hiding under it. It was
+  `100vh − 240px` against a 58px topbar; moving the view tabs into the shell
+  took it to 106px, so the value is now **`100vh − 288px`**. Changing what sits
+  above OR below the table means re-deriving this and re-shooting at full
+  scroll — the failure is silent and only visible once you scroll.
   Note `position: sticky` on that panel does **not** work (a plain sibling in
   the same container sticks fine; the scroll container does not) — don't reach
   for it as a shortcut.

@@ -13,7 +13,11 @@ const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
 /* The five views under this product, in order. Named once because the sub-nav
    renders it AND the URL validates against it — a `?tab=` value from the radar's
    set must select nothing rather than land somewhere arbitrary. */
-const SUBTABS = [["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"],
+/* Exported because App renders the nav row now — the view tabs are shell chrome,
+   not page content. The LIST still lives here, which is what the old comment
+   about "only this component knows which ids are valid" was protecting: App
+   validates the stored tab against this array rather than against a copy. */
+export const SUBTABS = [["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"],
   ["playbook", "Playbook"], ["portfolio", "Portfolio"]];
 
 // so the empty-filter panel can name the lens the user actually picked
@@ -602,14 +606,11 @@ function StageBreadth({ stages }) {
 /* ------------------------------ SHELL ------------------------------ */
 export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = TT.CANSLIM, market = null, changes = null, onLookup, lookupBusy, lookupErr,
   posRows = [], events = [], vix = null, sectors = null, ext = { status: "idle" }, onLoadExt,
-  initialTab, onTabChange, pbFocus = null, onPbFocused }) {
-  /* The sub-tab is addressable. It used to be purely local, which meant the five
-     views under this product had no URL — you could not link the Playbook, and
-     the landing page's nav had four labels that all did the same thing. It still
-     lives here rather than in App: only this component knows which ids are valid,
-     and an id from the radar's set must not select anything. */
-  const [tab, setTabRaw] = useState(() => (SUBTABS.some(([id]) => id === initialTab) ? initialTab : "screener"));
-  const setTab = (id) => { setTabRaw(id); if (onTabChange) onTabChange(id); };
+  tab, setTab, pbFocus = null, onPbFocused }) {
+  /* The sub-tab is addressable, and it is now OWNED BY APP because the nav row
+     that switches it lives in the shell. App validates the stored id against the
+     exported SUBTABS before passing it, so an id from the radar's set still
+     selects nothing here rather than landing somewhere arbitrary. */
   // the drawer's "Open in Playbook" lands here: switch tabs, then let the view
   // consume the ticker and clear it so a later tab visit doesn't re-select it
   useEffect(() => { if (pbFocus) setTab("playbook"); }, [pbFocus]);
@@ -685,15 +686,6 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
               <span className="fact-v mono">{leaders}</span>
               <span className="fact-s">score 93+</span></div>
           </div>
-        </div>
-      </div>
-
-      <div className="wrap">
-        <div className="subnav">
-          {SUBTABS.map(([id, l]) => (
-            <button key={id} className="subtab" data-active={tab === id} onClick={() => setTab(id)}>{l}
-              {id === "portfolio" && posRows.length > 0 && <Chip tone="signal">{posRows.length}</Chip>}</button>
-          ))}
         </div>
       </div>
 
