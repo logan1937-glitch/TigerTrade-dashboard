@@ -209,7 +209,93 @@ const SORT_LABEL = { score: "score", rs: "RS", pass: "pass", chg: "% change", ti
 // the RS test, which moves with the window
 const TF_SCOPED = { chg: true, rs: true, score: true, pass: true };
 
+/* Whether there is room for the board and the detail panel side by side. The
+   split needs the table's compact column set (774px) plus the panel (400) plus
+   a gap, and `.wrap` caps at 1320 — so 1400 is where both fit without the table
+   scrolling sideways. Below it the panel is not rendered at all and a row click
+   opens the drawer, which is the behaviour every narrow screen already had. */
+const SPLIT_MIN = 1400;
+function useSplit() {
+  const [on, setOn] = useState(() => typeof window !== "undefined" && window.innerWidth >= SPLIT_MIN);
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${SPLIT_MIN}px)`);
+    const fn = (e) => setOn(e.matches);
+    setOn(mq.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+  return on;
+}
+
+/* THE CONTEXT PANEL — scan and inspect at the same time.
+   A drawer covers the list you were reading, so comparing two names meant
+   opening, closing and re-finding your place. Beside the board instead, the
+   selected name's chart and levels are simply there, and arrowing down the list
+   walks the panel with it. Everything here is already computed for the row —
+   this reads no new data and makes no request.
+   It is deliberately NOT the whole drawer: the drawer keeps fundamentals, the
+   earnings history, the buy-point base and the alert controls, and "Full
+   analysis" is one click. */
+function ContextPanel({ row, onOpenStock }) {
+  if (!row) {
+    return (
+      <aside className="cs-ctx" aria-label="Selected name">
+        <p className="cs-ctx-empty">Select a row to inspect it here. The list stays where it is.</p>
+      </aside>
+    );
+  }
+  const s = row.sig || null;
+  const sw = s && s.swing ? s.swing : null;
+  const lvl = (v) => (v == null ? <NA why="Not enough daily history for this level" /> : "$" + (+v).toFixed(2));
+  return (
+    <aside className="cs-ctx" aria-label={`${row.tk} detail`}>
+      <div className="cs-ctx-head">
+        <div className="cs-ctx-id">
+          <span className="cs-ctx-tk">{row.tk}</span>
+          <span className="cs-ctx-nm">{row.name}</span>
+        </div>
+        {row.status && <StatusPill status={row.status} />}
+      </div>
+      <div className="cs-ctx-px">
+        <span className="cs-ctx-p mono">{row.px != null ? "$" + fmtPx(row.px) : <NA why="No quote for this name in the nightly snapshot" />}</span>
+        <span className="cs-ctx-c" data-up={row._ret == null ? undefined : row._ret >= 0}><FigPct v={row._ret} /></span>
+      </div>
+      <div className="cs-ctx-sec">{row.sector || "—"}</div>
+
+      {row.spark && row.spark.length > 1 && row._sparkReal
+        ? <div className="cs-ctx-chart"><Spark data={row.spark} /></div>
+        : <div className="cs-ctx-chart"><NA why="No daily history for this name in the latest snapshot" /></div>}
+
+      <div className="cs-ctx-grid">
+        <div><span className="cs-ctx-k">RS</span><span className="cs-ctx-v mono">{row._rs != null ? row._rs : <NA why="RS is a percentile of return across the loaded universe" />}</span></div>
+        <div><span className="cs-ctx-k">Score</span><span className="cs-ctx-v mono">{row._score != null ? row._score : <NA why="The score needs the model's factor inputs" />}</span></div>
+        <div><span className="cs-ctx-k">Off high</span><span className="cs-ctx-v mono">{s && s.off52 != null ? `−${s.off52.toFixed(1)}%` : <NA why="Needs a full year of closes" />}</span></div>
+        <div><span className="cs-ctx-k">Pivot</span><span className="cs-ctx-v mono">{lvl(s && s.pivot)}</span></div>
+        <div><span className="cs-ctx-k">Trail stop</span><span className="cs-ctx-v mono">{lvl(sw && sw.stop)}</span></div>
+        <div><span className="cs-ctx-k">ATR (14)</span><span className="cs-ctx-v mono">{sw && sw.atr != null ? sw.atr.toFixed(2) : <NA why="ATR(14) needs 14 true ranges of history" />}</span></div>
+      </div>
+
+      <div className="cs-ctx-leaders">
+        <span className="cs-ctx-k">Leadership</span>
+        <span className="cs-letters">
+          {row._breakdown && row._breakdown.length
+            ? row._breakdown.map((b, j) => (
+                <span key={j} className="cs-let" data-on={b.pass === true} data-na={b.pass == null || undefined}
+                  title={`${b.name}${b.pass == null ? " — needs data" : b.pass ? " ✓" : ""}`}>{b.letter}</span>))
+            : <NA why="The factor breakdown needs the model's inputs" />}
+        </span>
+      </div>
+
+      <button className="cs-ctx-full" onClick={() => onOpenStock(row)}>Full analysis →</button>
+    </aside>
+  );
+}
+
 function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector, changes, ext = { status: "idle" }, onLoadExt }) {
+  const split = useSplit();
+  /* The selected row, by ticker. Separate from `lastOpened` on purpose: that one
+     marks where you were after the drawer closes, this one drives the panel. */
+  const [selTk, setSelTk] = useState(null);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("score");
   const [dir, setDir] = useState("desc");   // "desc" = high→low / Z→A, "asc" = the reverse
@@ -265,6 +351,22 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
     const cmp = sort === "ticker" ? (a, b) => dv * a.tk.localeCompare(b.tk) : (a, b) => dv * (val(a) - val(b));
     return [...r].sort(cmp);
   }, [rows, q, sort, dir, statusF, idxF, tf, sectorF]);
+
+  /* The selected ROW, resolved from the ticker against what is actually on
+     screen. Keyed on `view` rather than `rows` so a name filtered out of the
+     list cannot keep the panel populated with something you can no longer see. */
+  const sel = useMemo(() => view.find((r) => r.tk === selTk) || null, [view, selTk]);
+  /* An empty panel on load is dead space, so it tracks the top-ranked row until
+     you pick something. `userPicked` is the latch, and it is doing real work:
+     without it the effect fired once against the EDITORIAL list — the default
+     `rows` before the snapshot lands — pinned whatever was first there, and then
+     never moved, so the panel showed a name that was nowhere near the top of the
+     list you were looking at. Following `view[0]` until an explicit choice fixes
+     that AND keeps the panel sensible when you re-sort. */
+  const [userPicked, setUserPicked] = useState(false);
+  useEffect(() => {
+    if (split && !userPicked && view.length && view[0].tk !== selTk) setSelTk(view[0].tk);
+  }, [split, userPicked, view, selTk]);
 
   // sortable column header — clickable, shows the active sort arrow
   const Th = ({ label, k, right, term }) => (
@@ -396,6 +498,7 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
         </div>
       ) : null}
 
+      <div className="cs-work" data-split={split || undefined}>
       <div className="cs-table">
        <div className="cs-panel cs-panel-scroll">
         <div className="cs-head" role="row">
@@ -416,11 +519,28 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           <Th label={tf === "1Y" ? "Score" : `Score · ${tf}`} k="score" right term="score" />
         </div>
         {view.map((r, i) => (
+          /* Split: a click SELECTS into the panel beside the list, so the list
+             you were reading stays put. Narrow: no panel exists, so it opens the
+             drawer exactly as before. Enter/Space always opens the drawer, which
+             keeps the keyboard path to the full analysis identical in both. */
           <div className="cs-row reveal" key={r.tk} style={{ "--i": i }}
             data-last-opened={lastOpened === r.tk || undefined}
-            onClick={() => { setLastOpened(r.tk); onOpenStock(r); }}
-            role="button" tabIndex={0} aria-label={`${r.tk} — open full analysis`}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLastOpened(r.tk); onOpenStock(r); } }}>
+            data-sel={split && selTk === r.tk ? "" : undefined}
+            onClick={() => { setLastOpened(r.tk); setSelTk(r.tk); setUserPicked(true); if (!split) onOpenStock(r); }}
+            role="button" tabIndex={0}
+            aria-label={`${r.tk} — ${split ? "show detail" : "open full analysis"}`}
+            aria-current={split && selTk === r.tk ? "true" : undefined}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLastOpened(r.tk); setSelTk(r.tk); setUserPicked(true); onOpenStock(r); }
+              /* Arrow keys walk the list and the panel follows — the whole point
+                 of a split view. `view` is the filtered+sorted array actually on
+                 screen, so this never jumps to a row that is not rendered. */
+              if (split && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                e.preventDefault();
+                const next = view[i + (e.key === "ArrowDown" ? 1 : -1)];
+                if (next) { setSelTk(next.tk); setUserPicked(true); e.currentTarget.parentElement.querySelectorAll(".cs-row")[i + (e.key === "ArrowDown" ? 1 : -1)]?.focus(); }
+              }
+            }}>
             <div className="cs-tk"><StarBtn wkey={"st:" + r.tk} kind="stock" refId={r.tk} /><span className="cs-tk-txt"><span className="cs-sym">{r.tk}</span><span className="cs-name">{r.name}</span></span></div>
             <Seam />
             <div className="cs-px"><span className="cs-price mono">{r.px != null ? "$" + fmtPx(r.px) : <NA why="No quote for this name in the nightly snapshot" />}</span>
@@ -470,6 +590,8 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           </div>
         ))}
        </div>
+      </div>
+      {split && <ContextPanel row={sel} onOpenStock={onOpenStock} />}
       </div>
       <p style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "-46px 2px 64px", maxWidth: "70ch" }}>
         The <b style={{ color: "var(--muted)", fontWeight: 600 }}>TigerTrade Leadership Model (LEADERS)</b> is our own 7-factor
@@ -684,7 +806,10 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
               <span className="fact-s">price against its pivot</span></div>
             <div className="fact"><span className="fact-k">A-grade leaders</span>
               <span className="fact-v mono">{leaders}</span>
-              <span className="fact-s">score 93+</span></div>
+              {/* 80, not 93 — `_grade` is "a" at 80 and `leaders` counts the
+                  same threshold. The caption said 93+, which is a different
+                  number from the one above it. */}
+              <span className="fact-s">score 80+</span></div>
           </div>
         </div>
       </div>

@@ -111,17 +111,19 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   --muted:     #A1A1A6;   /* 8.6:1 on bg */
   --dim:       #86868B;   /* 6.0:1 — tertiary labels are small and light, so
                              they keep headroom well past the 4.5:1 floor */
-  /* THE ACCENT IS THE TEXT COLOUR. Every `var(--accent)` call site — a selected
-     filter, an active tab, a focus ring, a hover fill — now resolves to plain
-     white, and the fills that used to be a jade slab become a white tint. A
-     selected thing is the BRIGHTEST thing, not the most colourful one. Keeping
-     the token name means ~100 call sites did not have to be rewritten to say
-     the same thing. */
-  --accent:    #EDEDEF;
-  --accent-2:  #EDEDEF;
-  --accent-ink:#0B0B0C;        /* dark type on a light fill */
-  --brand:     #E2742E;        /* BRAND ONLY — the mark and the landing page.
-                                  Never data, never a control. */
+  /* THE ACCENT IS AMBER, and it is the brand. A monochrome UI under an amber
+     mark was incoherent, and stripping every hue left the board reading as dead
+     rather than as restrained — the zero-accent pass over-corrected. The rule it
+     lands on is narrower and better: HUE MARKS DIRECTION AND OUTCOME, LIGHTNESS
+     MARKS RANK, and nothing gets colour for identity alone.
+     So amber is the one interaction colour — selected filter, active tab, focus
+     ring, the leadership band, a name in its buy zone — and green/red stay for
+     anything with a real polarity. Categories stay neutral, because
+     "Geopolitics" is not better or worse than "Flows"; an EPS beat is. */
+  --accent:    #E2742E;
+  --accent-2:  #E2742E;
+  --accent-ink:#1A0E06;        /* dark type on an amber fill */
+  --brand:     #E2742E;
   --brand-ink: #1A0E06;
   /* Tuned for a neutral ground. The old pair was #3BD685 / #FF5C5C, and that
      red is near-maximum saturation — a down day read as an error state rather
@@ -182,14 +184,12 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   --text:      #18181B;
   --muted:     #52525B;
   --dim:       #71717A;
-  /* Light is now NEUTRAL paper, not warm paper. The warmth existed to sit with
-     an amber-led UI; with amber gone from the interface it was just a page that
-     looked slightly yellow for no reason, and it tinted every grey. Same
-     monochrome rule as dark: the accent IS the ink, so a selected control is
-     the darkest thing rather than the most colourful. */
-  --accent:    #18181B;
-  --accent-2:  #18181B;
-  --accent-ink:#FFFFFF;
+  /* Light stays NEUTRAL paper — the warmth existed to sit with an amber-led UI
+     and tinted every grey, and neutral greys are the point. The accent is
+     amber-deep, which is the only amber that clears 4.5:1 on paper. */
+  --accent:    #A9531A;
+  --accent-2:  #A9531A;
+  --accent-ink:#FFF6EE;
   --brand:     #A9531A;        /* amber-deep — brand surfaces only (mark, landing) */
   --brand-ink: #FFF6EE;
   --mark-tile: #18181B;        /* the mark still sits on a dark tile in both modes */
@@ -1069,14 +1069,14 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
    exactly this reason, and the product disagreeing with its own marketing page
    about the one rule it argues would be the worse of the two errors. The change
    column keeps --pl-up / --pl-down; that one IS money moved. */
-.cs-score[data-grade="a"] { color: var(--text); }
+.cs-score[data-grade="a"] { color: var(--accent); }
 .cs-score[data-grade="b"] { color: var(--muted); }
 
 /* signals column: Weinstein stage + RS-line-new-high + pocket pivot */
 .cs-sig { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 /* `.cs-stage` lived here. It is now <Chip tone=…> — see canslim.jsx. */
 .cs-flag { font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 700; color: var(--accent); white-space: nowrap; }
-.cs-flag[data-lead="true"] { color: var(--text); }
+.cs-flag[data-lead="true"] { color: var(--accent); }
 
 @media (max-width: 880px) {
   /* a scroller inside a scroller is miserable on a touch screen, and the phone
@@ -1736,7 +1736,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .mh-iv { font-size: var(--fs-data); color: var(--muted); text-align: right; }
 .mh-ichg { font-size: var(--fs-data); text-align: right; } .mh-ichg[data-up="true"] { color: var(--pl-up); } .mh-ichg[data-up="false"] { color: var(--pl-down); }
 .mh-ima { font-family: var(--font-mono); font-size: var(--fs-micro); letter-spacing: var(--track-meta); padding: 2px 5px; border-radius: 4px; background: var(--panel); border: 1px solid var(--border); color: var(--dim); }
-.mh-ima[data-on="true"] { color: var(--text); border-color: color-mix(in oklch, var(--text) 30%, transparent); }
+.mh-ima[data-on="true"] { color: var(--pl-up); border-color: color-mix(in oklch, var(--pl-up) 32%, transparent); }
 .mh-breadth { display: flex; flex-direction: column; gap: 13px; }
 .mh-b { display: flex; flex-direction: column; gap: 5px; }
 .mh-bk { font-size: var(--fs-label); letter-spacing: var(--track-meta); text-transform: var(--label-case); color: var(--dim); }
@@ -1754,17 +1754,17 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
    stage this method wants (S2, advancing) and receding through basing,
    topping and declining. The S1..S4 label and the sentence under each already
    name them, so the ramp only has to rank. */
-.mh-stageseg[data-stage="2"] { background: var(--text); }
+.mh-stageseg[data-stage="2"] { background: var(--pl-up); }
 .mh-stageseg[data-stage="1"] { background: color-mix(in oklch, var(--muted) 70%, var(--surface)); }
 .mh-stageseg[data-stage="3"] { background: color-mix(in oklch, var(--muted) 45%, var(--surface)); }
-.mh-stageseg[data-stage="4"] { background: color-mix(in oklch, var(--dim) 28%, var(--surface)); }
+.mh-stageseg[data-stage="4"] { background: color-mix(in oklch, var(--pl-down) 70%, var(--surface)); }
 .mh-stagelegend { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px 22px; }
 .mh-stagerow { display: grid; grid-template-columns: auto auto 1fr auto auto; align-items: center; gap: 8px; }
 .mh-stagedot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-.mh-stagedot[data-stage="2"] { background: var(--text); }
+.mh-stagedot[data-stage="2"] { background: var(--pl-up); }
 .mh-stagedot[data-stage="1"] { background: color-mix(in oklch, var(--muted) 70%, var(--surface)); }
 .mh-stagedot[data-stage="3"] { background: color-mix(in oklch, var(--muted) 45%, var(--surface)); }
-.mh-stagedot[data-stage="4"] { background: color-mix(in oklch, var(--dim) 28%, var(--surface)); }
+.mh-stagedot[data-stage="4"] { background: color-mix(in oklch, var(--pl-down) 70%, var(--surface)); }
 .mh-stagek { font-size: var(--fs-label); letter-spacing: var(--track-meta); color: var(--dim); }
 .mh-stagelab { font-size: var(--fs-data); color: var(--text); font-weight: 600; }
 .mh-stagen { font-size: var(--fs-body); font-weight: 700; color: var(--text); text-align: right; }
@@ -3300,7 +3300,14 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .cover-fig { margin: 20px 0 0; font-family: var(--font-display);
   font-size: clamp(30px, 3.3vw, 40px); font-weight: 600; line-height: 1.04;
   letter-spacing: var(--track-display); color: var(--text); text-wrap: balance; }
+/* The sub-line is where the regime's POLARITY lands. The figure above it stays
+   ink at 40px — a display-size green headline is too much weight for a hue —
+   but "Buying permitted" against "Risk management first" is exactly the kind of
+   good/bad reading colour is for, and it is the first live thing on the page. */
 .cover-sub { margin-top: 9px; font-size: var(--fs-lead); color: var(--muted); }
+.cover-fig[data-state="ok"] + .cover-sub { color: var(--pl-up); }
+.cover-fig[data-state="bad"] + .cover-sub { color: var(--pl-down); }
+.cover-fig[data-state="warn"] + .cover-sub { color: var(--caution); }
 /* FIVE facts, so five tracks — never auto-fit. The hairline under this row is
    the boundary between the calm half and the dense half of the page. */
 .cover-facts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0;
@@ -3318,3 +3325,87 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   .cover-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 24px; row-gap: 18px; }
   .fact { padding-right: 14px; }
 }
+
+/* ===================== THE SPLIT WORKSPACE =====================
+   Board on the left, the selected name on the right, both live at once. A
+   drawer covers the list you were reading, so comparing two names meant open →
+   close → re-find your place; beside it, arrowing down the list walks the panel
+   with it. This is the shape a trade desk actually has.
+
+   Only above 1400px, and the arithmetic is why: the compact column set below
+   needs 774px, the panel is 400, the gap is 24, and `.wrap` caps at 1320 — so
+   1400 is the first viewport where both fit without the table scrolling
+   sideways. Under it `useSplit()` returns false, the panel is not rendered at
+   all, and a row click opens the drawer exactly as it always did. */
+.cs-work { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.cs-work[data-split] { grid-template-columns: minmax(0, 1fr) 400px; }
+
+/* THE COMPACT COLUMN SET. Leadership, Signals and Buy Status come out beside
+   the panel — every one of them is shown in it, in full, for the selected name.
+   Eight tracks: 120+1+92+96+1+200+96+62 = 668, plus 7 × 12px gap and 32px of
+   padding = 784. Re-add these if the template ever changes; the failure is the
+   table clipping its own columns, which no overflow probe can see. */
+.cs-work[data-split] .cs-head,
+.cs-work[data-split] .cs-row {
+  grid-template-columns: minmax(120px, 1fr) 1px 92px 96px 1px 200px 96px 62px;
+  gap: 12px; padding-left: 16px; padding-right: 16px; min-width: 0;
+}
+.cs-work[data-split] .cs-head > :nth-child(n + 8),
+.cs-work[data-split] .cs-row > :nth-child(n + 8) { display: none; }
+/* …except the score, which is the sort key and has to stay visible */
+.cs-work[data-split] .cs-head > :nth-child(12),
+.cs-work[data-split] .cs-row > :nth-child(12) { display: block; }
+.cs-work[data-split] .cs-row > :nth-child(12) { text-align: right; }
+
+/* In split mode SELECTION is the primary state and "last opened" is the same
+   row, so it takes both markers: a lifted ground and the amber left rule. A
+   background alone was too quiet to find in 40 rows — the panel would show a
+   name and nothing in the list said which one. */
+.cs-work[data-split] .cs-row[data-sel] { background: var(--surface); box-shadow: inset 2px 0 0 var(--accent); }
+.cs-work[data-split] .cs-row[data-sel]:hover { background: var(--surface-2); }
+/* The `?` glossary button does not fit a 62px header track beside "Score ▾" and
+   wraps the header row onto two lines. The panel names every figure in full, so
+   the affordance is not lost. */
+.cs-work[data-split] .cs-head .cs-th-q { display: none; }
+
+.cs-ctx {
+  position: sticky; top: 130px;   /* clears the 106px shell plus a breath */
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 18px 20px; min-width: 0;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-panel);
+}
+.cs-ctx-empty { margin: 0; font-size: var(--fs-data); line-height: 1.55; color: var(--dim); }
+.cs-ctx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.cs-ctx-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cs-ctx-tk { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: var(--track-display); color: var(--text); }
+.cs-ctx-nm { font-size: var(--fs-data); color: var(--muted); overflow-wrap: anywhere; }
+.cs-ctx-px { display: flex; align-items: baseline; gap: 10px; }
+.cs-ctx-p { font-family: var(--font-mono); font-size: var(--fs-h2); font-weight: 600; color: var(--text); }
+.cs-ctx-c { font-size: var(--fs-body); font-weight: 600; color: var(--dim); }
+.cs-ctx-c[data-up="true"] { color: var(--pl-up); }
+.cs-ctx-c[data-up="false"] { color: var(--pl-down); }
+.cs-ctx-sec { font-size: var(--fs-label); color: var(--dim); margin-top: -8px; }
+.cs-ctx-chart { padding: 4px 0 2px; }
+/* NEVER stretch this. `.cs-spark` is a 200×46 viewBox with
+   `preserveAspectRatio="none"`, so any box of a different shape distorts the
+   price action — a fixed height plus a fluid width squashed a year of it by
+   1.8× horizontally, which is precisely the trap the screener's Trend column
+   was fixed for. Matching the aspect ratio means the fluid width is free. */
+.cs-ctx-chart .cs-spark { width: 100%; height: auto; aspect-ratio: 200 / 46; }
+/* Two columns of label/value, no cells — same de-boxed treatment as every other
+   metric block in the app. */
+.cs-ctx-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px;
+  padding-top: 14px; border-top: 1px solid var(--border); }
+.cs-ctx-grid > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cs-ctx-k { font-size: var(--fs-label); color: var(--dim); }
+.cs-ctx-v { font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.cs-ctx-leaders { display: flex; flex-direction: column; gap: 5px;
+  padding-top: 14px; border-top: 1px solid var(--border); }
+.cs-ctx-full {
+  margin-top: 2px; padding: 9px 14px; width: 100%;
+  font-family: var(--font-ui); font-size: var(--fs-data); font-weight: 600;
+  color: var(--accent); background: color-mix(in oklch, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent) 32%, transparent);
+  border-radius: var(--radius-sm); cursor: pointer; transition: background .15s ease;
+}
+.cs-ctx-full:hover { background: color-mix(in oklch, var(--accent) 20%, transparent); }

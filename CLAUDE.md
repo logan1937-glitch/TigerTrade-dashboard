@@ -275,27 +275,43 @@ measured on the Playbook, where 123 of ~485 text nodes were the scan's own
 figures (the day's change, ATR%, distance to stop) rendered at the size of the
 word "Ticker" above them. Secondary measurements belong at `--fs-label`.
 
-**THE ONLY COLOUR IN THE PRODUCT IS MONEY MOVED.** This replaces the earlier
-"amber is brand, jade is signal, green and red are P&L". That rule was coherent
-but it licensed FOUR colour families on a single screener row — amber, jade,
-green/red, and `--caution` — and with four families nothing can be emphatic,
-because everything already is. Colour is now a scarce resource spent on one
-thing: the P&L pair. Everything else — selection, interaction, state, severity,
-rank — is carried by **lightness and weight on a neutral ramp**.
+**HUE MARKS DIRECTION AND OUTCOME. LIGHTNESS MARKS RANK. NOTHING GETS COLOUR FOR
+IDENTITY ALONE.** This is the third version of the rule and the one that holds.
 
-That is what an institutional terminal actually is, and it is why one reads as
-expensive. It also means a gain or a loss is the only saturated pixel in view,
-so the eye finds it without looking for it.
+The first — "amber is brand, jade is signal, green and red are P&L" — licensed
+FOUR colour families on a single screener row, and with four nothing can be
+emphatic because everything already is. The second went to zero accent, only the
+P&L pair. That was the right *direction* and it over-corrected: it stripped hue
+from things that have a genuine polarity, not just from decoration, and the
+board read as dead rather than as restrained.
 
-- **`--accent` IS the text colour.** `#EDEDEF` in dark, `#18181B` in light. Every
-  one of the ~100 `var(--accent)` call sites still says "this is selected", and
-  now renders it as *the brightest thing* rather than the most colourful one;
-  the fills that were a jade slab became a white tint. Keeping the token name is
-  why the sweep did not need 100 hand edits.
-- **Amber is the BRAND and never data.** `--brand` survives for the mark, the
-  logo tile and the landing page. Anything amber inside the app is now a bug —
-  the trend spark, the score's top tier, the RS↑ flag, the alert badge and the
-  RVOL bars all came off it.
+So there are exactly TWO things a hue may mean:
+
+- **A direction or an outcome** — the P&L pair. A gain, a loss, an EPS beat or
+  miss, YoY growth, a regime that permits buying against one that does not, a
+  stage that is advancing against one that is declining, an index above its
+  50-day. All of these are good-or-bad, and that is what green and red say.
+- **Interaction, in ONE colour, and that colour is amber** (`--accent`, which is
+  also `--brand`). A selected filter, the active tab, a focus ring, the
+  leadership band on the RS bar, a name in its buy zone, an A-grade score.
+
+Everything else ranks by **lightness on the neutral ramp**: severity, the
+contraction tiers, RVOL, industry-group strength, the VIX fear gauge. And
+anything NOMINAL gets no hue at all — the five event categories are `--dim`,
+because "Geopolitics" is not better or worse than "Flows" and a ramp would be a
+lie about them. An EPS beat is better than a miss; a category is not.
+
+The test when adding colour: *does this value have a direction, or is it just an
+identity?* If it is an identity, it is grey.
+
+- **`--accent` IS amber** — `#E2742E` dark, `#A9531A` light (the only amber that
+  clears 4.5:1 on paper), and it is the same value as `--brand`. A monochrome UI
+  under an amber mark was incoherent. All ~100 `var(--accent)` call sites say
+  "this is selected / notable"; keeping the token name is why two changes of
+  direction needed no hand edits at the call sites.
+- **The trend spark stays NEUTRAL** even though amber is back. Forty of them in
+  one column is not an accent, it is a tint over the whole board — and the Δ
+  column an inch away already carries the sign. `--muted`.
 - **Event categories are NOMINAL, so they are not hues at all.** Five categorical
   colours on 7px dots was the single largest spend of colour in the product.
   Nominal data also cannot be ranked, so a neutral *ramp* would be a lie about
@@ -416,6 +432,33 @@ The RADAR still opens with the older hero and has not been converted. Its shape
 is a three-panel board rather than a table, so its primary figure is a different
 question (the next catalyst countdown, most likely) — worth doing deliberately
 rather than by analogy.
+
+**THE SCREENER IS A SPLIT WORKSPACE ABOVE 1400px.** Board on the left, the
+selected name in a persistent panel on the right, both live at once. A drawer
+covers the list you were reading, so comparing two names meant open → close →
+re-find your place; beside it, arrowing down the list walks the panel with it.
+
+- **1400px is arithmetic, not taste.** The compact column set is 8 tracks
+  (120+1+92+96+1+200+96+62 = 668) plus 7 × 12px gap and 32px padding = **784**;
+  the panel is 400 and the gap 24; `.wrap` caps at 1320. Under 1400 `useSplit()`
+  returns false, the panel is not rendered at all, and a row click opens the
+  drawer exactly as it always did. **Re-add the tracks if that template
+  changes** — the failure is the table clipping its own columns inside its
+  scroll container, which no document-overflow probe can see.
+- **Leadership, Signals and Buy Status come out of the table in split mode**,
+  because all three are in the panel in full for the selected name. They are
+  hidden by `:nth-child(n + 8)` with the score re-shown at `:nth-child(12)`,
+  so the seam `<span>`s still count — the same child-index trap the ≤880px rule
+  has.
+- **The panel's chart must keep the spark's aspect ratio.** `.cs-spark` is a
+  200×46 viewBox with `preserveAspectRatio="none"`, so a fluid width with a
+  fixed height squashes a year of price action by 1.8× — exactly what the
+  screener's Trend column was fixed for. `aspect-ratio: 200 / 46`.
+- **`userPicked` is a real latch, not defensiveness.** The panel follows the
+  top-ranked row until you choose one. Without the latch the auto-select fired
+  once against the EDITORIAL list — the default `rows` before the snapshot lands
+  — pinned whatever was first there, and never moved, so the panel showed a name
+  nowhere near the top of the list on screen.
 
 **THE VIEW TABS ARE SHELL CHROME, NOT PAGE CONTENT.** `SubNav` renders as a
 second sticky row directly under the product switcher, for both products, from
