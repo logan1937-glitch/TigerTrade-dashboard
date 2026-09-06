@@ -428,11 +428,6 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   border: 1px solid var(--border);
 }
 /* near-term risk exposure strip — fills the space beneath the catalyst card */
-.riskrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
-.risk-cell { display: flex; flex-direction: column; gap: 3px; padding: 2px 16px 2px 0; min-width: 0; cursor: help; }
-.risk-k { font-size: var(--fs-micro); letter-spacing: var(--track-label); text-transform: var(--label-case); color: var(--dim); white-space: nowrap; }
-.risk-v { font-size: var(--fs-body); font-weight: 700; color: var(--text); }
-.risk-s { font-size: var(--fs-micro); letter-spacing: var(--track-meta); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero-cover .hero-kpis { width: 100%; margin: 0; }
 .hero-cover .hero-next { width: 100%; margin-top: 0; }
 /* the queue behind the headline catalyst */
@@ -3409,3 +3404,37 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   border-radius: var(--radius-sm); cursor: pointer; transition: background .15s ease;
 }
 .cs-ctx-full:hover { background: color-mix(in oklch, var(--accent) 20%, transparent); }
+
+/* The per-view crash state. Deliberately plain: this is the one screen that
+   must render when something else could not, so it uses nothing clever. */
+.boundary { max-width: 62ch; margin: 40px 0 80px; }
+.boundary-h { font-family: var(--font-display); font-size: var(--fs-h2); font-weight: 600;
+  letter-spacing: var(--track-display); color: var(--text); margin: 0 0 12px; }
+.boundary-p { font-size: var(--fs-body); line-height: 1.6; color: var(--muted); margin: 0 0 10px; }
+.boundary-err { font-family: var(--font-mono); font-size: var(--fs-label); line-height: 1.5;
+  color: var(--pl-down); background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px; margin: 16px 0 18px;
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.boundary-btn { font-family: var(--font-ui); font-size: var(--fs-data); font-weight: 600;
+  color: var(--accent-ink); background: var(--accent); border: 0;
+  border-radius: var(--radius-sm); padding: 9px 16px; cursor: pointer; }
+
+/* The radar's cover figure is a BUTTON — the catalyst it names is the thing you
+   open. It has to reset the button chrome and inherit the display type, or it
+   arrives as a 40px form control. */
+/* Resets the BUTTON chrome only. It must not touch font at all: `.cover-fig` is
+   on the same element and sets the display size, and `font: inherit` here is a
+   shorthand that reset font-size to the body's — which rendered the radar's
+   headline at 15px and looked like the cover had simply not applied. */
+.cover-fig-btn { display: inline-flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.cover-fig-btn:hover { color: var(--accent); }
+/* The countdown rides beside the name at a smaller step — the name is what you
+   read, the number is how long you have. */
+.cover-t { font-family: var(--font-mono); font-size: 0.52em; font-weight: 600;
+  color: var(--muted); letter-spacing: var(--track-data); white-space: nowrap; }
+.cover-t small { font-size: 0.7em; margin-left: 1px; opacity: 0.8; }
+.cover-fig-btn:hover .cover-t { color: var(--accent); }
+/* The three-panel board now starts under the cover's hairline, so the hero has
+   no heading of its own left to space away from. */
+.hero-cover { padding-top: 22px; }

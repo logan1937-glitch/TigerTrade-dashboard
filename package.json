@@ -9,7 +9,8 @@
     "test:earnings": "node test/earnings.test.mjs",
     "shots": "node scripts/shots.mjs",
     "test:swing": "node test/swing.test.mjs",
-    "test": "node test/earnings.test.mjs && node test/swing.test.mjs"
+    "test": "node test/earnings.test.mjs && node test/swing.test.mjs",
+    "og": "node scripts/og.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.5.0",

@@ -197,38 +197,6 @@ export function TopBar({ product, setProduct, onOpenCmd, onOpenWatch, watchCount
   );
 }
 
-/* near-term risk exposure strip — every value DERIVED from real data already on
-   the cover (nothing invented): implied move from the VIX level (÷ √252),
-   liquidity read from the 2Y yield's latest move, regime from VIX thresholds */
-function RiskSpectrum({ vix, macro }) {
-  const lvl = vix && vix.level != null ? vix.level : null;
-  const implied = lvl != null ? (lvl / Math.sqrt(252)).toFixed(2) : null;
-  const twoY = macro && macro.rates ? macro.rates.find((r) => r.k === "2Y") : null;
-  const liq = twoY == null || twoY.bp == null ? null : twoY.bp > 0 ? "Tightening" : twoY.bp < 0 ? "Easing" : "Neutral";
-  const liqColor = liq === "Tightening" ? "var(--sev-high)" : liq === "Easing" ? "var(--pl-up)" : "var(--muted)";
-  const reg = VIX_REGIME(lvl);
-  if (implied == null && liq == null && lvl == null) return null;
-  return (
-    <div className="riskrow" role="group" aria-label="Near-term risk exposure">
-      <div className="risk-cell" title="Expected 1-day S&P 500 move implied by the current VIX level (VIX ÷ √252)">
-        <span className="risk-k mono">Implied move</span>
-        <span className="risk-v mono">{implied != null ? `±${implied}%` : "—"}</span>
-        <span className="risk-s mono">1-day · VIX-implied</span>
-      </div>
-      <div className="risk-cell" title={twoY ? `2Y Treasury ${twoY.bp > 0 ? "+" : ""}${twoY.bp}bp on the day — front-end yields lead policy expectations` : "Awaiting rates data"}>
-        <span className="risk-k mono">Liquidity</span>
-        <span className="risk-v mono" style={{ color: liqColor }}>{liq || "—"}</span>
-        <span className="risk-s mono">2Y yield · {twoY && twoY.bp != null ? `${twoY.bp > 0 ? "+" : ""}${twoY.bp}bp` : "—"}</span>
-      </div>
-      <div className="risk-cell" title="VIX regime by level: <15 Low · <20 Normal · <28 Elevated · 28+ Stress">
-        <span className="risk-k mono">Vol regime</span>
-        <span className="risk-v mono" style={{ color: reg.c }}>{reg.k}</span>
-        <span className="risk-s mono">VIX {lvl != null ? lvl.toFixed(1) : "—"}</span>
-      </div>
-    </div>
-  );
-}
-
 /* ── the dash, given a design ─────────────────────────────────────────────
    The product rule — a value we do not have renders as an em dash, never a
    zero — had no form. It rendered in `--dim`, the same treatment as a column
@@ -457,61 +425,73 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
   const hot30 = up.filter((e) => dU(e) >= 0 && dU(e) <= 30 && (e.sev === "extreme" || e.sev === "high")).length;
   const extDays = up.filter((e) => e.sev === "extreme").map(dU).filter((d) => d >= 0).sort((a, b) => a - b);
   const nextExt = extDays.length ? extDays[0] : null;
+  const nSev = next ? SEV_LABEL[next.sev] : null;
   return (
+    <>
+    {/* THE COVER, the same shape the screener product opens with. The radar's
+        primary reading is not a page title — it is WHICH CATALYST IS NEXT and
+        how long you have, so that is the display-size figure and the countdown
+        sits beside it. Everything that used to be a bordered counter is a quiet
+        fact under it, and the three-panel board starts below the hairline.
+        Never fabricated: with no events in the window this is an <NA> naming
+        the empty calendar rather than a reassuring dash. */}
+    <div className="cover">
+      <div className="wrap">
+        <div className="cover-top">
+          <h1 className="cover-eyebrow">
+            <span className="hero-pulse" />
+            Volatility · Momentum Radar
+            <InfoDot text="The scheduled catalysts that move volatility — rates, liquidity, data, and geopolitics — mapped by proximity and sized by expected impact." />
+          </h1>
+          <span className="cover-asof mono">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} tracked · updated {TT.todayISO}</span>
+        </div>
+
+        {next ? (
+          <button className="cover-fig cover-fig-btn" onClick={() => onSelectEvent(next)}
+            aria-label={`Next catalyst: ${next.title} — open analysis`}>
+            {next.title}
+            <span className="cover-t mono">T–{Math.abs(next.t)}<small>d</small></span>
+          </button>
+        ) : (
+          <div className="cover-fig"><NA why="No scheduled catalyst in the tracked window" /></div>
+        )}
+        <div className="cover-sub">
+          {next
+            ? <>Next catalyst · {nc ? nc.label : "—"} · {next.approx ? "~" : ""}{next.date}{nSev ? ` · ${nSev} impact` : ""}</>
+            : "Nothing scheduled in the window"}
+        </div>
+
+        <div className="cover-facts">
+          <div className="fact"><span className="fact-k">This week</span>
+            <span className="fact-v mono">{thisWeek}</span><span className="fact-s">T ≤ 7d</span></div>
+          <div className="fact"><span className="fact-k">High-impact</span>
+            <span className="fact-v mono">{hot30}</span><span className="fact-s">next 30 days</span></div>
+          <div className="fact"><span className="fact-k">To next extreme</span>
+            <span className="fact-v mono">{nextExt != null ? nextExt + "d" : <NA why="No extreme-severity event in the tracked window" />}</span>
+            <span className="fact-s">severity: extreme</span></div>
+          <div className="fact"><span className="fact-k">Implied move</span>
+            <span className="fact-v mono">{vix && vix.level != null ? `±${(vix.level / Math.sqrt(252)).toFixed(2)}%` : <NA why="Needs the VIX level, which rides in the nightly snapshot" />}</span>
+            <span className="fact-s">1-day · VIX-implied</span></div>
+          <div className="fact"><span className="fact-k">Vol regime</span>
+            <span className="fact-v mono">{vix && vix.level != null ? (vix.level < 15 ? "Calm" : vix.level < 20 ? "Normal" : vix.level < 28 ? "Elevated" : "Stressed") : <NA why="Needs the VIX level, which rides in the nightly snapshot" />}</span>
+            <span className="fact-s">{vix && vix.level != null ? `VIX ${vix.level.toFixed(1)}` : "VIX unavailable"}</span></div>
+        </div>
+      </div>
+    </div>
+
     <div className="hero hero-cover" ref={ref} onMouseMove={onMove}>
-      <div className="hero-glow" />
       <div className="wrap hero-row">
         <div className="hero-left">
-          <div className="hero-eyebrow mono"><span className="hero-pulse" />Live macro-event surveillance</div>
-          <h1 className="hero-title">Volatility <span className="accentword">·</span> Momentum Radar<InfoDot text="The scheduled catalysts that move volatility — rates, liquidity, data, and geopolitics — mapped by proximity and sized by expected impact." /></h1>
-          <div className="hero-kpis">
-            <div className="hero-kpi">
-              <span className="hero-kpi-v mono">{thisWeek}</span>
-              <span className="hero-kpi-k mono">This week <small>T≤7d</small></span>
-            </div>
-            <div className="hero-kpi">
-              <span className="hero-kpi-v mono">{hot30}</span>
-              <span className="hero-kpi-k mono">High-impact <small>next 30d</small></span>
-            </div>
-            <div className="hero-kpi" data-accent="ext">
-              <span className="hero-kpi-v mono">{nextExt != null ? nextExt + "d" : "—"}</span>
-              <span className="hero-kpi-k mono">To next extreme</span>
-            </div>
-          </div>
-          {next && (
-            <button className="hero-next" style={{ "--c": nc.color }} onClick={() => onSelectEvent(next)} aria-label={`Next catalyst: ${next.title}`}>
-              <span className="hero-next-top">
-                <span className="hero-next-l">
-                  <span className="hero-next-k mono">Next catalyst</span>
-                  <span className="hero-next-name">{next.title}</span>
-                  <span className="hero-next-meta mono"><span className="hero-next-dot" />{nc.label} · {next.approx ? "~" : ""}{next.date}</span>
-                </span>
-                <span className="hero-next-r">
-                  <span className="hero-next-t mono">T–{Math.abs(next.t)}<small>D</small></span>
-                  <span className="badge badge-sev" data-sev={next.sev}>{SEV_LABEL[next.sev]}</span>
-                </span>
-              </span>
-              {nEcon && (
-                <span className="hero-next-react">
-                  <span className="hero-next-react-k mono">Release data</span>
-                  <span className="hero-next-react-cap mono" style={{ marginLeft: 0 }}>
-                    {nEcon.previous != null && <>prev <b style={{ color: "var(--text)" }}>{nEcon.previous}{nEcon.unit}</b></>}
-                    {nEcon.estimate != null && <> · cons <b style={{ color: "var(--text)" }}>{nEcon.estimate}{nEcon.unit}</b></>}
-                    {nEcon.actual != null && <> · act <b style={{ color: "var(--text)" }}>{nEcon.actual}{nEcon.unit}</b></>}
-                  </span>
-                </span>
-              )}
-            </button>
-          )}
-          <RiskSpectrum vix={vix} macro={macro} />
-          {/* The queue behind the headline catalyst. The card is one column of a
-              stretched row, so it was ending on 130px of dead space under the risk
-              tiles — this fills it with the three dates you'd have scrolled to the
-              event list to find anyway. */}
+          {/* The next-catalyst card and two of the three risk cells USED to live
+              here. The cover above now carries all of it — the same title, the
+              same countdown, the same implied move and vol regime — so keeping
+              them was three duplications stacked in the panel that is supposed
+              to tell you what comes AFTER the headline. The panel is the queue
+              now, which is the one thing on this view nothing else shows. */}
           {up.length > 1 && (
             <div className="hero-queue">
               <span className="hero-queue-k mono">Then</span>
-              {up.slice(1, 4).map((e) => {
+              {up.slice(1, 9).map((e) => {
                 const c = TT.CAT_MAP[e.cat];
                 return (
                   <button className="hero-q" key={e.id || e.title + e.date} style={{ "--c": c ? c.color : "var(--muted)" }}
@@ -524,7 +504,6 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
               })}
             </div>
           )}
-          <span className="hero-meta">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} catalysts tracked · updated {TT.todayISO}</span>
         </div>
         {/* the macro board + VIX panel; the prop was named showScope back when it
             gated the radar scope, which no longer exists */}
@@ -536,6 +515,7 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -743,10 +723,15 @@ function monotonePath(pts) {
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmtShortDate = (iso) => { const [y, m, d] = String(iso).split("-"); return m ? `${MON[+m - 1]} ${+d}` : iso; };
 const VIX_REGIME = (v) =>
+/* A VOL REGIME HAS A POLARITY — calm is good for a long book and stressed is
+   not — so the ends take the P&L pair and the middle takes the neutral ramp.
+   "Normal" must NOT be --accent: amber means interaction, and painting the VIX
+   figure, its chart and its badge amber made the calmest possible reading the
+   most emphatic thing on the radar. */
   v == null ? { k: "—", c: "var(--muted)" } :
   v < 15 ? { k: "Low", c: "var(--pl-up)" } :
-  v < 20 ? { k: "Normal", c: "var(--accent)" } :
-  v < 28 ? { k: "Elevated", c: "var(--sev-high)" } :
+  v < 20 ? { k: "Normal", c: "var(--text)" } :
+  v < 28 ? { k: "Elevated", c: "var(--caution)" } :
            { k: "Stress", c: "var(--pl-down)" };
 
 // the volatility cover panel — replaces the radar: current VIX + regime, an

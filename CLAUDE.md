@@ -428,10 +428,27 @@ permitted" / "Risk management first"), and **it is never fabricated** — with n
 market payload it is an `<NA>` naming the missing block, not an optimistic
 default. `.cover-facts` is a fixed five tracks, dropping to three then two.
 
-The RADAR still opens with the older hero and has not been converted. Its shape
-is a three-panel board rather than a table, so its primary figure is a different
-question (the next catalyst countdown, most likely) — worth doing deliberately
-rather than by analogy.
+**THE RADAR OPENS THE SAME WAY**, with its own primary question: not a page
+title but WHICH CATALYST IS NEXT and how long you have. The event name is the
+display figure, the countdown rides beside it at 0.52em, and the whole thing is
+a button that opens the event. Converting it made three things redundant that
+were promptly deleted — the `.hero-next` card, which repeated the headline
+exactly, and two of `RiskSpectrum`'s three cells (implied move and vol regime
+are cover facts now). Liquidity was the third and is not lost: the 2Y yield sits
+in the macro board in the same view. The left panel is the QUEUE now — the next
+eight catalysts — which is the one thing on that view nothing else shows.
+
+Two traps that conversion hit:
+
+- **`font: inherit` on `.cover-fig-btn` reset the display size.** The shorthand
+  resets font-size to the parent's, and `.cover-fig` is on the SAME element, so
+  the radar's headline rendered at body size and looked like the cover had
+  simply not applied. A button reset must touch background, border, padding,
+  cursor and text-align — never `font`.
+- **"Normal" in `VIX_REGIME` was `--accent`.** With amber back that painted the
+  VIX figure, its chart and its badge amber, making the calmest possible reading
+  the most emphatic thing on the radar. A vol regime has a polarity, so the ends
+  take the P&L pair and the middle takes the neutral ramp.
 
 **THE SCREENER IS A SPLIT WORKSPACE ABOVE 1400px.** Board on the left, the
 selected name in a persistent panel on the right, both live at once. A drawer
@@ -938,6 +955,48 @@ pair. The hero panel bleeds off the right edge, so `.lp-hero-grid` is **not**
 `.wrap`: it reproduces the wrap gutter as a left padding and leaves the right at
 zero. On a phone the trend spark drops rather than the score, because the score
 is where the CRDO dash lands.
+
+## Shipping and monetizing
+
+**`Boundary` (`boundary.jsx`) wraps each VIEW, not the app.** React unmounts the
+whole tree when a render throws, so one malformed snapshot field used to white-
+page the site for every visitor at once with nothing on screen saying why — the
+highest-severity failure this codebase had and the cheapest to contain. Per-view
+means the crash stays local: the shell, the nav and the other eight views keep
+working. `resetKey` is the view id, so switching away and back retries rather
+than leaving it dead for the session. It prints the error text on purpose —
+"something went wrong" tells the user nothing and tells you nothing when they
+screenshot it.
+
+**Social cards are generated, not screenshotted** (`npm run og` →
+`public/og.png`). It is brand-only — the mark, the wordmark, one line — because
+every shot this repo can take headlessly comes from the synthetic fixture, and
+fabricated prices on the card that represents the product everywhere it is
+linked would break the governing rule in the most public place available. A
+real-data card would have to be rendered server-side from a live snapshot and
+carry its as-of.
+
+**`track.js` is a no-op until `VITE_ANALYTICS_SRC` and `VITE_ANALYTICS_SITE` are
+set**, so the loader compiles to a dead branch and no request is made. Events
+carry enum-ish props only — a view id, a filter name — never a ticker the user
+searched or a position size. On-device state is on-device by design and
+analytics is not a loophole around it.
+
+**The screener is the default product** (`tt_product` defaults to `canslim`).
+The radar was, which landed a first-time visitor on macro-event surveillance
+rather than on the differentiated board.
+
+**What is NOT built, and what it needs.** There are no accounts, no server-side
+user state and no payment path — every one of the eight `tt_*` keys is
+localStorage, so a user who opens the site on a second device starts empty. That
+is the monetization blocker, and it is a set of decisions before it is code:
+which auth provider, what is free versus paid, and what the paid tier actually
+delivers. The highest-value paid capability is almost certainly **alerts that
+fire server-side** (a name enters its buy zone, a trail is breached, a catalyst
+is N days out) plus a daily digest — it needs accounts anyway, and it converts a
+site you remember to visit into a service that reaches you. The strongest
+credibility feature is a **track record for the LEADERS model**, computable from
+bars already stored: without it the score is an assertion.
 
 ## Deploying
 

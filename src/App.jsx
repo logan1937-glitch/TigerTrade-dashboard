@@ -11,6 +11,8 @@ import { CalendarView, TimelineView } from "./views.jsx";
 import { VolView } from "./volView.jsx";
 import { CommandPalette } from "./commandPalette.jsx";
 import { useStored } from "./store.js";
+import { Boundary } from "./boundary.jsx";
+import { initTracking, track } from "./track.js";
 
 // the windows the screener can rank on — RS and score are precomputed for each
 export const RANK_TFS = ["1D", "1W", "1M", "3M", "1Y"];
@@ -21,7 +23,13 @@ import { CanslimView, SUBTABS } from "./canslim.jsx";
 const DIR = "obsidian", DENSITY = "balanced", MOTION = "full", TYPEFACE = "tight", GLOW = "on", SHOW_BOARDS = true;
 
 export default function App() {
-  const [product, setProduct] = useStored("tt_product", "radar");
+  /* THE SCREENER IS THE FRONT DOOR. It was the radar, which meant a first-time
+     visitor landed on macro-event surveillance — useful, but not the thing that
+     differentiates this product. The leadership board is: 500 ranked names, the
+     model, the buy points and the playbook. The radar is one click away and its
+     `?tab=` deep links are unaffected, because an explicit tab in the URL still
+     selects the product that owns it. */
+  const [product, setProduct] = useStored("tt_product", "canslim");
   const [tab, setTab] = useStored("tt_tab", "radar");
   // `playbook` was the retired Catalysts tab's id, and it is sitting in tt_tab on
   // every device that last used it. Nothing renders for an unknown id, so those
@@ -37,6 +45,12 @@ export default function App() {
      select nothing. */
   const radarTab = RADAR_TABS.some(([id]) => id === tab) ? tab : "radar";
   const csTab = SUBTABS.some(([id]) => id === tab) ? tab : "screener";
+  /* Which of the nine views actually get opened is the question that decides
+     what is worth maintaining. The id is an enum from a list in this file —
+     nothing a user typed reaches this. No-op unless a provider is configured. */
+  useEffect(() => { initTracking(); }, []);
+  const activeView = product === "radar" ? radarTab : csTab;
+  useEffect(() => { track("view", { product, view: activeView }); }, [product, activeView]);
   const [mode, setMode] = useStored("tt_mode", "dark");
 
   const [cats, setCats] = useState(() => new Set());
@@ -865,17 +879,21 @@ export default function App() {
           <>
             <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showBoards={SHOW_BOARDS} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />
             <StatStrip events={allEvents} />
-            {radarTab === "radar" && <RadarView {...radarProps} />}
-            {radarTab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
-            {radarTab === "calendar" && <CalendarView rows={calErn} onOpenStock={openStock} />}
-            {radarTab === "vol" && <VolView flow={flow} vol={vol} vix={vix} asOf={live.asOf} onOpenStock={openStock} />}
+            <Boundary label={`radar:${radarTab}`} resetKey={radarTab}>
+              {radarTab === "radar" && <RadarView {...radarProps} />}
+              {radarTab === "timeline" && <TimelineView events={upcoming} onOpenFull={openEvent} />}
+              {radarTab === "calendar" && <CalendarView rows={calErn} onOpenStock={openStock} />}
+              {radarTab === "vol" && <VolView flow={flow} vol={vol} vix={vix} asOf={live.asOf} onOpenStock={openStock} />}
+            </Boundary>
           </>
         ) : (
+          <Boundary label={`screener:${csTab}`} resetKey={csTab}>
           <CanslimView onOpenStock={openStock} live={live} rows={csData.list} market={market} changes={changes}
             onLookup={lookupTicker} lookupBusy={lookupBusy} lookupErr={lookupErr}
             posRows={posRows} events={upcoming} vix={vix} sectors={sectors}
             ext={ext} onLoadExt={loadExt} tab={csTab} setTab={setTab}
             pbFocus={pbFocus} onPbFocused={() => setPbFocus(null)} />
+          </Boundary>
         )}
 
         <CommandPalette open={cmdOpen} setOpen={setCmdOpen} commands={commands} />
