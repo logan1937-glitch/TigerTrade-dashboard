@@ -268,12 +268,28 @@ for caps and looks broken under lowercase — so `.shout` redeclares
 **A label authored in caps in the JSX cannot be reached by the token** —
 `TT.CATEGORIES` and `STAT_IDS` had to be re-cased at the source.
 
-**`--fs-micro` (9px) is for CHROME, not for readings.** Column headers, field
+**`--fs-micro` (10px) is for CHROME, not for readings.** Column headers, field
 labels, chip counts, eyebrows. The moment a measurement lands there the hierarchy
 inverts, because the label and the number it describes become the same size —
 measured on the Playbook, where 123 of ~485 text nodes were the scan's own
 figures (the day's change, ATR%, distance to stop) rendered at the size of the
 word "Ticker" above them. Secondary measurements belong at `--fs-label`.
+
+**THE SCALE WAS TIMID IN THE MIDDLE, and it was measured rather than felt.** On
+the radar at 1500px the cover figure rendered at 40px, the facts at 19, panel
+CONTENT at 12 and section labels at 9 — a 3.3× drop from the last large step
+straight to the smallest, with nothing between 19 and 12 doing any work. The
+consequence was panels whose own subject was the smallest text inside them:
+`.hero-left` was 27% empty, `.vixpanel` 46%, and the catalyst queue put 233px of
+content in a ~570px box. Every step from `--figure` down is lifted (27 / 22 / 16
+/ 14.5 / 13 / 11.5 / 10) so neighbours sit at roughly 1.15 rather than
+1.58-then-1.12. `--display` is untouched because it is the landing page's.
+
+**Dead space is a MEASUREMENT, not an impression.** The probe that found this
+compares each panel's box height against the bounding box of its children —
+`scripts/` has no permanent version, but the query is four lines and worth
+re-running whenever a panel gains or loses content. A panel more than ~25% empty
+is either missing content it should carry or sized for content it does not have.
 
 **HUE MARKS DIRECTION AND OUTCOME. LIGHTNESS MARKS RANK. NOTHING GETS COLOUR FOR
 IDENTITY ALONE.** This is the third version of the rule and the one that holds.
@@ -427,6 +443,14 @@ both `--text` and the sub-line carries the reading in *words*: "Buying
 permitted" / "Risk management first"), and **it is never fabricated** — with no
 market payload it is an `<NA>` naming the missing block, not an optimistic
 default. `.cover-facts` is a fixed five tracks, dropping to three then two.
+
+**THE CATALYST QUEUE EARNS ITS PANEL.** It was eight 12px names in 29px rows,
+so the panel that exists to say what is coming was ~59% empty and its own
+subject was the smallest text in it. Each row now carries the countdown (a fixed
+56px track, so the numbers form a column), the name at `--fs-lead`, the category
+and date beneath it, and the severity right-aligned — ranked by LIGHTNESS, since
+a severity band is not money. Ten rows fill the column honestly rather than by
+padding.
 
 **THE RADAR OPENS THE SAME WAY**, with its own primary question: not a page
 title but WHICH CATALYST IS NEXT and how long you have. The event name is the

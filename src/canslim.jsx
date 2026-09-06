@@ -262,9 +262,12 @@ function ContextPanel({ row, onOpenStock }) {
       </div>
       <div className="cs-ctx-sec">{row.sector || "—"}</div>
 
+      {/* The chart box reserves a 200:46 aspect only when there IS a chart. With
+          the NA in it, that reserved ~84px of empty panel around a single dash —
+          dead space manufactured by the placeholder rather than by the data. */}
       {row.spark && row.spark.length > 1 && row._sparkReal
         ? <div className="cs-ctx-chart"><Spark data={row.spark} /></div>
-        : <div className="cs-ctx-chart"><NA why="No daily history for this name in the latest snapshot" /></div>}
+        : <div className="cs-ctx-nochart"><NA why="No daily history for this name in the latest snapshot" /></div>}
 
       <div className="cs-ctx-grid">
         <div><span className="cs-ctx-k">RS</span><span className="cs-ctx-v mono">{row._rs != null ? row._rs : <NA why="RS is a percentile of return across the loaded universe" />}</span></div>

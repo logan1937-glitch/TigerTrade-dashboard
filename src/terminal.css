@@ -431,17 +431,41 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .hero-cover .hero-kpis { width: 100%; margin: 0; }
 .hero-cover .hero-next { width: 100%; margin-top: 0; }
 /* the queue behind the headline catalyst */
-.hero-queue { display: flex; flex-direction: column; gap: 1px; width: 100%; }
-.hero-queue-k { font-size: var(--fs-micro); letter-spacing: var(--track-label); text-transform: var(--label-case);
-  color: var(--dim); font-weight: 600; margin-bottom: 3px; }
-.hero-q { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 9px;
-  width: 100%; background: none; border: 0; border-radius: var(--radius-sm); padding: 6px 8px;
-  cursor: pointer; text-align: left; transition: background .13s ease; }
-.hero-q:hover { background: color-mix(in oklch, var(--panel) 62%, transparent); }
-.hero-q-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
-.hero-q-n { font-size: var(--fs-data); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hero-q:hover .hero-q-n { color: var(--text); }
-.hero-q-t { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--track-meta); color: var(--dim); }
+/* THE QUEUE EARNS ITS PANEL. It was eight 12px names in ~29px rows — 233px of
+   content in a 570px box, so nearly 60% of the panel that is supposed to say
+   what is coming was empty, and the panel's own subject was the smallest text
+   in it. Each row carries the countdown, the name, the category, the date and
+   the severity now, at a size you can read across a desk, and ten of them fill
+   the column honestly rather than by padding. */
+.hero-queue { display: flex; flex-direction: column; width: 100%; }
+.hero-queue-h { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 0 0 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.hero-queue-k { font-size: var(--fs-body); font-weight: 600; letter-spacing: var(--track-label);
+  text-transform: var(--label-case); color: var(--text); }
+.hero-queue-n { font-size: var(--fs-label); color: var(--dim); }
+/* Countdown · name+meta · severity. The countdown track is fixed so the numbers
+   form a column; the middle is the only fluid one. */
+.hero-q { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center;
+  gap: 14px; width: 100%; padding: 9px 8px 9px 4px; background: none; border: 0;
+  border-radius: var(--radius-sm); text-align: left; cursor: pointer;
+  font: inherit; color: inherit; transition: background .14s ease; }
+.hero-q + .hero-q { box-shadow: inset 0 1px 0 color-mix(in oklch, var(--border) 70%, transparent); }
+.hero-q:hover { background: var(--surface); }
+.hero-q-t { font-family: var(--font-mono); font-size: var(--fs-body); font-weight: 600;
+  color: var(--muted); letter-spacing: var(--track-data); white-space: nowrap; }
+.hero-q-t i { font-style: normal; font-size: 0.78em; opacity: 0.7; margin-left: 1px; }
+.hero-q:hover .hero-q-t { color: var(--text); }
+.hero-q-mid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hero-q-n { font-size: var(--fs-lead); font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-q-meta { font-size: var(--fs-label); color: var(--dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Severity ranks by LIGHTNESS, like everywhere else — extreme is the brightest
+   word in the column and low recedes. No hue: a severity band is not money. */
+.hero-q-sev { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--track-label);
+  text-transform: var(--label-case); color: var(--dim); white-space: nowrap; }
+.hero-q-sev[data-sev="extreme"] { color: var(--text); }
+.hero-q-sev[data-sev="high"] { color: var(--muted); }
 /* screener hero live-signal badges — pinned to the top-right, not vertically centered */
 /* live event-landscape KPI cluster */
 .hero-kpis { display: flex; gap: 8px; margin: 7px 0 4px; width: min(520px, 100%); align-items: stretch; }
@@ -2943,14 +2967,23 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 
   /* Eight steps. Sixteen sizes half a pixel apart is a file to
      maintain, not a distinction anyone can see. */
+  /* THE SCALE WAS TIMID IN THE MIDDLE. Measured on the radar at 1500px: the
+     cover figure renders at 40px, the facts at 19, panel CONTENT at 12 and
+     section labels at 9 — a 3.3× jump from the last big step straight down to
+     the smallest, with nothing between 19 and 12 doing any work. The result was
+     panels whose own subject was the smallest text inside them, sitting in
+     boxes that were 46–59% empty.
+     Every step from --figure down is lifted, and the ratio between neighbours
+     is now roughly 1.15 rather than 1.58-then-1.12. The two ends are untouched:
+     --display is the landing page's and --micro is still CHROME ONLY. */
   --fs-display: 62px;
-  --fs-h2:      25px;
-  --fs-figure:  19px;
-  --fs-lead:    15px;
-  --fs-body:    13.5px;
-  --fs-data:    12px;
-  --fs-label:   10.5px;
-  --fs-micro:   9px;
+  --fs-h2:      27px;
+  --fs-figure:  22px;
+  --fs-lead:    16px;
+  --fs-body:    14.5px;
+  --fs-data:    13px;
+  --fs-label:   11.5px;
+  --fs-micro:   10px;
 }
 @media (max-width: 880px) {
   .app[data-dir="obsidian"] { --fs-display: 44px; }
@@ -3381,6 +3414,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .cs-ctx-c[data-up="false"] { color: var(--pl-down); }
 .cs-ctx-sec { font-size: var(--fs-label); color: var(--dim); margin-top: -8px; }
 .cs-ctx-chart { padding: 4px 0 2px; }
+.cs-ctx-nochart { padding: 2px 0; font-size: var(--fs-data); }
 /* NEVER stretch this. `.cs-spark` is a 200×46 viewBox with
    `preserveAspectRatio="none"`, so any box of a different shape distorts the
    price action — a fixed height plus a fluid width squashed a year of it by

@@ -490,15 +490,24 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
               now, which is the one thing on this view nothing else shows. */}
           {up.length > 1 && (
             <div className="hero-queue">
-              <span className="hero-queue-k mono">Then</span>
-              {up.slice(1, 9).map((e) => {
+              <div className="hero-queue-h">
+                <span className="hero-queue-k">What's next</span>
+                <span className="hero-queue-n mono">{up.length - 1} more tracked</span>
+              </div>
+              {up.slice(1, 10).map((e) => {
                 const c = TT.CAT_MAP[e.cat];
                 return (
-                  <button className="hero-q" key={e.id || e.title + e.date} style={{ "--c": c ? c.color : "var(--muted)" }}
+                  <button className="hero-q" key={e.id || e.title + e.date}
                     onClick={() => onSelectEvent(e)} title={`${e.title} · ${c ? c.label : ""} · ${e.approx ? "~" : ""}${e.date}`}>
-                    <span className="hero-q-dot" />
-                    <span className="hero-q-n">{e.title}</span>
-                    <span className="hero-q-t mono">T–{Math.abs(e.t)}d</span>
+                    {/* The countdown leads. The queue answers "what is coming and
+                        when", and the when is what orders the list, so it is the
+                        left-hand column rather than a trailing afterthought. */}
+                    <span className="hero-q-t mono">T–{Math.abs(e.t)}<i>d</i></span>
+                    <span className="hero-q-mid">
+                      <span className="hero-q-n">{e.title}</span>
+                      <span className="hero-q-meta">{c ? c.label : "—"} · {e.approx ? "~" : ""}{e.date}</span>
+                    </span>
+                    <span className="hero-q-sev" data-sev={e.sev}>{SEV_LABEL[e.sev]}</span>
                   </button>
                 );
               })}
