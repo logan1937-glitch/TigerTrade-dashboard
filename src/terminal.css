@@ -1360,6 +1360,10 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .chart-line[data-up="false"] { stroke: var(--pl-down); }
 .chart-area { fill: color-mix(in oklch, var(--text) 10%, transparent); }
 .chart-pivot { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; opacity: 0.8; }
+/* The trail is a WARNING level, so it takes the middle of the neutral ramp —
+   never red, which would read as money already lost, and never the accent,
+   which is the buy point an inch above it. */
+.chart-stop { stroke: var(--caution); stroke-width: 1; stroke-dasharray: 2 5; vector-effect: non-scaling-stroke; opacity: 0.85; }
 .chart-vol { fill: var(--border-2); opacity: 0.55; }
 .chart-vol[data-up="true"] { fill: color-mix(in oklch, var(--pl-up) 45%, transparent); }
 .chart-dot { fill: var(--text); stroke: var(--panel); stroke-width: 2; }
@@ -3506,3 +3510,84 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 
 /* the reserved-but-empty strip: occupies the height, states nothing */
 .tape-hold { background: color-mix(in oklch, var(--panel) 55%, transparent); }
+
+/* ── release figures, inline ─────────────────────────────────────────────
+   prev/cons before a release, act/cons/surprise after. The surprise is the one
+   coloured thing: a beat or a miss is a DIRECTION, which is what the P&L pair
+   is for. Everything else is a reading and stays neutral. */
+.econline { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px;
+  font-size: var(--fs-data); color: var(--dim); }
+.econline b { color: var(--text); font-weight: 600; }
+.econline-c { gap: 3px 11px; font-size: var(--fs-label); }
+.econ-k { white-space: nowrap; }
+.econ-none { font-style: italic; opacity: 0.8; }
+.econ-sur { font-weight: 600; color: var(--muted); white-space: nowrap; }
+.econ-sur[data-up="true"] { color: var(--pl-up); }
+.econ-sur[data-up="false"] { color: var(--pl-down); }
+.cover-econ { margin-top: 10px; }
+/* the queue row gains a third line when a release has figures */
+.hero-q-mid .econline { margin-top: 3px; }
+
+/* ── the expanded chart ──────────────────────────────────────────────────
+   A full-canvas read of one name against its levels. Portalled into `.app`, so
+   it gets the theme tokens; `position: fixed` here resolves against the
+   viewport because nothing between it and the root is transformed. */
+.cm-root { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  padding: 28px; background: color-mix(in oklch, #000 62%, transparent);
+  backdrop-filter: blur(3px); }
+.cm { width: min(1180px, 100%); max-height: calc(100vh - 56px); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 22px 24px 20px; background: var(--panel);
+  border: 1px solid var(--border-2); border-radius: var(--radius-float);
+  box-shadow: 0 40px 90px -40px #000; outline: none; }
+.cm-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: start; gap: 20px; }
+.cm-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cm-tk { font-family: var(--font-display); font-size: 30px; font-weight: 700;
+  letter-spacing: var(--track-display); line-height: 1; color: var(--text); }
+.cm-nm { font-size: var(--fs-data); color: var(--muted); overflow-wrap: anywhere; }
+.cm-px { display: flex; align-items: baseline; gap: 12px; }
+.cm-p { font-family: var(--font-mono); font-size: var(--fs-h2); font-weight: 600; color: var(--text); }
+.cm-c { font-size: var(--fs-lead); font-weight: 600; color: var(--dim); }
+.cm-c[data-up="true"] { color: var(--pl-up); }
+.cm-c[data-up="false"] { color: var(--pl-down); }
+.cm-x { width: 34px; height: 34px; display: grid; place-items: center; flex: none;
+  font-size: var(--fs-body); color: var(--muted); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+.cm-x:hover { color: var(--text); background: var(--surface-2); }
+.cm-canvas { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 14px 0 6px; }
+.cm-nochart { margin: 0; padding: 40px 0; max-width: 62ch; font-size: var(--fs-body);
+  line-height: 1.6; color: var(--muted); }
+/* Six stats, so SIX tracks — never auto-fit. */
+.cm-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 18px; }
+.cm-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cm-stat-k { font-size: var(--fs-label); color: var(--dim); }
+.cm-stat-v { font-size: var(--fs-figure); font-weight: 600; line-height: 1.1; color: var(--text); }
+.cm-stat-s { font-size: var(--fs-micro); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cm-foot { margin: 0; font-size: var(--fs-label); line-height: 1.55; color: var(--dim); }
+.cm-foot b { color: var(--muted); font-weight: 600; }
+@media (max-width: 1000px) { .cm-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .cm-root { padding: 0; place-items: stretch; }
+  .cm { width: 100%; max-height: 100vh; border-radius: 0; border: 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .cm-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .cm-px { grid-column: 1 / -1; }
+  .cm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* the affordance that opens it */
+.cm-open { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+  font-family: var(--font-ui); font-size: var(--fs-label); font-weight: 600;
+  color: var(--muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; }
+.cm-open:hover { color: var(--text); border-color: var(--border-2); background: var(--surface-2); }
+
+/* the expand sits over the spark's top-right, appearing on hover or focus so it
+   does not compete with the line it opens */
+.cs-ctx-chart { position: relative; }
+.cs-ctx-expand { position: absolute; top: 2px; right: 0; opacity: 0; transition: opacity .14s ease; }
+.cs-ctx-chart:hover .cs-ctx-expand, .cs-ctx-expand:focus-visible { opacity: 1; }
+.cm-sampled { display: block; width: 100%; height: auto; }
+.cm-lvl-t { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.cm-lvl-t[data-edge] { fill: var(--dim); }
+.cm-res { margin: 10px 0 0; font-size: var(--fs-label); line-height: 1.55; color: var(--dim); max-width: 92ch; }
+.cm-res b { color: var(--muted); font-weight: 600; }

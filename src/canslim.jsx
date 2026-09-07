@@ -7,6 +7,7 @@ import { GLOSSARY } from "./glossary.js";
 import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
 import { PortfolioView } from "./portfolio.jsx";
+import { ChartModal } from "./chartModal.jsx";
 
 const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
 
@@ -236,7 +237,7 @@ function useSplit() {
    It is deliberately NOT the whole drawer: the drawer keeps fundamentals, the
    earnings history, the buy-point base and the alert controls, and "Full
    analysis" is one click. */
-function ContextPanel({ row, onOpenStock }) {
+function ContextPanel({ row, onOpenStock, onExpand }) {
   if (!row) {
     return (
       <aside className="cs-ctx" aria-label="Selected name">
@@ -266,7 +267,15 @@ function ContextPanel({ row, onOpenStock }) {
           the NA in it, that reserved ~84px of empty panel around a single dash —
           dead space manufactured by the placeholder rather than by the data. */}
       {row.spark && row.spark.length > 1 && row._sparkReal
-        ? <div className="cs-ctx-chart"><Spark data={row.spark} /></div>
+        ? (
+          <div className="cs-ctx-chart">
+            <Spark data={row.spark} />
+            {/* 46px of spark shows a shape. Deciding against a buy point or a
+                trail needs a canvas, so the expand is on the chart itself. */}
+            <button className="cm-open cs-ctx-expand" onClick={() => onExpand(row)}
+              aria-label={`Expand ${row.tk} chart`}>⤢ Expand chart</button>
+          </div>
+        )
         : <div className="cs-ctx-nochart"><NA why="No daily history for this name in the latest snapshot" /></div>}
 
       <div className="cs-ctx-grid">
@@ -296,6 +305,8 @@ function ContextPanel({ row, onOpenStock }) {
 
 function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF, onClearSector, changes, ext = { status: "idle" }, onLoadExt }) {
   const split = useSplit();
+  // the expanded chart — one name at a time, opened from the panel or a row
+  const [zoom, setZoom] = useState(null);
   /* The selected row, by ticker. Separate from `lastOpened` on purpose: that one
      marks where you were after the drawer closes, this one drives the panel. */
   const [selTk, setSelTk] = useState(null);
@@ -594,8 +605,9 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
         ))}
        </div>
       </div>
-      {split && <ContextPanel row={sel} onOpenStock={onOpenStock} />}
+      {split && <ContextPanel row={sel} onOpenStock={onOpenStock} onExpand={setZoom} />}
       </div>
+      <ChartModal stock={zoom} onClose={() => setZoom(null)} />
       <p style={{ fontSize: 10.5, lineHeight: 1.6, color: "var(--dim)", margin: "-46px 2px 64px", maxWidth: "70ch" }}>
         The <b style={{ color: "var(--muted)", fontWeight: 600 }}>TigerTrade Leadership Model (LEADERS)</b> is our own 7-factor
         relative-strength growth framework. Its factors follow classic leadership-investing principles popularized by William

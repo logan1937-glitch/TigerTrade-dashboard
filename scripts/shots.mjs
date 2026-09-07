@@ -116,6 +116,28 @@ const VIEWS = [
   { id: "watch", state: { tt_product: "radar", tt_tab: "radar", tt_watch: WATCHED },
     act: async (p) => { await p.locator(".watch-btn").first().click(); await p.waitForTimeout(500); } },
   { id: "screener",  state: { tt_product: "canslim" } },
+  /* The expanded chart. It is a portal into `.app` with a fixed overlay, and it
+     only opens from a hover-revealed control on the context panel — two things
+     a diff cannot check and a normal shot never reaches. `force` because the
+     button is opacity:0 until its parent is hovered. */
+  { id: "chart", state: { tt_product: "canslim" }, act: async (p) => {
+      // The auto-selected top row may have no spark, and the expand only exists
+      // where a chart does — so pick a row that HAS one rather than assuming.
+      await p.locator(".cs-row", { has: p.locator(".cs-spark") }).first().click();
+      await p.waitForTimeout(350);
+      /* TWO ROUTES, because the split panel does not exist below 1400px. Above
+         it the expand sits on the panel's chart; below it a row click already
+         opened the drawer, and the expand is on its "Price & volume". Running
+         this at one width would have covered one of the two. */
+      const panel = p.locator(".cs-ctx-expand");
+      if (await panel.count()) await panel.first().click({ force: true });
+      else {
+        await p.waitForSelector(".dr", { timeout: 8000 });
+        await p.locator(".cm-open").first().click();
+      }
+      await p.waitForSelector(".cm", { timeout: 8000 });
+      await p.waitForTimeout(600);
+    } },
   // the extended tier: a second payload, fetched only when this filter is picked.
   // Worth its own shot because "nothing happened" and "it merged" look identical
   // in a diff — the coverage line beside the filter is the visible proof.
@@ -171,9 +193,19 @@ const VIEWS = [
     } },
   { id: "playbookhelp", state: { tt_product: "canslim" }, act: (p) => click(p, "Playbook") },
   // the stock drawer is where most of the component surface lives
+  /* ABOVE 1400px A ROW CLICK NO LONGER OPENS THE DRAWER — it selects into the
+     context panel beside the board, which is the whole point of the split. The
+     drawer is reached from the panel's "Full analysis", or from Enter on a row,
+     or by any click at all below the split width. This shot took the old path
+     and started timing out the moment the split shipped; it takes the real one
+     now, which also means the shot covers the panel → drawer handoff. */
   { id: "drawer",    state: { tt_product: "canslim" }, act: async (p) => {
       await p.locator(".cs-row").first().click();
+      const full = p.locator(".cs-ctx-full");
+      if (await full.count()) await full.first().click();
+      else await p.locator(".cs-row").first().press("Enter");
       await p.waitForSelector(".dr", { timeout: 8000 });
+      await p.waitForTimeout(500);
     } },
 ];
 

@@ -416,7 +416,11 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
   };
   const next = events[0];
   const nc = next ? TT.CAT_MAP[next.cat] : null;
-  const nEcon = next && next.econ && (next.econ.previous != null || next.econ.estimate != null) ? next.econ : null;
+  // an ACTUAL with no prior or consensus is still a reading worth showing — the
+  // old test excluded exactly the case where the number is already known
+  const nEcon = next && next.econ
+    && (next.econ.previous != null || next.econ.estimate != null || next.econ.actual != null)
+    ? next.econ : null;
   // live event-landscape KPIs — aggregate read on the slate (distinct from the
   // named-event countdowns in the stat strip below). daysUntil = -t for upcoming.
   const up = events.filter((e) => !e.past);
@@ -460,6 +464,10 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
             ? <>Next catalyst · {nc ? nc.label : "—"} · {next.approx ? "~" : ""}{next.date}{nSev ? ` · ${nSev} impact` : ""}</>
             : "Nothing scheduled in the window"}
         </div>
+        {/* The headline release's own numbers, on the headline. This is the one
+            event the whole view is pointed at; making you click it to learn what
+            the street expects was the gap. */}
+        {nEcon && <div className="cover-econ"><EconLine econ={nEcon} /></div>}
 
         <div className="cover-facts">
           <div className="fact"><span className="fact-k">This week</span>
@@ -506,6 +514,7 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
                     <span className="hero-q-mid">
                       <span className="hero-q-n">{e.title}</span>
                       <span className="hero-q-meta">{c ? c.label : "—"} · {e.approx ? "~" : ""}{e.date}</span>
+                      <EconLine econ={e.econ} compact />
                     </span>
                     <span className="hero-q-sev" data-sev={e.sev}>{SEV_LABEL[e.sev]}</span>
                   </button>
@@ -894,6 +903,52 @@ export function StatStrip({ events }) {
 }
 
 /* ------------------------------ SUBNAV ----------------------------- */
+/* THE RELEASE FIGURES, WHERE YOU ARE ALREADY LOOKING.
+   `previous`, `estimate` (consensus) and `actual` ride on every merged economic
+   release and were rendered in exactly one place: inside the event drawer, four
+   clicks deep in aggregate. So the radar — the view whose entire job is "what is
+   coming and what will it do" — showed a title and a countdown and nothing you
+   could form an expectation from.
+
+   Two shapes, because a release before and after it lands answers two different
+   questions. UPCOMING is prev → cons: what it was, what the street expects.
+   RELEASED is act vs cons plus the SURPRISE, which is the number that actually
+   moved the tape.
+
+   Every value goes through `val()`: a release with no consensus published says
+   so rather than printing a dash that could be read as zero. The surprise is
+   the only coloured thing here and it earns it — a beat and a miss are a
+   direction, which is what the P&L pair is for. */
+export function EconLine({ econ, compact }) {
+  if (!econ) return null;
+  const { previous: prev, estimate: cons, actual: act, unit } = econ;
+  if (prev == null && cons == null && act == null) return null;
+  const u = (v) => `${v}${unit || ""}`;
+  const surprise = act != null && cons != null ? +(act - cons).toFixed(2) : null;
+  return (
+    <span className={"econline mono" + (compact ? " econline-c" : "")}>
+      {act != null ? (
+        <>
+          <b>act {u(act)}</b>
+          {cons != null && <span className="econ-k">cons {u(cons)}</span>}
+          {surprise != null && (
+            <span className="econ-sur" data-up={surprise === 0 ? undefined : surprise > 0}>
+              {surprise > 0 ? "+" : ""}{surprise}{unit || ""} {surprise === 0 ? "in line" : surprise > 0 ? "beat" : "miss"}
+            </span>
+          )}
+        </>
+      ) : (
+        <>
+          {prev != null && <span className="econ-k">prev <b>{u(prev)}</b></span>}
+          {cons != null
+            ? <span className="econ-k">cons <b>{u(cons)}</b></span>
+            : <span className="econ-k econ-none">no consensus published</span>}
+        </>
+      )}
+    </span>
+  );
+}
+
 export const RADAR_TABS = [["radar", "Radar"], ["timeline", "Full Timeline"], ["calendar", "Calendar"], ["vol", "Volume"]];
 
 /* THE VIEW TABS ARE PART OF THE SHELL, not part of the page.

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
+import { ChartModal } from "./chartModal.jsx";
 import { StarBtn, StarIcon, Logo, NA, Chip, FigPct, useWatch, useCanslim, useAlerts, usePositions, SEV_LABEL } from "./components.jsx";
 import { fetchProfile } from "./profile.js";
 
@@ -226,7 +227,13 @@ const briefDesc = (t) => {
 
 export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
   const s = stock;
-  const statusMap = { buy: ["In Buy Zone", "var(--pl-up)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
+  const [zoom, setZoom] = useState(null);   // the expanded chart
+  /* The SAME vocabulary the screener's row uses — this drifted: the drawer still
+     had "In Buy Zone" in the P&L green and "Watch" in a category token, so one
+     reading looked like two different things depending on where you read it.
+     Price against a pivot is a signal: accent in the zone, caution past it,
+     neutral while waiting. */
+  const statusMap = { buy: ["In Buy Zone", "var(--accent)"], ext: ["Extended", "var(--caution)"], watch: ["Watch", "var(--dim)"] };
   const [stLabel, stColor] = statusMap[s.status] || [null, null];
   const hasBase = s.pivot != null;                  // buy-point base (technical when history exists)
   const hasChart = s.closes && s.closes.length > 0; // real EOD history loaded
@@ -476,8 +483,14 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
 
       {hasChart && (
         <div className="dr-sec">
-          <div className="dr-sec-h"><h3>Price &amp; volume</h3><span className="dr-sec-sub mono">{s.pivot != null ? `adjusted EOD · pivot ${s.pivot}` : "adjusted EOD"}</span></div>
-          <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi} dates={s.dates} />
+          <div className="dr-sec-h"><h3>Price &amp; volume</h3>
+            <span className="dr-sec-sub mono">{s.pivot != null ? `adjusted EOD · pivot ${s.pivot}` : "adjusted EOD"}</span>
+            {/* 184px in a 620px column is enough to see the shape and not enough
+                to place a trail against it. The stop is drawn here too now. */}
+            <button className="cm-open" onClick={() => setZoom(s)} aria-label={`Expand ${s.tk} chart`}>⤢ Expand</button>
+          </div>
+          <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi}
+            stop={s.sig && s.sig.swing ? s.sig.swing.stop : null} dates={s.dates} />
           {s.rsLine && s.rsLine.length > 1 && (
             <div className="dr-rs-wrap"><span className="dr-rs-lab mono">RS line vs S&amp;P{s.sig?.rsLeads ? " · new high before price ✦" : s.sig?.rsNewHigh ? " · new high" : ""}</span><RSLine rs={s.rsLine} /></div>
           )}
@@ -657,6 +670,9 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
         </div>
       )}
 
+      {/* Portalled into `.app` and fixed to the viewport, so it sits ABOVE the
+          drawer (z 200 vs 180) rather than inside its scroll container. */}
+      <ChartModal stock={zoom} onClose={() => setZoom(null)} />
     </div>
   );
 }

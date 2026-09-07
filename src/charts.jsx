@@ -34,7 +34,7 @@ function sma(arr, period) {
   return out;
 }
 
-export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184 }) {
+export function PriceChart({ closes, volume, pivot, buyLo, buyHi, stop, dates, h = 184 }) {
   const grow = useGrow(750);
   const clipId = useId().replace(/:/g, "");
   const wrapRef = useRef(null);
@@ -55,6 +55,12 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
 
   let minV = Math.min(...vis), maxV = Math.max(...vis);
   if (pivot >= minV * 0.9 && pivot <= maxV * 1.1) { minV = Math.min(minV, pivot); maxV = Math.max(maxV, buyHi || pivot); }
+  /* The trailing stop only widens the window when it is NEAR the price action.
+     A Chandelier level can sit far below a name that has run, and stretching the
+     scale to reach it would flatten the price into a band at the top — the
+     level would be visible and the chart would stop being readable. Same 10%
+     tolerance the pivot uses. */
+  if (stop != null && stop >= minV * 0.9 && stop <= maxV * 1.1) minV = Math.min(minV, stop);
   const range = (maxV - minV) || 1;
   const x = (j) => (M <= 1 ? 0 : (j / (M - 1)) * W);
   const y = (v) => padT + (1 - (v - minV) / range) * (H - padB - padT);
@@ -152,6 +158,10 @@ export function PriceChart({ closes, volume, pivot, buyLo, buyHi, dates, h = 184
               fill="color-mix(in oklch, var(--pl-up) 13%, transparent)" />
           )}
           {pivot != null && <line x1="0" y1={y(pivot)} x2={W} y2={y(pivot)} className="chart-pivot" />}
+          {/* Drawn only when it lands inside the window — off-scale it would be
+              clamped to an edge and read as a level that is not there. */}
+          {stop != null && stop >= minV && stop <= maxV
+            && <line x1="0" y1={y(stop)} x2={W} y2={y(stop)} className="chart-stop" />}
           {visVol.map((v, j) => j < nGrow && (
             <rect key={j} x={x(j) - 1.6} width="3.2" y={H - padB - (v / vmax) * 24} height={(v / vmax) * 24}
               className="chart-vol" data-up={vis[j] >= (vis[j - 1] ?? vis[j])} />

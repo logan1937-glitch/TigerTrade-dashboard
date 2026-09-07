@@ -456,6 +456,17 @@ permitted" / "Risk management first"), and **it is never fabricated** — with n
 market payload it is an `<NA>` naming the missing block, not an optimistic
 default. `.cover-facts` is a fixed five tracks, dropping to three then two.
 
+**THE RELEASE FIGURES BELONG ON THE RADAR, not four clicks into a drawer.**
+`previous`, `estimate` (consensus) and `actual` ride on every merged economic
+release and were rendered in exactly one place — inside the event drawer — so
+the view whose whole job is "what is coming and what will it do" showed a title
+and a countdown and nothing you could form an expectation from. `EconLine` puts
+them on the cover's headline release and on every queue row that has them, in
+two shapes: **prev → cons** before it lands, **act vs cons plus the surprise**
+after. The surprise is the only coloured thing there and it earns it — a beat or
+a miss is a direction. A release with no consensus published says so rather than
+printing a dash that could read as zero.
+
 **THE CATALYST QUEUE EARNS ITS PANEL.** It was eight 12px names in 29px rows,
 so the panel that exists to say what is coming was ~59% empty and its own
 subject was the smallest text in it. Each row now carries the countdown (a fixed
@@ -485,6 +496,37 @@ Two traps that conversion hit:
   VIX figure, its chart and its badge amber, making the calmest possible reading
   the most emphatic thing on the radar. A vol regime has a polarity, so the ends
   take the P&L pair and the middle takes the neutral ramp.
+
+**THE EXPANDED CHART (`chartModal.jsx`) HAS TWO HONEST MODES, and which one you
+get depends on how the name reached the client.** `compactSig` — the path almost
+every covered name takes — ships a **~60-point sampled spark and no `closes` at
+all**: roughly one point every four sessions over a year. Full daily bars with
+volume only arrive for custom lookups and the per-ticker fallback. So:
+
+- with `closes` (and not `_synthetic`): the real `PriceChart` at h=430, which
+  brings its zoom, crosshair, drag-select and MA overlays along unchanged;
+- with only the spark: a plainer `SampledChart` at a deliberately moderate size,
+  captioned with the resolution. **Drawing 60 sampled points across an 1100px
+  canvas as though they were daily is the worst wrong chart this app can make** —
+  long straight segments reading as real price action at a precision the record
+  does not have. The size must not imply a resolution the data lacks;
+- with neither: it says there is nothing real to draw.
+
+Two more rules on it. A LEVEL OUTSIDE THE DRAWN WINDOW IS NAMED, not silently
+dropped — "buy point $1,497.60 is outside this window", because a missing line
+otherwise reads as "this name has no buy point". And a level only widens the
+price scale when it is within 10% of the range, or a far-below Chandelier stop
+flattens the whole price path into a band to reach it.
+
+`padR` on `SampledChart` is a LABEL GUTTER measured against the longest string
+it can produce ("buy point $1,497.60" ≈ 120 viewBox units at 11px); at 64 the
+high and low labels were clipped to "$262" and "$1719".
+
+**A ROW CLICK NO LONGER OPENS THE DRAWER ABOVE 1400px** — it selects into the
+context panel, which is the point of the split. The drawer is reached from the
+panel's "Full analysis", from Enter on a row, or by any click below the split
+width. The `drawer` shot took the old path and silently started timing out the
+moment the split shipped.
 
 **THE SCREENER IS A SPLIT WORKSPACE ABOVE 1400px.** Board on the left, the
 selected name in a persistent panel on the right, both live at once. A drawer
