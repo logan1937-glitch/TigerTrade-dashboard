@@ -645,6 +645,45 @@ for (const theme of themes) {
       console.log(`  ${over ? "⚠" : "✓"} ${path.relative(ROOT, file)}`
         + (over ? `   OVERFLOW: document ${over.doc} > viewport ${over.view} · widest: ${over.who}` : "")
         + (errors.length ? `   ⚠ ${errors.length} page error(s): ${errors[0]}` : ""));
+
+      /* `--audit` — DEAD SPACE IS A MEASUREMENT, NOT AN IMPRESSION.
+         For every panel it compares the box height against the bounding box of
+         its children, and reports the ones more than DEAD_MIN% empty. A panel
+         that far empty is either missing content it should carry or sized for
+         content it does not have; both were true of the radar's catalyst queue,
+         which was 59% air with its own subject set at 12px.
+         It also reports the SMALLEST font-size found on a text node inside each
+         offender, because the two failures travel together: the box is empty
+         *because* the type in it was set too small to fill it. */
+      if (flag("audit")) {
+        const DEAD_MIN = 25;
+        const dead = await page.evaluate((min) => {
+          const SEL = ".cs-panel, .cs-ctx, .macroboard, .vixpanel, .hero-left, .pf-panel,"
+            + " .mh-card, .mm-card, .pb-detail, .pb-scan, .cover-facts, .rrg-card, .ed-card";
+          const out = [];
+          for (const el of document.querySelectorAll(SEL)) {
+            const r = el.getBoundingClientRect();
+            if (r.height < 120) continue;             // too short for "empty" to mean anything
+            const kids = [...el.children].filter((k) => k.getBoundingClientRect().height > 0);
+            if (!kids.length) continue;
+            const top = Math.min(...kids.map((k) => k.getBoundingClientRect().top));
+            const bot = Math.max(...kids.map((k) => k.getBoundingClientRect().bottom));
+            const pct = Math.round((1 - (bot - top) / r.height) * 100);
+            if (pct < min) continue;
+            // the smallest type on a node that actually holds text
+            let small = 99;
+            for (const n of el.querySelectorAll("*")) {
+              const t = (n.textContent || "").trim();
+              if (!t || n.children.length) continue;
+              small = Math.min(small, parseFloat(getComputedStyle(n).fontSize) || 99);
+            }
+            out.push({ sel: `${el.tagName.toLowerCase()}.${(el.className || "").toString().split(" ")[0]}`,
+              box: `${Math.round(r.width)}×${Math.round(r.height)}`, pct, small: small === 99 ? "—" : small + "px" });
+          }
+          return out.sort((a, b) => b.pct - a.pct);
+        }, DEAD_MIN);
+        for (const d of dead) console.log(`      DEAD ${String(d.pct).padStart(3)}%  ${d.box.padEnd(10)} ${d.sel}   smallest type ${d.small}`);
+      }
     } catch (e) {
       failed++;
       console.log(`  ✗ ${v.id} (${theme}): ${String(e.message).split("\n")[0]}`);

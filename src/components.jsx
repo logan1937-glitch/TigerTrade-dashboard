@@ -564,7 +564,15 @@ export function tapePicks(rows) {
 export function StockTape({ rows, quotes, asOf, tried = 0, ok = 0, onPick }) {
   // top of the leaderboard, live prices — the screener's answer to the catalyst tape
   const items = useMemo(() => tapePicks(rows), [rows]);
-  if (items.length < 2) return null;
+  /* RESERVE THE STRIP RATHER THAN RETURNING NULL. This used to render nothing
+     until at least two names had prices, then appear — and everything below it,
+     the whole cover and board, dropped 36px at once. Measured as CLS 0.2113 on
+     the screener, against Google's 0.1 "good" threshold, and it is the entire
+     shift on that page: the radar's tape has static events from the first frame
+     and measures 0.
+     The empty strip claims nothing — no skeleton, no placeholder prices, just
+     the space the tape is about to occupy. */
+  if (items.length < 2) return <div className="tape tape-hold" aria-hidden="true" />;
   const fmt = (n) => (n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : n.toFixed(2));
   let stamp = null;
   try { if (asOf) stamp = new Date(asOf).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); } catch {}

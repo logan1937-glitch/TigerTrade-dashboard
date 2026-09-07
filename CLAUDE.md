@@ -19,6 +19,8 @@ npm test               # both suites
 npm run test:earnings  # 55 assertions against a stubbed Yahoo/Finnhub
 npm run test:swing     # 66 assertions on the ATR/EMA/Launchpad/quote-building math
 npm run shots          # screenshot every view headlessly → shots/
+npm run shots -- --audit  # + report panels >25% empty and the smallest type in them
+npm run og             # regenerate the 1200×630 social card → public/og.png
 ```
 
 `npm run shots` is the visual-verification loop — see **Verifying UI changes**
@@ -285,11 +287,21 @@ content in a ~570px box. Every step from `--figure` down is lifted (27 / 22 / 16
 / 14.5 / 13 / 11.5 / 10) so neighbours sit at roughly 1.15 rather than
 1.58-then-1.12. `--display` is untouched because it is the landing page's.
 
-**Dead space is a MEASUREMENT, not an impression.** The probe that found this
-compares each panel's box height against the bounding box of its children —
-`scripts/` has no permanent version, but the query is four lines and worth
-re-running whenever a panel gains or loses content. A panel more than ~25% empty
-is either missing content it should carry or sized for content it does not have.
+**Dead space is a MEASUREMENT, not an impression** — and `npm run shots --
+--audit` now makes it. For every panel it compares the box height against the
+bounding box of its children and prints anything more than 25% empty, together
+with the SMALLEST font-size on a text node inside it, because the two failures
+travel together: the box is empty *because* the type in it was set too small to
+fill it. A panel that far empty is either missing content it should carry or
+sized for content it does not have.
+
+**A GRID STRETCHES ITS ROWS TO THE TALLEST CELL**, which is the other way a
+panel ends up looking empty without being wrong. The portfolio's five panels
+measured 73 / 51 / 48% air on a two-position book — not because they were
+missing anything, but because "Sector weight" has one row and was padded to
+match "Book health" beside it. `align-items: start` lets each be exactly as tall
+as what it holds, and a short panel then reads as a short answer. Reach for this
+before reaching for filler.
 
 **HUE MARKS DIRECTION AND OUTCOME. LIGHTNESS MARKS RANK. NOTHING GETS COLOUR FOR
 IDENTITY ALONE.** This is the third version of the rule and the one that holds.
@@ -664,6 +676,30 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   Note `position: sticky` on that panel does **not** work (a plain sibling in
   the same container sticks fine; the scroll container does not) — don't reach
   for it as a shortcut.
+- **`flex-basis` IS THE MAIN AXIS, so it changes meaning when the direction
+  flips.** `.vixpanel` is `flex: 1.6 1 452px` — a width in the desktop row. The
+  phone rule turns `.hero-row` into a column, at which point that 452px becomes
+  a forced HEIGHT, and the panel measured 49% empty at 390px with its content
+  occupying 230 of it. The trap was already documented in that media block and
+  the reset had been applied to `.hero-left` ONLY; `.macroboard` and `.vixpanel`
+  share it and were missed. Any panel with a flex-basis needs `flex: 0 0 auto`
+  in a rule that flips the direction.
+- **A GRID STRETCHES ITS ROWS TO THE TALLEST CELL**, which is the quietest way a
+  panel ends up looking empty without being wrong. The portfolio's five panels
+  measured 73 / 51 / 48% air on a two-position book purely because "Sector
+  weight" has one row and was padded to match "Book health" beside it; the
+  radar's macro and VIX panels did the same once the catalyst queue grew taller
+  than them. `align-items: start` (or `flex-start`) lets each be as tall as what
+  it holds. Reach for that before reaching for filler.
+- **A COMPONENT THAT RETURNS `null` WHILE LOADING SHIFTS THE PAGE.** `StockTape`
+  rendered nothing until two names had prices, then appeared — and the cover and
+  the whole board below it dropped 36px at once. Measured as **CLS 0.2113** on
+  the screener against Google's 0.1 "good" threshold, and it was the entire
+  shift on that page (the radar has static events from the first frame and
+  measures 0). It reserves the strip now — `min-height: 36px`, an empty `.tape`
+  that claims nothing — and the same page measures **0.0081**. Anything that
+  occupies vertical space before data lands must hold that space from the first
+  frame.
 - **A container unit cannot subtract a fixed padding, so it cannot decide
   whether text fits.** The Market Map's tile type was sized in `cqw`/`cqh` — a
   proportion of the map — while the text is laid out inside the tile *minus* 8px

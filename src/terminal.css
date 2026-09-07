@@ -410,7 +410,14 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .hero-left { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; flex: 1 1 480px; min-width: 0; }
 /* the radar/VIX cover packs three columns — center the group so a wide screen
    gets symmetric margins instead of a dead gap (screener hero keeps left-aligned) */
-.hero-cover .hero-row { justify-content: center; align-items: stretch; gap: clamp(20px, 2.6vw, 34px); }
+/* `stretch` was right when all three panels carried a full board. It stopped
+   being right the moment the catalyst queue grew: the queue is now the tallest,
+   so the macro board and the VIX panel were padded to match it — measured at 53%
+   and 71% air in the DEGRADED state, where those two shrink to a
+   feed-unavailable message and the queue does not. Same lesson as the
+   portfolio's panels: a panel should be as tall as what it holds, and a short
+   one should read as a short answer rather than as a half-filled box. */
+.hero-cover .hero-row { justify-content: center; align-items: flex-start; gap: clamp(20px, 2.6vw, 34px); }
 /* the left column is now a card (matches the two data panels); its sub-blocks nest inside */
 .hero-cover .hero-left { flex: 1 1 420px; max-width: 560px; align-items: stretch; gap: 16px; padding: 20px; }
 .hero-cover .hero-eyebrow { margin-bottom: -4px; }
@@ -1267,7 +1274,10 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 
 /* ===================== SCROLLING TAPES (catalysts / stocks) ===================== */
 /* pinned to the top of the page, directly under the topbar */
-.tape { position: relative; border-bottom: 1px solid var(--border); overflow: hidden;
+/* 36px is the settled height: a .tick-item is --fs-label at line-height 1.5
+   plus 9px of padding top and bottom, and the strip carries a 1px rule. Held
+   from the first frame so the page below cannot drop when the quotes land. */
+.tape { min-height: 36px; position: relative; border-bottom: 1px solid var(--border); overflow: hidden;
   background: color-mix(in oklch, var(--panel) 55%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent); }
@@ -1648,9 +1658,24 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
    interface safety, not a reading, and it is the one place a user expects a hue
    to mean "stop". Nothing else in the app may reach for it. */
 .pf-x:hover { color: var(--pl-down); background: color-mix(in oklch, var(--pl-down) 12%, transparent); }
-.pf-panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0 8px; }
-.pf-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 15px 16px 16px; min-width: 0; }
-.pf-ph { font-size: var(--fs-micro); letter-spacing: var(--track-label); text-transform: var(--label-case); color: var(--dim); margin-bottom: 11px; }
+/* A GRID STRETCHES ITS ROWS TO THE TALLEST CELL, and that is what made these
+   panels read as empty. Measured by `npm run shots -- --audit`: 73%, 51% and 48%
+   air on a two-position book — not because the panels were missing content, but
+   because "Sector weight" has one row and was padded to match "Book health"
+   beside it. A book that small genuinely has little to say, so the honest fix is
+   to stop stretching: `align-items: start` lets each panel be exactly as tall as
+   what it holds, and a short panel then reads as a short answer rather than as a
+   half-filled box. */
+.pf-panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  align-items: start; margin: 20px 0 8px; }
+.pf-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 15px 16px 17px; min-width: 0; }
+/* Same treatment as the radar's queue header: a panel's own name was at
+   --fs-micro, which is the size reserved for chrome, so every panel was labelled
+   more quietly than anything inside it. */
+.pf-ph { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  font-size: var(--fs-body); font-weight: 600; letter-spacing: var(--track-label);
+  text-transform: var(--label-case); color: var(--text);
+  padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
 .pf-plead { font-size: var(--fs-data); line-height: 1.55; color: var(--muted); margin: 0 0 11px; }
 .pf-plead b { color: var(--text); }
 .pf-pempty { font-size: var(--fs-data); line-height: 1.55; color: var(--dim); margin: 0; }
@@ -2229,6 +2254,12 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
      its meta drops the margin-top:auto that anchored it to a fixed card bottom */
   .hero-left { gap: 11px; width: 100%; flex: 0 0 auto; }
   .hero-cover .hero-left { flex: 0 0 auto; padding: 16px; }
+  /* …and the OTHER TWO panels, which share the trap and were never included.
+     The comment above names "the 480/452px flex-basis", but only .hero-left was
+     reset — so .vixpanel kept a forced 452px height on a phone and measured 49%
+     empty, with the 468px macro board doing the same thing. Caught by
+     `npm run shots -- --audit --width 390`. */
+  .macroboard, .vixpanel { flex: 0 0 auto; min-width: 0; }
   .hero-cover .hero-meta { margin-top: 6px; }
   .hero-title { font-size: clamp(21px, 6vw, 26px); white-space: normal; line-height: 1.06; }
   .hero-next { width: 100%; }
@@ -3472,3 +3503,6 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 /* The three-panel board now starts under the cover's hairline, so the hero has
    no heading of its own left to space away from. */
 .hero-cover { padding-top: 22px; }
+
+/* the reserved-but-empty strip: occupies the height, states nothing */
+.tape-hold { background: color-mix(in oklch, var(--panel) 55%, transparent); }
