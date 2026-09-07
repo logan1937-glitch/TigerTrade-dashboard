@@ -1357,6 +1357,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 /* ============================ CHARTS ============================ */
 .chart { width: 100%; display: block; }
 .chart-line { fill: none; stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.chart-line[data-up="true"] { stroke: var(--pl-up); }
 .chart-line[data-up="false"] { stroke: var(--pl-down); }
 .chart-area { fill: color-mix(in oklch, var(--text) 10%, transparent); }
 .chart-pivot { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; opacity: 0.8; }
@@ -3586,8 +3587,33 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .cs-ctx-chart { position: relative; }
 .cs-ctx-expand { position: absolute; top: 2px; right: 0; opacity: 0; transition: opacity .14s ease; }
 .cs-ctx-chart:hover .cs-ctx-expand, .cs-ctx-expand:focus-visible { opacity: 1; }
-.cm-sampled { display: block; width: 100%; height: auto; }
+/* THE ASPECT RATIO IS PINNED TO THE VIEWBOX, and it is load-bearing rather
+   than cosmetic: the crosshair maps a pointer x to a data index by a linear
+   fraction of the element's width, so any letterboxing from a mismatched box
+   would offset every reading. `preserveAspectRatio="none"` plus a matching
+   ratio means there is no letterboxing and no distortion. */
+.cm-chart { display: flex; flex-direction: column; gap: 10px; }
+.cm-chart-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cm-win { flex: none; }
+.cm-chart-read { font-size: var(--fs-body); color: var(--muted); }
+.cm-chart-read b { font-weight: 600; color: var(--muted); }
+.cm-chart-read b[data-up="true"] { color: var(--pl-up); }
+.cm-chart-read b[data-up="false"] { color: var(--pl-down); }
+.cm-chart-read i { font-style: normal; font-size: var(--fs-label); color: var(--dim); }
+.cm-sampled { display: block; width: 100%; aspect-ratio: 1000 / 340; color: var(--text);
+  cursor: crosshair; overflow: visible; }
+.cm-grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cm-axis-x { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cm-axis-t { font-family: var(--font-mono); font-size: 11px; fill: var(--dim); }
+.cm-last { fill: var(--text); stroke: var(--panel); stroke-width: 2; }
+.cm-fill { pointer-events: none; }
+.cm-offwin { margin: 0; font-size: var(--fs-label); color: var(--dim); }
 .cm-lvl-t { font-family: var(--font-mono); font-size: 11px; fill: var(--muted); }
+.cm-lvl-t[data-lvl] { fill: var(--text); font-weight: 500; }
 .cm-lvl-t[data-edge] { fill: var(--dim); }
 .cm-res { margin: 10px 0 0; font-size: var(--fs-label); line-height: 1.55; color: var(--dim); max-width: 92ch; }
 .cm-res b { color: var(--muted); font-weight: 600; }
+
+/* the area gradient reads `currentColor`, so it follows the line's direction */
+.cm-sampled:has(.chart-line[data-up="true"]) { color: var(--pl-up); }
+.cm-sampled:has(.chart-line[data-up="false"]) { color: var(--pl-down); }

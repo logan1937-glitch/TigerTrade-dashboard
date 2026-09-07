@@ -137,6 +137,15 @@ const VIEWS = [
       }
       await p.waitForSelector(".cm", { timeout: 8000 });
       await p.waitForTimeout(600);
+      /* Park the pointer on the chart so the CROSSHAIR and its readout are in
+         the picture. Hover state is exactly the kind of thing a static shot
+         misses and a diff cannot check. */
+      const sv = p.locator(".cm-sampled, .pchart-wrap").first();
+      if (await sv.count()) {
+        const b = await sv.boundingBox();
+        if (b) await p.mouse.move(b.x + b.width * 0.62, b.y + b.height * 0.5);
+      }
+      await p.waitForTimeout(400);
     } },
   // the extended tier: a second payload, fetched only when this filter is picked.
   // Worth its own shot because "nothing happened" and "it merged" look identical

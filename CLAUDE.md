@@ -505,11 +505,25 @@ volume only arrive for custom lookups and the per-ticker fallback. So:
 
 - with `closes` (and not `_synthetic`): the real `PriceChart` at h=430, which
   brings its zoom, crosshair, drag-select and MA overlays along unchanged;
-- with only the spark: a plainer `SampledChart` at a deliberately moderate size,
-  captioned with the resolution. **Drawing 60 sampled points across an 1100px
-  canvas as though they were daily is the worst wrong chart this app can make** —
-  long straight segments reading as real price action at a precision the record
-  does not have. The size must not imply a resolution the data lacks;
+- with only the spark: `SampledChart`, which is a full chart in its own right —
+  price axis with gridlines, a snapping crosshair with a readout, a window
+  selector, a gradient area and a marked last close — captioned with the
+  resolution. It has **no per-point date**, deliberately: `sampleSpark` returns
+  values only, so any date on a given point would be arithmetic on an assumed
+  4-session step, an estimate wearing the clothes of a measurement. The readout
+  gives price and the move from the window's start, both real, and the axis
+  names the SPAN. **Drawing 60 sampled points across an 1100px canvas as though
+  they were daily is the worst wrong chart this app can make** — long straight
+  segments reading as real price action at a precision the record does not have;
+- **a window is only offered if the sample can fill it** (`MIN_PTS` = 10). At
+  ~4-session resolution a 1M slice of a 60-point series is five points — four
+  straight segments claiming to be a month — so 1M is simply absent on a sampled
+  series and present with full daily bars. The control adapts to the data rather
+  than the data being stretched to the control;
+- the crosshair maps a pointer x to an index by a linear fraction of the
+  element's width, which is only correct because `.cm-sampled` pins
+  `aspect-ratio` to the viewBox. With `meet` and a mismatched box the SVG
+  letterboxes and every reading is silently offset;
 - with neither: it says there is nothing real to draw.
 
 Two more rules on it. A LEVEL OUTSIDE THE DRAWN WINDOW IS NAMED, not silently

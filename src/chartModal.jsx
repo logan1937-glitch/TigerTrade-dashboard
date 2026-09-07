@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PriceChart } from "./charts.jsx";
 import { NA } from "./components.jsx";
@@ -20,53 +20,174 @@ import { NA } from "./components.jsx";
    this off-screen; portalling to <body> instead renders it unstyled, because
    every theme token lives on the `.app` wrapper. Same trap the glossary popup
    already paid for. */
-/* The sampled series, drawn plainly. No volume (the record has none), no
-   crosshair (there is nothing between the points to read), and a deliberately
-   moderate height so the four-session sampling is not magnified into something
-   that looks like tick data. The levels are the reason to open this at all, so
-   they are drawn and labelled. */
-function SampledChart({ data, pivot, stop }) {
+/* THE SAMPLED SERIES, DRAWN PROPERLY.
+   The first version of this was a bare polyline: no axes, no grid, no crosshair,
+   no way to read a value off it — and since `compactSig` is how almost every
+   covered name arrives, that bare polyline was the chart nearly everyone saw.
+
+   What makes a chart feel alive is not decoration, it is being able to
+   INTERROGATE it: put the cursor somewhere and get the number back. So this has
+   a snapping crosshair with a readout, a price axis with gridlines, a window
+   selector, and a marked last point.
+
+   What it deliberately does NOT have is a per-point date. The spark ships as
+   values only — `sampleSpark` returns closes with no dates — so any date on a
+   given point would be arithmetic on an assumed 4-session step, which is an
+   estimate wearing the clothes of a measurement. The readout gives price and
+   the move from the window's start, both of which are real, and the axis names
+   the SPAN rather than pretending to per-point precision. */
+const WINDOWS = [["1M", 1 / 12], ["3M", 0.25], ["6M", 0.5], ["1Y", 1]];
+/* A WINDOW IS ONLY OFFERED IF THE SAMPLE CAN FILL IT. At ~4-session resolution
+   a one-month slice of a 60-point series is five points — four straight
+   segments claiming to be a month of trading, which is the same
+   misrepresentation as drawing the whole series at tick precision. Ten points
+   is the floor for a shape that is actually the name's, so on a sampled series
+   1M simply is not on offer; with full daily bars every window qualifies. */
+const MIN_PTS = 10;
+
+function SampledChart({ data, pivot, stop, asOf }) {
+  const [win, setWin] = useState(1);          // fraction of the series shown
+  const [hover, setHover] = useState(null);   // index into the visible slice
+  const wrapRef = useRef(null);
+
   /* padR is the LABEL GUTTER, not decoration: "buy point $1,497.60" is ~120
      viewBox units at 11px, and at 64 the labels ran off the right edge of the
      viewBox and were clipped — the high and low read as "$262" and "$1719"
      with the rest gone. Measured against the longest label this can produce. */
-  const W = 1000, H = 300, padT = 16, padB = 22, padR = 132;
-  let lo = Math.min(...data), hi = Math.max(...data);
+  const W = 1000, H = 340, padT = 14, padB = 28, padR = 132, padL = 2;
+  const plotW = W - padR - padL;
+
+  const keep = Math.max(MIN_PTS, Math.round(data.length * win));
+  const vis = data.slice(-keep);
+  const N = vis.length;
+
+  let lo = Math.min(...vis), hi = Math.max(...vis);
   // a level only widens the scale when it is close enough to matter; far below,
   // it would flatten the price into a band (same rule PriceChart uses)
   for (const lv of [pivot, stop]) {
     if (lv != null && lv >= lo * 0.9 && lv <= hi * 1.1) { lo = Math.min(lo, lv); hi = Math.max(hi, lv); }
   }
+  // a hair of headroom so the line never rides the frame
+  const pad = (hi - lo) * 0.06 || 1;
+  lo -= pad; hi += pad;
   const range = (hi - lo) || 1;
-  const x = (i) => (i / (data.length - 1)) * (W - padR);
+
+  const x = (i) => padL + (N <= 1 ? 0 : (i / (N - 1)) * plotW);
   const y = (v) => padT + (1 - (v - lo) / range) * (H - padT - padB);
-  const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const pts = vis.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+
   const money = (v) => "$" + (+v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const first = vis[0], last = vis[N - 1];
+  const net = first ? ((last - first) / first) * 100 : null;
+
+  /* Five gridlines at round-ish prices. `nice` keeps the ticks on values a
+     reader recognises rather than on whatever the range divides into. */
+  const ticks = (() => {
+    /* Aim for FIVE gaps, not four, and offer 4× as a candidate. At range/4 with
+       only [1,2,2.5,5,10] a range of 1019 wanted 255 and had to round up to
+       500 — which drew two gridlines on a 340-unit plot and left the axis
+       looking unfinished. */
+    const raw = range / 5;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 4, 5, 10].map((m) => m * mag).find((v) => v >= raw) || mag * 10;
+    const out = [];
+    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) out.push(v);
+    return out;
+  })();
+
+  /* The pointer maps linearly to an index ONLY because the container's aspect
+     ratio matches the viewBox — with `meet` and a mismatched box the SVG would
+     letterbox and every reading would be offset. `.cm-sampled` pins the ratio. */
+  const onMove = (e) => {
+    const el = wrapRef.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const svgX = ((e.clientX - r.left) / r.width) * W;
+    const f = (svgX - padL) / plotW;
+    setHover(Math.max(0, Math.min(N - 1, Math.round(f * (N - 1)))));
+  };
+
+  const hv = hover != null ? vis[hover] : null;
+  const hvNet = hv != null && first ? ((hv - first) / first) * 100 : null;
+
   const lvl = (v, cls, label) => (v == null || v < lo || v > hi ? null : (
     <g key={label}>
-      <line x1="0" y1={y(v)} x2={W - padR} y2={y(v)} className={cls} />
-      <text x={W - padR + 10} y={y(v) + 4} className="cm-lvl-t">{label} {money(v)}</text>
+      <line x1={padL} y1={y(v)} x2={padL + plotW} y2={y(v)} className={cls} />
+      <text x={padL + plotW + 10} y={y(v) + 4} className="cm-lvl-t" data-lvl="">{label} {money(v)}</text>
     </g>
   ));
+  const offWindow = [["Buy point", pivot], ["Trail", stop]]
+    .filter(([, v]) => v != null && (v < lo || v > hi))
+    .map(([k, v]) => `${k} ${money(v)}`);
+
   return (
-    <svg className="cm-sampled" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
-      role="img" aria-label="Sampled price path with buy point and trailing stop">
-      <polygon points={`0,${y(lo)} ${pts} ${x(data.length - 1).toFixed(1)},${y(lo)}`} className="chart-area" />
-      <polyline points={pts} className="chart-line" />
-      {lvl(pivot, "chart-pivot", "buy point")}
-      {lvl(stop, "chart-stop", "trail")}
-      <text x={W - padR + 10} y={y(hi) + 4} className="cm-lvl-t" data-edge="">high {money(hi)}</text>
-      <text x={W - padR + 10} y={y(lo) + 4} className="cm-lvl-t" data-edge="">low {money(lo)}</text>
-      {/* A level outside the drawn window is NOT silently dropped — say so, or
-          "no buy point line" reads as "this name has no buy point". */}
-      {[["buy point", pivot], ["trail", stop]].map(([k, v]) => (
-        v != null && (v < lo || v > hi)
-          ? <text key={k} x="0" y={H - 4} className="cm-lvl-t" data-edge="">
-              {k} {money(v)} is outside this window
-            </text>
-          : null
-      )).filter(Boolean).slice(0, 1)}
-    </svg>
+    <div className="cm-chart">
+      <div className="cm-chart-top">
+        <div className="seg cm-win" role="group" aria-label="Window">
+          {WINDOWS.filter(([, f]) => Math.round(data.length * f) >= MIN_PTS).map(([k, f]) => (
+            <button key={k} className="seg-btn" data-active={win === f || undefined}
+              onClick={() => { setWin(f); setHover(null); }}>{k}</button>
+          ))}
+        </div>
+        <span className="cm-chart-read mono">
+          {hv != null
+            ? <>{money(hv)} <b data-up={hvNet >= 0}>{hvNet >= 0 ? "+" : ""}{hvNet.toFixed(1)}%</b> <i>from window start</i></>
+            : net != null
+              ? <>{money(last)} <b data-up={net >= 0}>{net >= 0 ? "+" : ""}{net.toFixed(1)}%</b> <i>over this window</i></>
+              : null}
+        </span>
+      </div>
+
+      <svg className="cm-sampled" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" ref={wrapRef}
+        onMouseMove={onMove} onMouseLeave={() => setHover(null)}
+        role="img" aria-label={`Sampled price path${net != null ? `, ${net >= 0 ? "up" : "down"} ${Math.abs(net).toFixed(1)}% over the window` : ""}`}>
+        <defs>
+          <linearGradient id="cmFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {ticks.map((v) => (
+          <g key={v}>
+            <line x1={padL} y1={y(v)} x2={padL + plotW} y2={y(v)} className="cm-grid" />
+            <text x={padL + plotW + 10} y={y(v) + 4} className="cm-axis-t">{money(v)}</text>
+          </g>
+        ))}
+
+        <polygon className="cm-fill" points={`${padL},${y(lo)} ${pts} ${x(N - 1).toFixed(1)},${y(lo)}`} fill="url(#cmFill)" />
+        {/* Coloured by NET DIRECTION, the same as the drawer's PriceChart. The
+            screener's spark stays neutral because forty of them in a column is a
+            tint over the whole board; one large chart is a different object, and
+            a year down 34% drawn in the same ink as a year up 200% throws away
+            the first thing you want to know. */}
+        <polyline points={pts} className="chart-line" data-up={net == null ? undefined : net >= 0} />
+
+        {lvl(pivot, "chart-pivot", "buy point")}
+        {lvl(stop, "chart-stop", "trail")}
+
+        {/* the last close, so the eye lands on where the name is now */}
+        <circle cx={x(N - 1)} cy={y(last)} r="4" className="cm-last" />
+
+        {hover != null && (
+          <g>
+            <line x1={x(hover)} y1={padT} x2={x(hover)} y2={H - padB} className="chart-cross" />
+            <circle cx={x(hover)} cy={y(hv)} r="4.5" className="chart-cross-dot" />
+          </g>
+        )}
+
+        <line x1={padL} y1={H - padB} x2={padL + plotW} y2={H - padB} className="cm-axis-x" />
+        <text x={padL} y={H - 8} className="cm-axis-t" data-edge="">
+          {win === 1 ? "~1 year ago" : `~${WINDOWS.find(([, f]) => f === win)[0]} ago`}
+        </text>
+        <text x={padL + plotW} y={H - 8} className="cm-axis-t" data-edge="" textAnchor="end">
+          {asOf ? `latest close ${asOf}` : "latest close"}
+        </text>
+      </svg>
+
+      {offWindow.length > 0 && (
+        <p className="cm-offwin mono">{offWindow.join(" · ")} {offWindow.length > 1 ? "are" : "is"} outside this window</p>
+      )}
+    </div>
   );
 }
 
@@ -153,7 +274,7 @@ export function ChartModal({ stock, onClose }) {
             </>
           ) : sampled ? (
             <>
-              <SampledChart data={sampled} pivot={s.pivot} stop={sw ? sw.stop : null} />
+              <SampledChart data={sampled} pivot={s.pivot} stop={sw ? sw.stop : null} asOf={s.sig ? s.sig.asOf : null} />
               <p className="cm-res">
                 <b>Sampled series</b> — {sampled.length} points over about a year of adjusted closes,
                 roughly one every four sessions. It is the real price path at a lower resolution, not a
