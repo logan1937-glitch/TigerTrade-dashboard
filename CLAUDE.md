@@ -497,14 +497,31 @@ Two traps that conversion hit:
   the most emphatic thing on the radar. A vol regime has a polarity, so the ends
   take the P&L pair and the middle takes the neutral ramp.
 
-**THE EXPANDED CHART (`chartModal.jsx`) HAS TWO HONEST MODES, and which one you
-get depends on how the name reached the client.** `compactSig` — the path almost
-every covered name takes — ships a **~60-point sampled spark and no `closes` at
-all**: roughly one point every four sessions over a year. Full daily bars with
-volume only arrive for custom lookups and the per-ticker fallback. So:
+**THE EXPANDED CHART (`chartModal.jsx`) FETCHES FULL DAILY BARS ON DEMAND.**
+The nightly snapshot deliberately ships a ~60-point spark and no `closes` — a
+compact record is ~1.5KB and full bars for 500 names would multiply what every
+visitor downloads before seeing a row. That trade is right for the BOARD and
+wrong for this modal, which is the one place someone has explicitly asked to
+look at a single name closely; it left the good chart mode (volume, zoom, MA
+overlays, real dates in the crosshair) almost never reachable in production.
 
-- with `closes` (and not `_synthetic`): the real `PriceChart` at h=430, which
-  brings its zoom, crosshair, drag-select and MA overlays along unchanged;
+So opening the modal fetches that one symbol from `/api/yahoo`, which serves
+adjusted daily history and costs **no FMP quota** — the same reason the
+portfolio's peak-since-entry lookup uses it. Results are cached per symbol for
+the session (`BARS`), including MISSES, so a symbol Yahoo will not serve is not
+re-requested on every open. `SHOTS_YAHOO_DOWN=1 npm run shots -- --views chart`
+exercises the refusal path.
+
+**`h` on `PriceChart` IS A VIEWBOX HEIGHT, NOT PIXELS.** `.chart` is
+`width: 100%` against a 600-wide viewBox, so the rendered height is
+`width × h / 600`. In this modal at ~1130px, `h=430` rendered **810px** tall and
+pushed the stats row and the footer off the screen. 210 lands at ~395px.
+
+Three sources, in order of preference:
+
+- daily bars — the record's own `closes` when it has them, otherwise the fetch:
+  the real `PriceChart`, with zoom, drag-select, MA overlays and a crosshair
+  that can name an actual DATE, because daily bars carry them;
 - with only the spark: `SampledChart`, which is a full chart in its own right —
   price axis with gridlines, a snapping crosshair with a readout, a window
   selector, a gradient area and a marked last close — captioned with the

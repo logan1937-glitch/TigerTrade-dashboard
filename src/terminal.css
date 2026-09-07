@@ -3617,3 +3617,11 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 /* the area gradient reads `currentColor`, so it follows the line's direction */
 .cm-sampled:has(.chart-line[data-up="true"]) { color: var(--pl-up); }
 .cm-sampled:has(.chart-line[data-up="false"]) { color: var(--pl-down); }
+/* the one moment this modal waits on the network */
+.cm-loading { display: flex; align-items: center; gap: 10px; padding: 150px 0;
+  font-size: var(--fs-body); color: var(--muted); }
+.cm-spin { width: 15px; height: 15px; flex: none; border-radius: 50%;
+  border: 2px solid var(--border-2); border-top-color: var(--accent);
+  animation: cmSpin .7s linear infinite; }
+@keyframes cmSpin { to { transform: rotate(360deg); } }
+.app[data-motion="none"] .cm-spin { animation: none; }

@@ -45,6 +45,62 @@ const WINDOWS = [["1M", 1 / 12], ["3M", 0.25], ["6M", 0.5], ["1Y", 1]];
    1M simply is not on offer; with full daily bars every window qualifies. */
 const MIN_PTS = 10;
 
+/* FULL DAILY BARS, FETCHED WHEN YOU ASK FOR THE BIG CHART.
+   The nightly snapshot deliberately ships a ~60-point spark and no closes: a
+   compact record is ~1.5KB and full bars for 500 names would multiply what
+   every visitor downloads before seeing a row. That trade is right for the
+   BOARD and wrong for this modal, which is the one place someone has explicitly
+   asked to look at one name closely — and it left the good chart mode
+   (volume, zoom, MA overlays) almost never reachable in production.
+
+   So the bars are fetched on demand, for one symbol, only when the modal opens.
+   `/api/yahoo` serves adjusted daily history and costs NO FMP quota, which is
+   the same reason the portfolio's peak-since-entry lookup uses it.
+
+   Cached per symbol for the session: reopening the same name is instant, and
+   flicking through ten names costs ten requests rather than ten per open. */
+const BARS = new Map();   // tk -> { closes, volume, dates } | "miss"
+
+function useBars(tk, needed) {
+  const [bars, setBars] = useState(() => (tk && BARS.get(tk)) || null);
+  const [state, setState] = useState(() => (!needed ? "idle" : BARS.has(tk) ? "done" : "loading"));
+
+  useEffect(() => {
+    if (!tk || !needed) { setState("idle"); return undefined; }
+    const hit = BARS.get(tk);
+    if (hit) { setBars(hit === "miss" ? null : hit); setState("done"); return undefined; }
+    let alive = true;
+    setState("loading"); setBars(null);
+    (async () => {
+      try {
+        const r = await fetch(`/api/yahoo?symbol=${encodeURIComponent(tk)}&range=1y&interval=1d`);
+        if (!r.ok) throw new Error(String(r.status));
+        const d = await r.json();
+        const rows = Array.isArray(d && d.bars)
+          ? d.bars.filter((b) => b && b.date && Number.isFinite(+b.close)) : [];
+        if (rows.length < 30) throw new Error("thin");
+        const out = {
+          closes: rows.map((b) => +b.close),
+          // a missing bar volume becomes 0 rather than null: the chart's bars are
+          // a magnitude, and a null would break the max. It is never READ as a
+          // figure anywhere, so this cannot become a fabricated number.
+          volume: rows.map((b) => (Number.isFinite(+b.volume) ? +b.volume : 0)),
+          dates: rows.map((b) => b.date),
+        };
+        BARS.set(tk, out);
+        if (alive) { setBars(out); setState("done"); }
+      } catch {
+        // remembered so a symbol Yahoo will not serve is not retried on every open
+        BARS.set(tk, "miss");
+        if (alive) { setBars(null); setState("done"); }
+      }
+    })();
+    return () => { alive = false; };
+  }, [tk, needed]);
+
+  return [bars, state];
+}
+
 function SampledChart({ data, pivot, stop, asOf }) {
   const [win, setWin] = useState(1);          // fraction of the series shown
   const [hover, setHover] = useState(null);   // index into the visible slice
@@ -211,6 +267,16 @@ export function ChartModal({ stock, onClose }) {
     };
   }, [stock, onClose]);
 
+  /* EVERY HOOK RUNS BEFORE THE EARLY RETURN. `useBars` sat below the
+     `if (!stock) return null` guard, which means React saw a different number of
+     hooks on the closed and open renders — "rendered fewer hooks than expected",
+     thrown the moment the modal closes. It takes nulls and does nothing with
+     them instead. */
+  const ownBars = !!stock && Array.isArray(stock.closes) && stock.closes.length > 5
+    && Array.isArray(stock.volume) && stock.volume.length === stock.closes.length && !stock._synthetic;
+  // only ask the network for what the record does not already carry
+  const [fetched, barState] = useBars(stock ? stock.tk : null, !!stock && !ownBars);
+
   if (!stock || !host) return null;
   const s = stock;
   const sw = s.sig && s.sig.swing ? s.sig.swing : null;
@@ -238,8 +304,8 @@ export function ChartModal({ stock, onClose }) {
      price action, at a precision the data does not have. So the sampled series
      gets its own smaller, plainer rendering, and the caption states the
      resolution rather than letting the size imply one. */
-  const hasBars = Array.isArray(s.closes) && s.closes.length > 5
-    && Array.isArray(s.volume) && s.volume.length === s.closes.length && !s._synthetic;
+  const bars = ownBars ? { closes: s.closes, volume: s.volume, dates: s.dates } : fetched;
+  const hasBars = !!bars;
   const sampled = !hasBars && Array.isArray(s.spark) && s.spark.length > 5 && s._sparkReal
     ? s.spark : null;
 
@@ -265,12 +331,23 @@ export function ChartModal({ stock, onClose }) {
           {/* `_synthetic` marks a row still carrying tt.js's editorial curve
               rather than its own bars. Drawing that at full size, with levels on
               it, would be the most convincing wrong chart this app could make. */}
-          {hasBars ? (
+          {barState === "loading" ? (
+            <div className="cm-loading"><span className="cm-spin" aria-hidden="true" />Loading daily bars for {s.tk}…</div>
+          ) : hasBars ? (
             <>
-              <PriceChart closes={s.closes} volume={s.volume} dates={s.dates}
+              {/* `h` IS A VIEWBOX HEIGHT, NOT PIXELS. `.chart` is width:100% and the
+                  viewBox is 600 wide, so the RENDERED height is
+                  `width × h / 600` — at ~1130px in this modal, h=430 rendered
+                  810px tall and pushed the stats and the footer off the screen.
+                  210 lands at ~395px here and ~330px on a narrower modal, which
+                  is the size this panel has room for. */}
+              <PriceChart closes={bars.closes} volume={bars.volume} dates={bars.dates}
                 pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi}
-                stop={sw ? sw.stop : null} h={430} />
-              <p className="cm-res">Adjusted daily closes · {s.closes.length} sessions · volume below the price</p>
+                stop={sw ? sw.stop : null} h={210} />
+              <p className="cm-res">
+                Adjusted daily closes · {bars.closes.length} sessions · volume below the price
+                {!ownBars && " · fetched for this name on open"}. Drag across the chart to zoom a window.
+              </p>
             </>
           ) : sampled ? (
             <>
