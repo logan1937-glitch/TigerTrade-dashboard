@@ -1514,6 +1514,21 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .dr-px { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-figure); color: var(--text); }
 .dr-chg { font-size: var(--fs-body); } .dr-chg[data-up="true"] { color: var(--pl-up); } .dr-chg[data-up="false"] { color: var(--pl-down); }
 .dr-rs, .dr-grp { font-size: var(--fs-data); font-weight: 500; color: var(--muted); letter-spacing: var(--track-meta); }
+/* THE SPACE THE CHART WILL TAKE, HELD FROM THE FIRST FRAME. `PriceChart`'s
+   default `h` is a 184-unit viewBox height against a 600-wide box, so in the
+   drawer's ~560px content column it renders ~172px. A block that appears when
+   the fetch lands would otherwise shove the whole drawer down — the same class
+   of shift the stock tape was measured at CLS 0.2113 for. */
+.dr-chart-wait { display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 172px; padding: 0 8px; text-align: center; text-wrap: pretty;
+  font-family: var(--font-ui); font-size: var(--fs-data); line-height: 1.55; color: var(--muted); }
+/* ONCE IT HAS SETTLED, THE RESERVE IS JUST AIR. Nothing is coming to fill it, so
+   holding 172px for a chart that will never draw is the padded-panel failure the
+   portfolio's five tiles were measured at 73% empty for. A short answer reads as
+   a short answer. */
+.dr-chart-wait[data-settled] { min-height: 0; padding: 4px 8px 12px; color: var(--dim); }
+.dr-chart-wait b { color: var(--muted); font-weight: 600; }
+
 .dr-rs-wrap { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .dr-rs-lab { font-size: var(--fs-label); letter-spacing: var(--track-label); text-transform: var(--label-case); color: var(--dim); white-space: nowrap; }
 

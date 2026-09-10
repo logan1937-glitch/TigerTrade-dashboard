@@ -237,6 +237,16 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
   const [stLabel, stColor] = statusMap[s.status] || [null, null];
   const hasBase = s.pivot != null;                  // buy-point base (technical when history exists)
   const hasChart = s.closes && s.closes.length > 0; // real EOD history loaded
+  /* The price section used to be gated on `hasChart` alone, so for every name
+     whose bars are fetched on open — which is almost all of them — the block the
+     drawer is most often opened for was simply ABSENT, then appeared and pushed
+     the rest of the drawer down. `_bars` (set in App.jsx) separates "still
+     fetching" from "settled with nothing", which are the two states that gate
+     was collapsing into one. */
+  const barState = s._bars || (hasChart ? "done" : "miss");
+  // the sampled series the snapshot ships: not daily, but real, and the expanded
+  // chart draws it at its own resolution rather than pretending it is daily
+  const sampled = !hasChart && Array.isArray(s.spark) && s.spark.length > 5 && s._sparkReal;
   const signalsOnly = s.coverage === "signals";
 
   // company profile: real description + market cap + HQ for every name — "—"
@@ -481,21 +491,39 @@ export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
         </div>
       )}
 
-      {hasChart && (
-        <div className="dr-sec">
-          <div className="dr-sec-h"><h3>Price &amp; volume</h3>
-            <span className="dr-sec-sub mono">{s.pivot != null ? `adjusted EOD · pivot ${s.pivot}` : "adjusted EOD"}</span>
-            {/* 184px in a 620px column is enough to see the shape and not enough
-                to place a trail against it. The stop is drawn here too now. */}
+      <div className="dr-sec">
+        <div className="dr-sec-h"><h3>Price &amp; volume</h3>
+          <span className="dr-sec-sub mono">{hasChart ? (s.pivot != null ? `adjusted EOD · pivot ${s.pivot}` : "adjusted EOD")
+            : barState === "loading" ? "fetching adjusted daily bars"
+            : sampled ? "sampled series only" : "no daily bars"}</span>
+          {/* 184px in a 620px column is enough to see the shape and not enough
+              to place a trail against it. The stop is drawn here too now. */}
+          {(hasChart || sampled) && (
             <button className="cm-open" onClick={() => setZoom(s)} aria-label={`Expand ${s.tk} chart`}>⤢ Expand</button>
-          </div>
-          <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi}
-            stop={s.sig && s.sig.swing ? s.sig.swing.stop : null} dates={s.dates} />
-          {s.rsLine && s.rsLine.length > 1 && (
-            <div className="dr-rs-wrap"><span className="dr-rs-lab mono">RS line vs S&amp;P{s.sig?.rsLeads ? " · new high before price ✦" : s.sig?.rsNewHigh ? " · new high" : ""}</span><RSLine rs={s.rsLine} /></div>
           )}
         </div>
-      )}
+        {hasChart ? (
+          <>
+            <PriceChart closes={s.closes} volume={s.volume} pivot={s.pivot} buyLo={s.buyLo} buyHi={s.buyHi}
+              stop={s.sig && s.sig.swing ? s.sig.swing.stop : null} dates={s.dates} />
+            {s.rsLine && s.rsLine.length > 1 && (
+              <div className="dr-rs-wrap"><span className="dr-rs-lab mono">RS line vs S&amp;P{s.sig?.rsLeads ? " · new high before price ✦" : s.sig?.rsNewHigh ? " · new high" : ""}</span><RSLine rs={s.rsLine} /></div>
+            )}
+          </>
+        ) : barState === "loading" ? (
+          /* holds the space the chart will take, and claims nothing while it does */
+          <div className="dr-chart-wait"><span className="cm-spin" />Loading daily bars for {s.tk}…</div>
+        ) : (
+          <div className="dr-chart-wait" data-settled="">
+            {sampled
+              ? <>No daily bars for {s.tk}. The nightly snapshot carries a sampled series — about one point
+                every four sessions — and <b>Expand</b> draws it at that resolution rather than stretching it
+                into something that would read as daily.</>
+              : <>No daily price history for {s.tk} — the bars request settled with nothing, so there is
+                nothing real to draw here.</>}
+          </div>
+        )}
+      </div>
 
       {s.sig && (
         <div className="dr-sec">

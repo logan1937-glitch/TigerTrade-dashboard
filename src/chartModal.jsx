@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { PriceChart } from "./charts.jsx";
+import { PriceChart, useBars } from "./charts.jsx";
 import { NA } from "./components.jsx";
 
 /* THE CHART, BLOWN UP.
@@ -44,62 +44,6 @@ const WINDOWS = [["1M", 1 / 12], ["3M", 0.25], ["6M", 0.5], ["1Y", 1]];
    is the floor for a shape that is actually the name's, so on a sampled series
    1M simply is not on offer; with full daily bars every window qualifies. */
 const MIN_PTS = 10;
-
-/* FULL DAILY BARS, FETCHED WHEN YOU ASK FOR THE BIG CHART.
-   The nightly snapshot deliberately ships a ~60-point spark and no closes: a
-   compact record is ~1.5KB and full bars for 500 names would multiply what
-   every visitor downloads before seeing a row. That trade is right for the
-   BOARD and wrong for this modal, which is the one place someone has explicitly
-   asked to look at one name closely — and it left the good chart mode
-   (volume, zoom, MA overlays) almost never reachable in production.
-
-   So the bars are fetched on demand, for one symbol, only when the modal opens.
-   `/api/yahoo` serves adjusted daily history and costs NO FMP quota, which is
-   the same reason the portfolio's peak-since-entry lookup uses it.
-
-   Cached per symbol for the session: reopening the same name is instant, and
-   flicking through ten names costs ten requests rather than ten per open. */
-const BARS = new Map();   // tk -> { closes, volume, dates } | "miss"
-
-function useBars(tk, needed) {
-  const [bars, setBars] = useState(() => (tk && BARS.get(tk)) || null);
-  const [state, setState] = useState(() => (!needed ? "idle" : BARS.has(tk) ? "done" : "loading"));
-
-  useEffect(() => {
-    if (!tk || !needed) { setState("idle"); return undefined; }
-    const hit = BARS.get(tk);
-    if (hit) { setBars(hit === "miss" ? null : hit); setState("done"); return undefined; }
-    let alive = true;
-    setState("loading"); setBars(null);
-    (async () => {
-      try {
-        const r = await fetch(`/api/yahoo?symbol=${encodeURIComponent(tk)}&range=1y&interval=1d`);
-        if (!r.ok) throw new Error(String(r.status));
-        const d = await r.json();
-        const rows = Array.isArray(d && d.bars)
-          ? d.bars.filter((b) => b && b.date && Number.isFinite(+b.close)) : [];
-        if (rows.length < 30) throw new Error("thin");
-        const out = {
-          closes: rows.map((b) => +b.close),
-          // a missing bar volume becomes 0 rather than null: the chart's bars are
-          // a magnitude, and a null would break the max. It is never READ as a
-          // figure anywhere, so this cannot become a fabricated number.
-          volume: rows.map((b) => (Number.isFinite(+b.volume) ? +b.volume : 0)),
-          dates: rows.map((b) => b.date),
-        };
-        BARS.set(tk, out);
-        if (alive) { setBars(out); setState("done"); }
-      } catch {
-        // remembered so a symbol Yahoo will not serve is not retried on every open
-        BARS.set(tk, "miss");
-        if (alive) { setBars(null); setState("done"); }
-      }
-    })();
-    return () => { alive = false; };
-  }, [tk, needed]);
-
-  return [bars, state];
-}
 
 function SampledChart({ data, pivot, stop, asOf }) {
   const [win, setWin] = useState(1);          // fraction of the series shown
@@ -274,8 +218,12 @@ export function ChartModal({ stock, onClose }) {
      them instead. */
   const ownBars = !!stock && Array.isArray(stock.closes) && stock.closes.length > 5
     && Array.isArray(stock.volume) && stock.volume.length === stock.closes.length && !stock._synthetic;
-  // only ask the network for what the record does not already carry
-  const [fetched, barState] = useBars(stock ? stock.tk : null, !!stock && !ownBars);
+  /* Only ask the network for what the record does not already carry — and skip
+     it entirely when the drawer's own bars fetch already settled on nothing for
+     this name (`_bars === "miss"`), or opening the modal from that drawer would
+     re-request a symbol Yahoo has already refused. */
+  const [fetched, barState] = useBars(stock ? stock.tk : null,
+    !!stock && !ownBars && stock._bars !== "miss");
 
   if (!stock || !host) return null;
   const s = stock;

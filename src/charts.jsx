@@ -17,6 +17,74 @@ export function useGrow(dur = 650) {
   return p;
 }
 
+/* FULL DAILY BARS, FETCHED ON DEMAND FOR ONE NAME.
+   The nightly snapshot deliberately ships a ~60-point spark and no closes: a
+   compact record is ~1.5KB and full bars for 500 names would multiply what
+   every visitor downloads before seeing a row. That trade is right for the
+   BOARD and wrong for every surface that shows ONE name closely — the expanded
+   chart and the Playbook's detail pane, which both drew the sample at a size
+   that reads as daily.
+
+   So the bars are fetched on demand, for one symbol, only where one name is
+   already the subject.
+   `/api/yahoo` serves adjusted daily history and costs NO FMP quota, which is
+   the same reason the portfolio's peak-since-entry lookup uses it.
+
+   THE DRAWER DELIBERATELY DOES NOT USE THIS. `App.jsx` already fetches bars for
+   the opened name through `fetchMarket` — same upstream, same cost — and patches
+   the full signal bundle from them, which this hook does not. A second hook there
+   would be a duplicate request for a symbol already in flight.
+
+   Cached per symbol for the session: reopening the same name is instant, and
+   flicking through ten names costs ten requests rather than ten per open.
+   MISSES are cached too, or a symbol Yahoo will not serve is re-requested on
+   every single open. */
+const BARS = new Map();   // tk -> { closes, volume, dates } | "miss"
+
+export function useBars(tk, needed) {
+  // a cached "miss" is a sentinel, not a record — it must not become `bars`
+  const [bars, setBars] = useState(() => {
+    const hit = tk ? BARS.get(tk) : null;
+    return hit && hit !== "miss" ? hit : null;
+  });
+  const [state, setState] = useState(() => (!needed ? "idle" : BARS.has(tk) ? "done" : "loading"));
+
+  useEffect(() => {
+    if (!tk || !needed) { setState("idle"); return undefined; }
+    const hit = BARS.get(tk);
+    if (hit) { setBars(hit === "miss" ? null : hit); setState("done"); return undefined; }
+    let alive = true;
+    setState("loading"); setBars(null);
+    (async () => {
+      try {
+        const r = await fetch(`/api/yahoo?symbol=${encodeURIComponent(tk)}&range=1y&interval=1d`);
+        if (!r.ok) throw new Error(String(r.status));
+        const d = await r.json();
+        const rows = Array.isArray(d && d.bars)
+          ? d.bars.filter((b) => b && b.date && Number.isFinite(+b.close)) : [];
+        if (rows.length < 30) throw new Error("thin");
+        const out = {
+          closes: rows.map((b) => +b.close),
+          // a missing bar volume becomes 0 rather than null: the chart's bars are
+          // a magnitude, and a null would break the max. It is never READ as a
+          // figure anywhere, so this cannot become a fabricated number.
+          volume: rows.map((b) => (Number.isFinite(+b.volume) ? +b.volume : 0)),
+          dates: rows.map((b) => b.date),
+        };
+        BARS.set(tk, out);
+        if (alive) { setBars(out); setState("done"); }
+      } catch {
+        // remembered so a symbol Yahoo will not serve is not retried on every open
+        BARS.set(tk, "miss");
+        if (alive) { setBars(null); setState("done"); }
+      }
+    })();
+    return () => { alive = false; };
+  }, [tk, needed]);
+
+  return [bars, state];
+}
+
 /* ---------- PRICE CHART: line + area + volume + pivot + buy zone ---------- */
 /* Interactive: hover crosshair (date · price · % vs prior bar) and drag-to-zoom
    (drag horizontally to zoom a range; double-click or "reset zoom" to restore). */

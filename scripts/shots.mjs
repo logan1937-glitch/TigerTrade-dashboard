@@ -190,7 +190,9 @@ const VIEWS = [
          price has not reached yet. Row 0 in this fixture has already broken out,
          so shooting it left the "x% away" reading out of every picture. */
       await p.locator(".pb-drow").nth(1).click().catch(() => {});
-      await p.waitForTimeout(400);
+      // the detail pane upgrades its chart from the snapshot's sampled series to
+      // real daily bars once /api/yahoo answers — shoot the upgraded state
+      await p.waitForTimeout(900);
     } },
   /* The Playbook with the RVOL filter on. A filter that keeps every row and one
      that keeps none look identical in a diff, and the count beside the chip is
@@ -214,7 +216,12 @@ const VIEWS = [
       if (await full.count()) await full.first().click();
       else await p.locator(".cs-row").first().press("Enter");
       await p.waitForSelector(".dr", { timeout: 8000 });
-      await p.waitForTimeout(500);
+      /* LONG ENOUGH FOR THE BARS FETCH TO SETTLE. The price section is fetched on
+         open and `fetchYahoo` retries a 429 twice with 500ms and 1000ms backoff,
+         so at 500ms this shot photographed the loading state under
+         SHOTS_YAHOO_DOWN=1 — a transient, not the degraded render it is meant to
+         cover. The settled state is the one worth a picture in both directions. */
+      await p.waitForTimeout(2200);
     } },
 ];
 

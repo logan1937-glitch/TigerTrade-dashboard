@@ -15,6 +15,7 @@
 // with no computable metric shows "—" rather than a filled-in guess.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon, Logo, NA, Chip, FigPct, Term } from "./components.jsx";
+import { useBars } from "./charts.jsx";
 import { isLaunchpad, LAUNCHPAD_MAX_SPREAD, emaSpreadOf, atrTrail, ATR_TRAIL_MULT } from "./signals.js";
 import { useStored } from "./store.js";
 
@@ -392,9 +393,11 @@ function HowToRead({ counts, total, onClose }) {
               purpose — quiet is constructive inside a base and unhelpful on the day it triggers</dd>
             <dt>ATR 14</dt><dd>Wilder's average true range, in dollars, with % of price beneath</dd>
             <dt>Stop</dt><dd>the trailing level, with its distance from price beneath</dd>
-            <dt>Chart</dt><dd>the jade line is the breakout trigger (the most recent base high) and the
-              amber one the Chandelier stop, so how far there is to go and how much is at risk are
-              both on the picture. A level the snapshot did not compute is not drawn</dd>
+            <dt>Chart</dt><dd>the amber line is the breakout trigger (the most recent base high) and the
+              grey one the Chandelier stop, so how far there is to go and how much is at risk are
+              both on the picture. A level the snapshot did not compute is not drawn. The selected
+              name's daily bars are fetched on demand — the scan itself rides on the snapshot's
+              sampled series, and the caption under the chart says which one you are reading</dd>
           </dl>
         </div>
         <div>
@@ -431,6 +434,17 @@ function Detail({ row, onOpenStock }) {
   const coiled = spread != null && spread <= LAUNCHPAD_MAX_SPREAD;
   const { label: cxLabel, note: cxNote } = cxTier(s.cx);
   const riskPct = s.stop != null && row.px ? ((row.px - s.stop) / row.px) * 100 : null;
+
+  /* THE SCAN RIDES ON THE SNAPSHOT; THIS PANE IS ONE NAME YOU ASKED ABOUT. Every
+     row here comes from a compact record, which ships a ~60-point sampled spark
+     and no closes — about one point every four sessions. That is the right trade
+     for 500 rows and the wrong one for the chart the pane exists to show, where
+     a contraction is exactly the shape four-session sampling erases. So the
+     selected name's daily bars are fetched once (`/api/yahoo`, no FMP quota,
+     cached for the session including misses) and the sampled series is drawn
+     meanwhile — real either way, with the caption naming which. */
+  const [bars] = useBars(row.tk, true);
+  const daily = bars && bars.closes && bars.closes.length > 30 ? bars.closes : null;
 
   /* Ordered as the decision is made, not as the data happens to sit in the
      object: WHO is this, IS IT COILED, what are the levels, what size, then the
@@ -515,9 +529,11 @@ function Detail({ row, onOpenStock }) {
       <Sizing px={row.px} stop={s.stop} atr={s.atr} />
 
       <div className="pb-chart">
-        {row.spark && row.spark.length > 1 && row._sparkReal
-          ? <Sparkline data={row.spark} stop={s.stop} pivot={row.sig.pivot} px={row.px} />
-          : <span className="pb-chart-l mono">No price series for this name yet.</span>}
+        {daily
+          ? <Sparkline data={daily} res="daily" stop={s.stop} pivot={row.sig.pivot} px={row.px} />
+          : row.spark && row.spark.length > 1 && row._sparkReal
+            ? <Sparkline data={row.spark} res="sampled" stop={s.stop} pivot={row.sig.pivot} px={row.px} />
+            : <span className="pb-chart-l mono">No price series for this name yet.</span>}
       </div>
     </>
   );
@@ -730,7 +746,7 @@ function EmaRibbon({ row }) {
    band, so past that it is dropped and the caption says how far away it is
    instead of drawing a misleading chart. */
 const LEVEL_MAX_DROP = 0.35;
-function Sparkline({ data, stop, pivot, px }) {
+function Sparkline({ data, stop, pivot, px, res = "sampled" }) {
   const n = data.length, W = 560, H = 150, padT = 10, padB = 12;
   const lo0 = Math.min(...data), hi0 = Math.max(...data);
   // a breached trail sits above price — it belongs on the chart just as much
@@ -791,11 +807,23 @@ function Sparkline({ data, stop, pivot, px }) {
           </span>
         )}
       </div>
+      {/* THE CAPTION NAMES THE RESOLUTION, and it used to say "daily closes from
+          the nightly snapshot" over a series that is nothing of the sort — the
+          snapshot ships a ~60-point sample. Stating a precision the record does
+          not have is the same failure as printing a number we did not measure. */}
       <span className="pb-chart-l mono">
-        Daily closes from the nightly snapshot.
-        {showTrig ? <> The jade line is the <b>breakout trigger</b> — the high of the most recent base.</>
+        {res === "daily"
+          ? <>A year of <b>adjusted daily closes</b>, fetched for this name.</>
+          : <>The snapshot's <b>sampled series</b> — roughly one point every four sessions, not daily.</>}
+        {/* NAMED BY THE COLOUR THEY ACTUALLY ARE. This said "jade" for the trigger
+            and "amber" for the stop, which was true two accent systems ago and had
+            them the wrong way round after: the trigger takes `--accent` (amber,
+            the one interaction hue) and the stop takes `--caution`, which is the
+            middle of the neutral ramp, because a level is arithmetic and cannot
+            borrow a hue that means money moved. */}
+        {showTrig ? <> The amber line is the <b>breakout trigger</b> — the high of the most recent base.</>
           : <> No base high computed for this name, so no trigger line is drawn.</>}
-        {showStop ? <> The amber line is the <b>Chandelier stop</b>, 22-day high − 3 × ATR.</>
+        {showStop ? <> The grey line is the <b>Chandelier stop</b>, 22-day high − 3 × ATR.</>
           : <> The trailing stop is too far outside this window to plot.</>}
         {" "}Full interactive chart in the stock drawer.
       </span>

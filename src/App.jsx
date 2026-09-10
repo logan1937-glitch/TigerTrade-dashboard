@@ -449,32 +449,42 @@ export default function App() {
   // price history, and curated names carry EDITORIAL placeholder series
   // (tt.js _series — seeded curves, not market data): neither may be drawn as a
   // price chart. Real history is fetched on demand and cached per session.
-  const barsCache = useRef(new Map());   // tk → { closes, volume, dates, rsLine, sigPatch }
+  const barsCache = useRef(new Map());   // tk → { arrays, sigPatch } | "miss"
+  /* `_bars` is what the drawer renders its price section FROM, and it exists
+     because "no arrays yet" and "Yahoo will not serve this name" looked
+     identical: the section was gated on `closes.length` and simply disappeared,
+     so the most-asked-for block in the drawer was absent with nothing saying
+     why — and it appeared later, shoving everything under it down the page.
+     loading → the fetch is in flight and the space is held; miss → it settled
+     with nothing, and the drawer says so. Misses are cached like hits, so a
+     name Yahoo refuses is not re-requested every time it is opened. */
   const openStock = (s) => {
     setEvDrawer(null); setWatchOpen(false); setProduct("canslim");
     const base = csData.byTicker[s.tk] || s;
     const cached = barsCache.current.get(s.tk);
     if (cached) {
-      setStockDrawer({ ...base, ...cached.arrays, sig: { ...base.sig, ...cached.sigPatch } });
+      setStockDrawer(cached === "miss"
+        ? { ...base, closes: [], volume: [], dates: null, rsLine: [], _bars: "miss" }
+        : { ...base, ...cached.arrays, sig: { ...base.sig, ...cached.sigPatch }, _bars: "done" });
       return;
     }
     // real bars already attached (custom lookups / live-fallback names) — use as-is
-    if (!base._synthetic && base.closes && base.closes.length) { setStockDrawer(base); return; }
+    if (!base._synthetic && base.closes && base.closes.length) { setStockDrawer({ ...base, _bars: "done" }); return; }
     // synthetic or missing arrays: open without a chart, then fill with real data
-    setStockDrawer(base._synthetic ? { ...base, closes: [], volume: [], dates: null, rsLine: [] } : base);
+    setStockDrawer({ ...base, closes: [], volume: [], dates: null, rsLine: [], _bars: "loading" });
     (async () => {
+      const settle = (state) => setStockDrawer((cur) => (cur && cur.tk === s.tk ? { ...cur, _bars: state } : cur));
       try {
         const r = await fetchMarket([s.tk, "SPY"]);
         const rows = r.rows?.[s.tk];
-        if (!rows) return;
-        const full = computeSignals(rows, r.rows.SPY);
-        if (!full) return;
+        const full = rows ? computeSignals(rows, r.rows.SPY) : null;
+        if (!full || !full.closes || !full.closes.length) { barsCache.current.set(s.tk, "miss"); settle("miss"); return; }
         const arrays = { closes: full.closes, volume: full.volume, dates: full.dates, rsLine: full.rsLine || [] };
         barsCache.current.set(s.tk, { arrays, sigPatch: full });
         setStockDrawer((cur) => (cur && cur.tk === s.tk
-          ? { ...cur, ...arrays, sig: { ...cur.sig, ...full } }
+          ? { ...cur, ...arrays, sig: { ...cur.sig, ...full }, _bars: "done" }
           : cur));
-      } catch { /* chart stays hidden; scalar signals still render */ }
+      } catch { barsCache.current.set(s.tk, "miss"); settle("miss"); }
     })();
   };
 
@@ -488,10 +498,15 @@ export default function App() {
       const fresh = csData.byTicker[cur.tk];
       if (!fresh) return cur;
       const cached = barsCache.current.get(cur.tk);
-      const arrays = cached ? cached.arrays
+      const hit = cached && cached !== "miss" ? cached : null;
+      const blank = { closes: [], volume: [], dates: null, rsLine: [] };
+      const arrays = hit ? hit.arrays
+        : cached === "miss" ? blank
         : (cur.closes && cur.closes.length ? { closes: cur.closes, volume: cur.volume, dates: cur.dates, rsLine: cur.rsLine }
-        : (fresh._synthetic ? { closes: [], volume: [], dates: null, rsLine: [] } : null));
-      return { ...fresh, ...(arrays || {}), sig: { ...fresh.sig, ...(cached ? cached.sigPatch : null) } };
+        : (fresh._synthetic ? blank : null));
+      // `_bars` rides on the drawer record, not on `fresh` — a snapshot landing
+      // mid-fetch must not reset the price section to "no chart here"
+      return { ...fresh, ...(arrays || {}), _bars: cur._bars, sig: { ...fresh.sig, ...(hit ? hit.sigPatch : null) } };
     });
   }, [csData]);
 

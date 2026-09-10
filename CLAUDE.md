@@ -194,8 +194,11 @@ thing you read. Two related rules:
   (10-day range ÷ 40-day, the three bars) and the EMA spread (what the Launchpad
   filter actually tests) — and the spread used to appear only after selecting a
   row, so the scan could not be scanned for the thing it screens on.
-- **The chart carries the trigger and the stop as explicit lines**, jade and
-  amber. Neither may be red or green: a level is arithmetic, not money moved.
+- **The chart carries the trigger and the stop as explicit lines** — the trigger
+  in `--accent` (amber) and the stop in `--caution` (mid neutral ramp). Neither
+  may be red or green: a level is arithmetic, not money moved. The caption names
+  those two colours, so **changing either token means changing the words too** —
+  it said "jade" and "amber", the wrong way round, for two accent systems.
   The trigger is `sig.pivot` and is drawn **only when the snapshot computed it**
   — never from `tt.js`'s editorial curve, because a fabricated buy point is the
   worst thing this file could render. A level too far outside the window is
@@ -511,6 +514,43 @@ portfolio's peak-since-entry lookup uses it. Results are cached per symbol for
 the session (`BARS`), including MISSES, so a symbol Yahoo will not serve is not
 re-requested on every open. `SHOTS_YAHOO_DOWN=1 npm run shots -- --views chart`
 exercises the refusal path.
+
+**`useBars` lives in `charts.jsx` because THREE surfaces had the same problem**,
+and only one of them was visible. It is exported from there rather than from the
+modal so the Playbook can use it too; the drawer does not, because `App.jsx`
+already fetches bars on open through `fetchMarket` (Yahoo, no FMP quota) *and*
+patches the full signal bundle from them, which `useBars` does not — a second
+hook there would be a duplicate request for the same symbol.
+
+- **The drawer's price section was gated on `closes.length` alone**, so for every
+  name whose bars are fetched on open — nearly all of them — the block the drawer
+  is most often opened for was simply ABSENT, then appeared and shoved everything
+  under it down the page. `_bars` on the drawer record (`loading` / `done` /
+  `miss`, set only in `openStock`) is what separates "still fetching" from
+  "settled with nothing", which is exactly the `feedSettled` distinction the radar
+  already makes. Loading holds the chart's height (`.dr-chart-wait`, 172px — the
+  `h=184` viewBox in a ~560px column); **the settled miss releases it**, because
+  nothing is coming to fill it and a reserved 172px of air is the padded-panel
+  failure. The `csData` sync effect carries `_bars` from the *current* record, not
+  from `fresh` — a snapshot landing mid-fetch must not reset the section.
+- Misses are cached in `barsCache` as the string `"miss"`, so a refused symbol is
+  not re-requested every time it is opened. The modal reads `stock._bars` and
+  skips its own fetch when the drawer already settled on a miss.
+- **The Playbook's detail pane fetches the selected name only.** Its rows are
+  compact records, so the chart was drawn from the ~60-point sample — about one
+  point every four sessions, which is the exact resolution at which a contraction
+  disappears, on the tab that exists to find contractions. The sampled series is
+  drawn immediately and the daily bars replace it when they land; **the caption
+  names which one you are reading**. It used to say "daily closes from the nightly
+  snapshot" over the sample, which is a precision claim the record cannot support.
+- The Playbook's caption named the level colours **backwards** ("jade" trigger,
+  "amber" stop) — true two accent systems ago. The trigger is `--accent` (amber,
+  the one interaction hue) and the stop is `--caution` (mid neutral ramp), because
+  a level is arithmetic and cannot borrow a hue that means money moved.
+- The `drawer` shot waits **2200ms** after `.dr`, not 500: `fetchYahoo` retries a
+  429 twice with 500ms and 1000ms of backoff, so the shorter wait photographed the
+  *loading* state under `SHOTS_YAHOO_DOWN=1` — a transient, not the degraded
+  render the flag exists to capture.
 
 **`h` on `PriceChart` IS A VIEWBOX HEIGHT, NOT PIXELS.** `.chart` is
 `width: 100%` against a 600-wide viewBox, so the rendered height is
