@@ -375,6 +375,41 @@ The pair itself is tuned rather than inherited: `#34D399` / `#F87171` in dark
 read as an error state), `#05966A` / `#DC2626` on paper. The two are matched in
 luminance so a column of losses does not shout over a column of gains.
 
+**A SWEEP OF EVERY `--pl-*` CALL SITE AGAINST THAT TEST found four that failed,
+and they are the shapes to watch for.** Most pass — the tape, the P&L columns,
+the VIX regime's two ends, "rising inflation reads hot", an advancing stage
+against a declining one.
+
+- **A hand-rolled ramp escapes the rule by escaping the tokens.** The Market
+  Map's score badge was an `hsl()` green built in JS, so it was money's colour on
+  a model output *and* the same green in all four themes. `.cs-score` already
+  refused exactly this and said why — but a refusal written at one call site does
+  not travel. It is `.ig-chip-badge[data-grade]` now: lightness ramp, accent on
+  the top tier, tiers read off `r.grade`.
+- **`score || 0` inside a colour function is the never-fabricate bug wearing a
+  hat.** It drew an unmeasured name as the palest tile — a definite reading off a
+  missing input. And `r.grade` is derived from `score >= 80`, so `null >= 80` is
+  false and an unmeasured name arrives as a confident `"c"`: gate on
+  `score == null` BEFORE reaching for the grade.
+- **Rank painted as direction.** The industry-group strength bar was `--pl-up`,
+  though this file already lists industry-group strength among the lightness
+  ramps. Check the list before adding a hue.
+- **A count is not a direction.** The Calendar header's "N reports" was `--pl-up`.
+
+**ONE BUY-STATUS VOCABULARY — `BUY_STATUS` in `components.jsx`.** There were
+THREE copies (screener row, stock drawer, watchlist) and they disagreed: one name
+read "In Buy Zone" in amber on the board and "Buy Zone" in **P&L green** two
+clicks away, with Extended on a severity token and Watch on a category token —
+three colour families for one three-valued reading. The drawer's copy had already
+been caught and aligned once, which is precisely how a third copy survives a fix.
+Import it; never re-declare it.
+
+One deliberate exception: **the "Demo prices · not live" indicator keeps
+`--pl-down`.** By the colour rule that is a warning borrowing money's hue, but
+the never-fabricate rule wants demo data labelled *loudly* and the landing page's
+`DEMO — NOT LIVE` chip is already that red. Quietening the clearest safety
+affordance in the product is a decision to take on purpose, not in passing.
+
 **The ground is NEUTRAL, in both modes.** `#0B0B0C` page → `#121214` panel →
 `#1A1A1D` raised → `#202024` hover, and `#FAFAFA` → `#FFFFFF` → `#E9E9EC` on
 paper. Four clean value steps, because depth now comes from lightness rather
