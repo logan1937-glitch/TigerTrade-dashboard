@@ -134,6 +134,12 @@ export function CalendarView({ rows = [], onOpenStock }) {
                        in place rather than hiding the rest in a tooltip. */
                     <button className="cal-more mono" onClick={() => setOpenDay(openDay === c.num ? null : c.num)}
                       aria-expanded={openDay === c.num}
+                      /* the accessible name comes from the CONTENT, which is
+                         "+3" — a screen reader would announce a bare number for
+                         a control whose whole job needs explaining */
+                      aria-label={openDay === c.num
+                        ? `Show fewer reports on the ${c.num}th`
+                        : `Show all ${(byDay[c.num] || []).length} reports on the ${c.num}th`}
                       title={openDay === c.num ? "Show fewer" : `Show all ${(byDay[c.num] || []).length} reports`}>
                       {openDay === c.num ? "less" : `+${(byDay[c.num] || []).length - CAL_MAX}`}
                     </button>

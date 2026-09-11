@@ -1669,7 +1669,12 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
    day hold a dozen names without pushing the macro release out of the cell.
    Dropping `.cal-ev` is what removed three `!important`s from these rules. */
 .cal-erns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 1px; }
-.cal-ern { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; line-height: 1;
+/* `--fs-label`, NOT `--fs-micro`. Micro is the chrome token — column heads,
+   field labels, eyebrows — and a ticker in a calendar cell is the cell's
+   CONTENT. The Market Map already paid for treating a ticker as something that
+   can be shrunk to fit. Four pills at this size come to ~169px with their gaps,
+   inside the ~180px a cell has at 1500, so the row still holds four. */
+.cal-ern { font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 600; line-height: 1;
   color: var(--muted); background: color-mix(in oklch, var(--text) 6%, transparent);
   border: 1px solid transparent; border-radius: var(--radius-chip); padding: 3px 5px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 3px; }
@@ -1678,7 +1683,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .cal-ern:hover, .cal-ern:focus-visible { color: var(--text); outline: none;
   border-color: var(--accent); background: color-mix(in oklch, var(--accent) 16%, transparent); }
 .cal-ern-d { font-size: 7px /* inside a fixed calendar cell — exempt */; opacity: .8; }
-.cal-more { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; line-height: 1;
+.cal-more { font-family: var(--font-mono); font-size: var(--fs-label); font-weight: 600; line-height: 1;
   color: var(--dim); background: none; border: 1px dashed var(--border-2); border-radius: var(--radius-chip);
   padding: 3px 5px; cursor: pointer; }
 .cal-more:hover, .cal-more:focus-visible { color: var(--text); border-color: var(--accent); outline: none; }
