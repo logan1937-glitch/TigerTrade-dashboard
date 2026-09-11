@@ -50,7 +50,11 @@ export function CalendarView({ rows = [], onOpenStock }) {
               .count` is the shared voice for exactly this line. */}
           <div className="cal-count">
             {nEvents} scheduled catalyst{nEvents === 1 ? "" : "s"} this month
-            {nErn > 0 && <> · <span style={{ color: "var(--pl-up)" }}>{nErn} report{nErn === 1 ? "s" : "s"}</span></>}
+            {/* A COUNT IS NOT A DIRECTION. This was drawn in `--pl-up`, so "3
+                reports" read as a gain — the identity-colouring the rule
+                forbids. And both arms of the plural were "s", so it printed
+                "1 reports". */}
+            {nErn > 0 && <> · <span className="cal-count-ern">{nErn} report{nErn === 1 ? "" : "s"}</span></>}
           </div>
           <div className="cal-scope">
             <button className="seg-btn" data-active={scope === "yours" || undefined} onClick={() => setScope("yours")}

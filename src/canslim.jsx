@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
 import { PlaybookView } from "./playbook.jsx";
-import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct, FeedState, Term } from "./components.jsx";
+import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct, FeedState, Term, BUY_STATUS } from "./components.jsx";
 import { GLOSSARY } from "./glossary.js";
 import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
@@ -124,16 +124,11 @@ const Seam = () => <span className="cs-seam" aria-hidden="true" />;
 /* Price against the pivot is a SIGNAL, not money moved, so it reads in the app's
    signal vocabulary rather than the P&L pair: jade for the condition the method
    wants, caution for one that has run past it, neutral for one still waiting. */
-const STATUS_MAP = {
-  buy:   ["In Buy Zone", "var(--accent)",  "buyZone"],
-  ext:   ["Extended",    "var(--caution)", "extended"],
-  watch: ["Watch",       "var(--dim)",     "watchStatus"],
-};
 /* Not a pill. Forty bordered, filled capsules down one column was the last big
    run of chrome in the table, and the status is one word — colour and weight say
    it without a container. */
 function StatusPill({ status }) {
-  const [label, color, key] = STATUS_MAP[status];
+  const [label, color, key] = BUY_STATUS[status];
   return (
     <span className="cs-bstat" style={{ "--c": color }}>
       <Term k={key}>{label}</Term>

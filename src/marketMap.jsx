@@ -178,17 +178,13 @@ function SectorEtfs({ sectors, onSelectSector }) {
    group, ranked by momentum score inside each group, groups ordered by their
    median strength. The score badge's green heat encodes relative strength, so
    the leadership inside each group is legible at a glance. */
-// Fixed sequential green ramp keyed to score (a magnitude scale, so it doesn't
-// follow the theme-flipping --cat-growth token). Stays light→medium green with
-// dark-green ink in BOTH themes, so the number is always high-contrast.
-const scoreHeat = (score) => {
-  const t = Math.max(0, Math.min(1, ((score || 0) - 20) / 65));  // 20→pale, 85→vivid
-  return {
-    background: `hsl(150 ${Math.round(42 + t * 46)}% ${Math.round(80 - t * 26)}%)`,  // L 80→54
-    color: "hsl(154 72% 14%)",
-    borderColor: `hsl(150 40% ${Math.round(62 - t * 20)}%)`,
-  };
-};
+/* The score badge's tiers live in `.ig-chip-badge[data-grade]` — a lightness
+   ramp with the accent on the top tier, which is what the colour rule gives a
+   RANK. It was a hand-rolled hsl() green built here: money's colour on a model
+   output, outside the token system so it was the same green in all four themes,
+   and `score || 0` drew a name with NO score as the palest tile rather than as
+   unmeasured. The grade comes off the row, so it cannot drift from the
+   screener's own tiers. */
 
 function IndustryGroups({ rows, onOpenStock }) {
   const [q, setQ] = useState("");
@@ -226,7 +222,11 @@ function IndustryGroups({ rows, onOpenStock }) {
       {shown.length ? shown.map((g) => (
         <div className="ig-group" key={g.group}>
           <div className="ig-group-head">
-            <span className="ig-strength" style={{ background: `color-mix(in oklch, var(--pl-up) ${Math.round((g.med / maxMed) * 55 + 12)}%, transparent)` }} />
+            {/* NEUTRAL, not `--pl-up`. A group's median strength is a RANK among
+                groups, and the notes already list industry-group strength among
+                the things that ramp by lightness — this was the last call site
+                still painting it in the colour that means money moved. */}
+            <span className="ig-strength" style={{ background: `color-mix(in oklch, var(--text) ${Math.round((g.med / maxMed) * 55 + 12)}%, transparent)` }} />
             <span className="ig-group-name">{g.group}</span>
             <span className="ig-group-meta mono">{g.n} name{g.n === 1 ? "" : "s"}{g.strong ? ` · ${g.strong} A-grade` : ""}</span>
             <span className="ig-group-med mono" title="Median momentum score">MOM {Math.round(g.med)}</span>
@@ -235,7 +235,10 @@ function IndustryGroups({ rows, onOpenStock }) {
             {g.list.map((r) => (
               <button key={r.tk} className="ig-chip" onClick={() => onOpenStock(r)} title={`${r.name} · score ${r.score ?? "—"} · RS ${r.rs ?? "—"}`}>
                 <span className="ig-chip-tk">{r.tk}</span>
-                <span className="ig-chip-badge mono" style={scoreHeat(r.score)}>{r.score ?? "—"}</span>
+                {/* no grade attribute at all when there is no score — `r.grade`
+                    is derived from `score >= 80`, and `null >= 80` is false, so
+                    an unmeasured name would come through as a confident "c" */}
+                <span className="ig-chip-badge mono" data-grade={r.score == null ? undefined : r.grade}>{r.score ?? "—"}</span>
               </button>
             ))}
           </div>

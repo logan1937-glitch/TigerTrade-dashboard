@@ -5,6 +5,25 @@ import { GLOSSARY } from "./glossary.js";
 
 export const SEV_LABEL = { extreme: "Extreme", high: "High", medium: "Medium", low: "Low" };
 
+/* ONE BUY-STATUS VOCABULARY, because there were THREE and they disagreed. The
+   screener's row, the stock drawer and the watchlist each carried their own
+   copy, so a single name read "In Buy Zone" in amber on the board and "Buy
+   Zone" in P&L GREEN two clicks away — the same measurement looking like two
+   different kinds of thing depending on where you met it. The drawer's copy was
+   caught and aligned once already; the watchlist's was still on the pre-accent
+   tokens (`--pl-up`, `--sev-high`, `--cat-data`), which is three colour
+   families for one three-valued reading.
+
+   Price against a pivot is a SIGNAL, not money moved: `--accent` in the zone,
+   `--caution` past it, `--dim` while waiting. The third element is the
+   market-health counter key, which only the screener uses and the others
+   ignore. Import this — do not re-declare it. */
+export const BUY_STATUS = {
+  buy:   ["In Buy Zone", "var(--accent)",  "buyZone"],
+  ext:   ["Extended",    "var(--caution)", "extended"],
+  watch: ["Watch",       "var(--dim)",     "watchStatus"],
+};
+
 /* The Ember mark: three tapered slashes — a tiger's claw rake and a rising tape
    read as the same gesture. Geometry is fixed by the brand system: a 10×10 grid
    in a 0 0 100 100 box, heads at y 52/38/22 stepping up 14 units, all feet on

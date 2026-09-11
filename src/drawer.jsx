@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { TT } from "./tt.js";
 import { PriceChart, RSLine, ScoreDonut, BarMeter } from "./charts.jsx";
 import { ChartModal } from "./chartModal.jsx";
-import { StarBtn, StarIcon, Logo, NA, Chip, FigPct, useWatch, useCanslim, useAlerts, usePositions, SEV_LABEL } from "./components.jsx";
+import { StarBtn, StarIcon, Logo, NA, Chip, FigPct, useWatch, useCanslim, useAlerts, usePositions, SEV_LABEL, BUY_STATUS } from "./components.jsx";
 import { fetchProfile } from "./profile.js";
 
 const fmtPx2 = (n) => (n == null || Number.isNaN(+n) ? "—" : n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 }) : (+n).toFixed(2));
@@ -228,13 +228,8 @@ const briefDesc = (t) => {
 export function StockDrawerBody({ stock, onClose, onOpenPlaybook }) {
   const s = stock;
   const [zoom, setZoom] = useState(null);   // the expanded chart
-  /* The SAME vocabulary the screener's row uses — this drifted: the drawer still
-     had "In Buy Zone" in the P&L green and "Watch" in a category token, so one
-     reading looked like two different things depending on where you read it.
-     Price against a pivot is a signal: accent in the zone, caution past it,
-     neutral while waiting. */
-  const statusMap = { buy: ["In Buy Zone", "var(--accent)"], ext: ["Extended", "var(--caution)"], watch: ["Watch", "var(--dim)"] };
-  const [stLabel, stColor] = statusMap[s.status] || [null, null];
+  // one shared vocabulary — see BUY_STATUS in components.jsx
+  const [stLabel, stColor] = BUY_STATUS[s.status] || [null, null];
   const hasBase = s.pivot != null;                  // buy-point base (technical when history exists)
   const hasChart = s.closes && s.closes.length > 0; // real EOD history loaded
   /* The price section used to be gated on `hasChart` alone, so for every name
@@ -710,8 +705,7 @@ export function WatchlistBody({ onClose, onPickEvent, onPickStock, events: allEv
   const w = useWatch();
   const { byTicker } = useCanslim();
   const alerts = useAlerts();
-  const statusMap = { buy: ["Buy Zone", "var(--pl-up)"], ext: ["Extended", "var(--sev-high)"], watch: ["Watch", "var(--cat-data)"] };
-  const statusOf = (st) => statusMap[st] || [null, "var(--dim)"];   // signals-only names can have no status
+  const statusOf = (st) => BUY_STATUS[st] || [null, "var(--dim)"];   // signals-only names can have no status
   /* Resolve against the MERGED event list, not the curated template. The live
      economic calendar appends releases that exist only in that merge, so
      `TT.EVENTS.find` returned undefined for every one of them and `.filter`

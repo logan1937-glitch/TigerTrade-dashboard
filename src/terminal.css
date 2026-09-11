@@ -1673,6 +1673,9 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .cal-ern-d { font-size: 7px /* inside a fixed calendar cell — exempt */; opacity: .8; }
 .cal-more { font-size: var(--fs-micro); color: var(--dim); padding: 0 6px; cursor: default; }
 .cal-headr { display: flex; align-items: center; gap: 14px; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
+/* the reports figure is the one number in this line worth picking out, and it is
+   a count — so it gets weight and the plain ink, never a hue */
+.cal-count-ern { color: var(--text); font-weight: 600; }
 .cal-count { font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-label);
   color: var(--dim); text-transform: var(--label-case); }
 .cal-scope { display: flex; gap: 4px; }
@@ -2112,8 +2115,19 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   transition: transform .12s ease, border-color .12s ease; }
 .ig-chip:hover { transform: translateY(-1px); border-color: var(--border-2); }
 .ig-chip-tk { font-size: var(--fs-data); font-weight: 700; color: var(--text); letter-spacing: var(--track-data); }
+/* A LEADERSHIP SCORE IS RANK, SO IT RAMPS BY LIGHTNESS, and the top tier takes
+   the one interaction hue. This was a hand-rolled `hsl()` green ramp built in
+   JS — money's colour on a model output, hard-coded outside the token system so
+   it was the same green in all four themes, and with `score || 0` painting an
+   UNMEASURED name as the palest tile, which is a definite reading off a missing
+   input. `.cs-score` two thousand lines up already refuses exactly this, citing
+   the landing page; the Market Map was the copy that never got the memo.
+   Tiers come from `r.grade`, so they cannot drift from the screener's. */
 .ig-chip-badge { font-size: var(--fs-label); font-weight: 700; min-width: 26px; text-align: center; padding: 2px 6px; border-radius: 6px;
-  border: 1px solid transparent; }
+  border: 1px solid var(--border); background: var(--surface); color: var(--dim); }
+.ig-chip-badge[data-grade="c"] { color: var(--muted); }
+.ig-chip-badge[data-grade="b"] { background: var(--surface-2); border-color: var(--border-2); color: var(--text); }
+.ig-chip-badge[data-grade="a"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 
 /* ================= WHAT CHANGED TODAY (day-over-day diff) ================= */
 .chg { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; overflow: hidden;
