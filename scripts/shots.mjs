@@ -113,8 +113,20 @@ const VIEWS = [
     } },
   // the watchlist has never been in a screenshot, and it is where a starred live
   // economic release silently disappeared for as long as the feature has existed
+  /* THE CONTROL THAT OPENS THIS MOVES ON A PHONE. `.watch-btn` is hidden ≤640px
+     — the bottom tab bar owns product, search and watch there, because six
+     controls in a 390px topbar left the product switcher clipped — so this shot
+     spent 30s timing out on a selector that cannot exist at that width, and the
+     watchlist panel had never been photographed on a phone at all. Take
+     whichever control is actually on screen, which also means the shot covers
+     the tab bar's own route into the panel. */
   { id: "watch", state: { tt_product: "radar", tt_tab: "radar", tt_watch: WATCHED },
-    act: async (p) => { await p.locator(".watch-btn").first().click(); await p.waitForTimeout(500); } },
+    act: async (p) => {
+      const top = p.locator(".watch-btn").first();
+      if (await top.isVisible().catch(() => false)) await top.click();
+      else await p.locator(".mobile-tabbar button", { hasText: "Watch" }).first().click();
+      await p.waitForTimeout(500);
+    } },
   { id: "screener",  state: { tt_product: "canslim" } },
   /* The expanded chart. It is a portal into `.app` with a fixed overlay, and it
      only opens from a hover-revealed control on the context panel — two things
