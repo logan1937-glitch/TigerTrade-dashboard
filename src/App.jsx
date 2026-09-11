@@ -892,7 +892,10 @@ export default function App() {
               tried={tapeQ.tried} ok={tapeQ.ok} onPick={openStock} />}
         {product === "radar" ? (
           <>
-            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id} showBoards={SHOW_BOARDS} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />
+            {/* the cover rides every radar view; the queue/macro/VIX board is the
+                Radar tab's own content — see the note on `Hero` */}
+            <Hero events={upcoming} onSelectEvent={openEvent} activeId={evDrawer && evDrawer.id}
+              board={radarTab === "radar"} showBoards={SHOW_BOARDS} live={!!econ} macro={macro} vix={vix} settled={feedSettled} />
             <StatStrip events={allEvents} />
             <Boundary label={`radar:${radarTab}`} resetKey={radarTab}>
               {radarTab === "radar" && <RadarView {...radarProps} />}

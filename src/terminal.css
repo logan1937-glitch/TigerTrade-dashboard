@@ -296,7 +296,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
      needed closes counters at 12px and below. */
   letter-spacing: -0.004em;
 }
-.app .hero-title { letter-spacing: var(--track-display); }
+
 .app .mono, .app .tnum { font-feature-settings: "tnum", "zero"; }
 /* Event categories and severity, defined HERE because they are written in terms
    of the neutral ramp and that ramp lives on `.app`. One definition serves dark
@@ -420,23 +420,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .hero-cover .hero-row { justify-content: center; align-items: flex-start; gap: clamp(20px, 2.6vw, 34px); }
 /* the left column is now a card (matches the two data panels); its sub-blocks nest inside */
 .hero-cover .hero-left { flex: 1 1 420px; max-width: 560px; align-items: stretch; gap: 16px; padding: 20px; }
-.hero-cover .hero-eyebrow { margin-bottom: -4px; }
-.hero-cover .hero-title { margin-bottom: 2px; }
-.hero-cover .hero-meta { margin-top: auto; padding-top: 4px; }   /* anchored to the card's bottom padding */
-/* nested sub-cards: sit inside the parent card with a subtle recessed tint */
-/* ONE box, not four levels of box. The radar's left column was a bordered panel
-   containing three bordered counters, a bordered catalyst card and three more
-   bordered cells — nesting deep enough that the eye reads frames before it reads
-   figures, and the thing the panel exists to announce had no more emphasis than
-   the counters above it. Only the next catalyst keeps a container now, which is
-   what makes it read as the headline; everything else is separated by space. */
-.hero-cover .hero-next {
-  background: color-mix(in oklch, var(--panel) 52%, transparent);
-  border: 1px solid var(--border);
-}
-/* near-term risk exposure strip — fills the space beneath the catalyst card */
-.hero-cover .hero-kpis { width: 100%; margin: 0; }
-.hero-cover .hero-next { width: 100%; margin-top: 0; }
+
 /* the queue behind the headline catalyst */
 /* THE QUEUE EARNS ITS PANEL. It was eight 12px names in ~29px rows — 233px of
    content in a 570px box, so nearly 60% of the panel that is supposed to say
@@ -473,20 +457,6 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   text-transform: var(--label-case); color: var(--dim); white-space: nowrap; }
 .hero-q-sev[data-sev="extreme"] { color: var(--text); }
 .hero-q-sev[data-sev="high"] { color: var(--muted); }
-/* screener hero live-signal badges — pinned to the top-right, not vertically centered */
-/* live event-landscape KPI cluster */
-.hero-kpis { display: flex; gap: 8px; margin: 7px 0 4px; width: min(520px, 100%); align-items: stretch; }
-/* compact tiles so all three sit on one row in the balanced (narrower) left column */
-.hero-kpi { display: flex; flex-direction: column; gap: 4px; padding: 2px 20px 2px 0; min-width: 0; flex: 1 1 0; }
-.hero-kpi-v { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h2); line-height: 1; color: var(--text); }
-/* A COUNTDOWN IS NOT A LOSS. "8 days to the next extreme event" was drawn in
-   the P&L red, so the most alarming-looking number on the radar was a calendar
-   distance. Under the monochrome rule it is simply the brightest figure in the
-   row, which is what "this is the one to watch" looks like without a hue. */
-.hero-kpi[data-accent="ext"] .hero-kpi-v { color: var(--text); }
-.hero-kpi-k { display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-micro); letter-spacing: var(--track-label); text-transform: var(--label-case); color: var(--dim); white-space: nowrap; }
-.hero-kpi-k small { font-size: var(--fs-micro); letter-spacing: var(--track-meta); text-transform: none; opacity: 0.85; }
-
 /* right cluster: the two data panels sit as an equal-height, top-aligned pair */
 /* shared panel chrome — same surface gradient, border, edge highlight and depth
    on the left identity card, the macro board AND the VIX panel: one card system */
@@ -588,13 +558,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .skel-k { width: 62px; height: 12px; }
 .skel-v { width: 46px; height: 12px; justify-self: end; grid-column: 2 / 4; }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
-.hero-title {
-  font-family: var(--font-display); font-weight: var(--display-weight);
-  letter-spacing: var(--display-tracking); text-transform: var(--display-transform);
-  /* compact hero: was up to 42px and dominated the row — trimmed ~⅓ for density */
-  font-size: clamp(22px, 2.3vw, 28px); line-height: 1.05; margin: 0; color: var(--text);
-  text-wrap: balance;
-}
+
 /* info affordance — the descriptive blurb now lives in a hover/focus tooltip */
 .infodot { position: relative; display: inline-grid; place-items: center; width: 17px; height: 17px; flex: none;
   vertical-align: middle; margin-left: 8px; margin-top: -3px;
@@ -624,14 +588,9 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
    again. Any container that holds an InfoDot near the end of a line belongs
    here — the popup must resolve against something that spans the content
    column, never against the 17px dot itself. */
-.hero-title, .cover-eyebrow { position: relative; }
-.hero-title .infodot, .cover-eyebrow .infodot { position: static; }
-.app[data-dir="signal"] .hero-title {
-  color: oklch(0.93 0.05 218);
-}
-.app[data-dir="obsidian"] .hero-title .accentword { color: var(--accent); }
-.app[data-dir="quant"] .hero-title { color: var(--accent); }
-.hero-meta { margin-top: 12px; font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-label); color: var(--dim); text-transform: var(--label-case); }
+.cover-eyebrow { position: relative; }
+.cover-eyebrow .infodot { position: static; }
+
 .hero-badge {
   display: inline-flex; align-items: center; gap: 9px;
   font-family: var(--font-mono); font-size: var(--fs-data); letter-spacing: var(--track-meta); text-transform: var(--label-case);
@@ -643,28 +602,6 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .hero-badge .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
   box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 60%, transparent); animation: pulse 2.2s infinite; }
 
-/* featured next-catalyst module */
-.hero-next {
-  display: flex; align-items: center; justify-content: space-between; gap: 22px;
-  margin-top: 10px; width: min(520px, 100%);
-  background: color-mix(in oklch, var(--surface) 72%, transparent); border: 1px solid var(--border); border-left: 3px solid var(--c);
-  border-radius: var(--radius-sm); padding: 13px 16px 14px; cursor: pointer;   /* match the KPI tiles: same radius/surface/edge */
-  box-shadow: var(--lift-1);
-  text-align: left; font: inherit; color: inherit; position: relative; overflow: hidden;
-  transition: border-color .16s ease, background .16s ease, transform .16s ease, box-shadow .2s ease;
-}
-.hero-next:hover { background: var(--surface-2); border-color: var(--border-2); border-left-color: var(--c);
-  transform: translateY(-1px); box-shadow: 0 10px 30px -18px color-mix(in oklch, var(--c) 60%, transparent); }
-.hero-next-l { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 auto; }
-.hero-next-k { font-size: var(--fs-micro); letter-spacing: var(--track-wide); text-transform: var(--label-case); color: var(--dim); }
-.hero-next-name { font-size: var(--fs-lead); font-weight: 600; color: var(--text); letter-spacing: var(--track-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hero-next-meta { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-label); letter-spacing: var(--track-data); color: var(--muted); }
-.hero-next-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
-.hero-next-r { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex: none; }
-.hero-next-t { font-family: var(--font-mono); font-weight: 600; font-size: var(--fs-h2); line-height: 1; color: var(--c);
-  letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hero-next-t small { font-size: 0.5em; vertical-align: baseline; margin-left: 2px; letter-spacing: var(--track-meta); opacity: 0.7; }
-
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 55%, transparent); }
   70% { box-shadow: 0 0 0 8px transparent; }
@@ -674,20 +611,12 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 /* ============================ STAT STRIP ============================ */
 .statstrip { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .statgrid { display: grid; grid-template-columns: repeat(5, 1fr); }
-/* screener variant: the market-health row is a rounded card matching the cover
-   panels (same chrome), not a full-bleed strip */
 /* The four market-state stats are the page's first reading, and they were a
    bordered, gradient-filled card containing four bordered cells — a box inside a
    box, which is the shape that makes a dense UI look assembled rather than
    designed. They now sit directly on the page under a single hairline, which is
    the same separation the tape above them uses. The per-cell tone rail stays: it
    is the one piece of that chrome carrying a reading rather than a frame. */
-/* No rail and no wash on the card strip. Both encoded the same state the VALUE
-   already carries — "Confirmed Uptrend" is drawn in jade — so they were a second
-   and third copy of one reading, and three copies of a signal is how a board
-   ends up looking busy without saying more. */
-.statstrip-card .statcell[data-soon="true"]::before { content: none; }
-/* screener hero: badges sit on the title's center axis, not the column top */
 .statcell { padding: 16px 22px; border-left: 1px solid var(--border); position: relative; }
 .statcell:first-child { border-left: 0; }
 .statcell .lab { font-size: var(--fs-label); font-weight: 500; letter-spacing: var(--track-label); color: var(--dim); text-transform: var(--label-case); }
@@ -891,10 +820,23 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 /* ============================ CALENDAR ============================ */
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .cal-title { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-figure); letter-spacing: -0.01em; }
+/* A MONTH IS A SEVEN-COLUMN SHAPE, so it scrolls rather than collapses. The
+   Timeline tab is already the list rendering of exactly these events; turning
+   the Calendar into a second one on a phone would delete the only thing it adds.
+   Seven 74px cells plus six 8px gaps is 566 — narrow enough to thumb across,
+   wide enough that a ticker chip still reads. Above the phone breakpoint the
+   strip is inert: `min-width` drops away and the grid fits its column. */
+.cal-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
 .cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; }
 .cal-dow span { font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-label); color: var(--dim); text-transform: var(--label-case); text-align: left; padding-left: 4px; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; padding-bottom: 64px; }
-.cal-cell { min-height: 104px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+/* A NOWRAP CHILD SETS THE TRACK'S MINIMUM, AND `1fr` IS `minmax(auto, 1fr)`.
+   `.cal-ev` is `white-space: nowrap` — `overflow: hidden` clips the PAINT, it
+   does not lower the min-content width — so a long release title pushed its
+   column out and the seven tracks measured 648px against a 390px viewport: the
+   whole page slid sideways on a phone. `min-width: 0` lets a track go below its
+   content, which is what makes the ellipsis actually reachable. */
+.cal-cell { min-height: 104px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 8px 9px; display: flex; flex-direction: column; gap: 5px; }
 .cal-cell[data-out="true"] { opacity: 0.4; }
 .cal-cell[data-today="true"] { border-color: color-mix(in oklch, var(--accent) 55%, var(--border)); background: color-mix(in oklch, var(--accent) 8%, var(--surface)); }
@@ -1141,8 +1083,17 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 }
 
 @media (max-width: 940px) {
-  .statgrid { grid-template-columns: repeat(2, 1fr); }
-  .statcell:nth-child(odd) { border-left: 0; }
+  /* FIVE FACTS ARE A ROW, AND 2-UP MADE THEM THREE ROWS — ~330px of shared
+     chrome above every radar view, on the screens with the least of it to
+     spare. The strip keeps its five columns and thumbs sideways instead, for
+     ~110px: the same trade `.cal-scroll` makes, and it is the shape the cover's
+     own fact row is specified as. 150px is what "Next witching" over a date
+     needs, so the grid fits without scrolling at all down to ~806px and only
+     asks for a swipe below that. The scroll sits on the inner `.wrap` so the
+     page gutter is preserved at both ends of the travel. */
+  .statstrip > .wrap { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .statstrip > .wrap::-webkit-scrollbar { display: none; }
+  .statgrid { grid-template-columns: repeat(5, minmax(150px, 1fr)); min-width: 750px; }
   .pb { grid-template-columns: 1fr; }
   /* the date column sizes to its content rather than to a pixel guess — a
      pinned 62px clipped "~AUG 13" by 14px, and the tracked T-countdown under it
@@ -1207,13 +1158,6 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .mini-evt { stroke: color-mix(in oklch, var(--c) 55%, transparent); stroke-width: 1; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
 .mini-line { fill: none; stroke: var(--c); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 
-/* hero next-catalyst — now a vertical card with reaction strip */
-.hero-next { flex-direction: column; align-items: stretch; gap: 0; }
-.hero-next-top { display: flex; align-items: center; justify-content: space-between; gap: 22px; }
-.hero-next-react { display: flex; align-items: center; gap: 12px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--border); }
-.hero-next-react-k { font-size: var(--fs-micro); letter-spacing: var(--track-wide); text-transform: var(--label-case); color: var(--dim); white-space: nowrap; }
-.hero-next-react-cap { font-size: var(--fs-label); color: var(--muted); white-space: nowrap; margin-left: auto; font-variant-numeric: tabular-nums; }
-
 /* watchlist panel */
 .wl-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 70px 40px; }
 .wl-empty svg { width: 32px; height: 32px; color: var(--dim); }
@@ -1266,7 +1210,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   background: radial-gradient(420px circle at var(--mx, 70%) var(--my, 30%), color-mix(in oklch, var(--accent) 9%, transparent), transparent 60%);
   opacity: 0; transition: opacity .4s ease; }
 .hero:hover .hero-glow { opacity: 1; }
-.hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-label); letter-spacing: var(--track-wide); text-transform: var(--label-case); color: var(--dim); margin-bottom: 2px; }
+
 .hero-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .app[data-motion="full"] .hero-pulse { animation: pulse 2.2s infinite; }
 .hero-badge { margin-top: 4px; }
@@ -1728,7 +1672,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   background: color-mix(in oklch, var(--text) 18%, transparent) !important; }
 .cal-ern-d { font-size: 7px /* inside a fixed calendar cell — exempt */; opacity: .8; }
 .cal-more { font-size: var(--fs-micro); color: var(--dim); padding: 0 6px; cursor: default; }
-.cal-headr { display: flex; align-items: center; gap: 14px; }
+.cal-headr { display: flex; align-items: center; gap: 14px; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 .cal-count { font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: var(--track-label);
   color: var(--dim); text-transform: var(--label-case); }
 .cal-scope { display: flex; gap: 4px; }
@@ -2280,12 +2224,10 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
      empty, with the 468px macro board doing the same thing. Caught by
      `npm run shots -- --audit --width 390`. */
   .macroboard, .vixpanel { flex: 0 0 auto; min-width: 0; }
-  .hero-cover .hero-meta { margin-top: 6px; }
-  .hero-title { font-size: clamp(21px, 6vw, 26px); white-space: normal; line-height: 1.06; }
-  .hero-next { width: 100%; }
-  .statgrid { grid-template-columns: repeat(2, 1fr) !important; }
+
   .statcell { padding: 13px 14px; }
-  .statcell:nth-child(odd) { border-left: 0; }
+  .statcell .val { font-size: var(--fs-lead); }
+  .prox { margin-top: 8px; }
   .subnav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .subnav::-webkit-scrollbar { display: none; }
   .filters, .filters-right { gap: 9px; }
@@ -2812,11 +2754,21 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   /* the anchoring itself is now unconditional (see the base rule); on a phone
      the popup additionally goes full-bleed so a 340px measure does not sit in a
      390px column */
-  .hero-title .infodot-pop, .cover-eyebrow .infodot-pop { left: 0; right: 0; width: auto; max-width: none; }
+  .cover-eyebrow .infodot-pop { left: 0; right: 0; width: auto; max-width: none; }
 
   /* one scroll surface: stop the page rubber-banding the whole document when an
      inner list reaches its end */
   html, body { overscroll-behavior-y: none; }
+
+  /* the month keeps its seven columns and thumbs sideways inside `.cal-scroll`
+     (see the base rule for why it is not collapsed into a list here) */
+  .cal-dow, .cal-grid { min-width: 566px; }
+  .cal-cell { min-height: 84px; }
+  /* ...and the header above it stacks. Title beside a count beside two scope
+     buttons is ~416px of max-content, and a flex row of them does not shrink —
+     the same thing the topbar and every filter row were caught doing. */
+  .cal-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .cal-headr { justify-content: space-between; }
 
   /* ── cost ──────────────────────────────────────────────────────────────
      Two stacked backdrop-filters over a full-width blur are the most expensive
@@ -2831,10 +2783,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   /* ── things that were clipping ─────────────────────────────────────────── */
   /* "TO NEXT EXTREME" ran off the third KPI; the labels wrap rather than the
      tile growing, so the three stay on one row */
-  .hero-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
-  .hero-kpi { min-width: 0; }
-  .hero-kpi-k { white-space: normal; line-height: 1.25; }
-  .hero-kpi-v { font-size: var(--fs-figure); }
+
   /* a date is one token — breaking "2026-07-08" across two lines reads as two */
   .statcell .val { white-space: nowrap; font-size: var(--fs-figure); }
 
@@ -2869,7 +2818,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
    otherwise, and the tab bar has to stay reachable. */
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
   .hero { padding: 10px 0 8px; }
-  .hero-title { font-size: var(--fs-figure); }
+
 }
 
 /* Playbook sizing: the stop-basis picker sits inline with the account inputs */
@@ -3147,7 +3096,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
    at 11px an O and a 0 are the same shape otherwise. Only selectors that exist
    in this app — the handoff also lists `.mh-val`, `.radar-count`, `.vix-val`
    and `.pb-shares`, none of which are class names here. */
-.cs-score, .hero-kpi b, .pf-risk-v, .statcell .val, .mh-trend-v, .vol-tv {
+.cs-score, .pf-risk-v, .statcell .val, .mh-trend-v, .vol-tv {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "zero" 1;

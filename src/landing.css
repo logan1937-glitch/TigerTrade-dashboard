@@ -9,11 +9,18 @@
 .lp { padding-bottom: 0; }
 .lp .topbar { position: sticky; top: 0; }
 
-/* the topbar's four links. Hidden ≤640px for the reason the product's own
-   topbar hides its pills: six controls in a 390px bar leaves the primary CTA
-   clipped, and a control you cannot hit does not exist */
-.lp-nav { display: flex; gap: 26px; font-size: var(--fs-body); color: var(--muted); }
-.lp-nav a { color: inherit; text-decoration: none; transition: color .15s ease-out; }
+/* The topbar's four links. Hidden ≤880px — where the page already goes
+   single-column — for the reason the product's own topbar hides its pills: a
+   control you cannot hit does not exist. It used to hide at 640, and between
+   there and ~1050 the header carried the mark, four links and the CTA at 727px
+   of max-content against a 700px viewport, so the LANDING PAGE slid sideways.
+   `min-width: 0` plus a scroll strip is the belt to that braces: a flex item is
+   under no obligation to shrink below max-content, so a fifth link added later
+   cannot drag the page again. */
+.lp-nav { display: flex; gap: 26px; font-size: var(--fs-body); color: var(--muted);
+  min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.lp-nav::-webkit-scrollbar { display: none; }
+.lp-nav a { color: inherit; text-decoration: none; white-space: nowrap; transition: color .15s ease-out; }
 .lp-nav a:hover { color: var(--text); }
 
 /* ---- buttons ------------------------------------------------
@@ -208,6 +215,7 @@
   .lp-h1 { font-size: 44px; }
 }
 @media (max-width: 880px) {
+  .lp-nav { display: none; }
   .lp-products { grid-template-columns: 1fr; }
   .lp-prod { padding: 34px 0 38px; }
   .lp-products { background: transparent; border-block: 0; }
@@ -221,7 +229,6 @@
   .lp-cta { padding: 48px 0; }
 }
 @media (max-width: 640px) {
-  .lp-nav { display: none; }
   .lp-not-grid { grid-template-columns: 1fr; }
   /* The panel keeps its right bleed on a phone, but a 544px row inside a 390px
      viewport clips the Score column off — and Score is the payoff, including the

@@ -60,6 +60,12 @@ export function CalendarView({ rows = [], onOpenStock }) {
           </div>
         </div>
       </div>
+      {/* ONE SCROLL STRIP AROUND BOTH GRIDS. A month IS a seven-column shape —
+          that is the whole reason this view exists beside the Timeline, which is
+          already the list rendering of the same events — so on a phone it scrolls
+          rather than collapsing. The day labels have to live inside the same
+          scroller as the cells or they desync from the columns they name. */}
+      <div className="cal-scroll">
       <div className="cal-dow">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <span key={d}>{d}</span>)}
       </div>
@@ -90,6 +96,7 @@ export function CalendarView({ rows = [], onOpenStock }) {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

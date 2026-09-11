@@ -406,7 +406,19 @@ export function InfoDot({ text }) {
 }
 
 /* ------------------------------- HERO ------------------------------ */
-export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro, vix, settled }) {
+/* THE COVER IS SHARED CONTEXT; THE THREE-PANEL BOARD IS THE RADAR'S OWN VIEW.
+   `Hero` rendered both above all four radar tabs, and the board is 676px at
+   1500 and 1228px on a phone — so clicking Calendar put its grid at y=1248,
+   and at y=2326 on a phone. You asked for a month and got 1.4 screens of the
+   Radar first, on a nine-hundred-pixel screen.
+
+   The cover stays everywhere: which catalyst is next, how long you have, and
+   five facts is the "calm top" the whole layout thesis is built on, and it is
+   the same question every radar view is asking. The queue, the macro board and
+   the VIX panel are what the Radar tab IS — the queue especially, which exists
+   because it is the one thing that view shows and nothing else does. Rendering
+   a view's own board above three sibling views makes the tabs look decorative. */
+export function Hero({ events, onSelectEvent, activeId, board, showBoards, live, macro, vix, settled }) {
   const ref = useRef(null);
   const onMove = (e) => {
     const el = ref.current; if (!el) return;
@@ -487,6 +499,7 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
       </div>
     </div>
 
+    {board && (
     <div className="hero hero-cover" ref={ref} onMouseMove={onMove}>
       <div className="wrap hero-row">
         <div className="hero-left">
@@ -533,6 +546,7 @@ export function Hero({ events, onSelectEvent, activeId, showBoards, live, macro,
         )}
       </div>
     </div>
+    )}
     </>
   );
 }

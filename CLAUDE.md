@@ -259,6 +259,17 @@ is the documented opt-in for `--label-case`** — currently unused on purpose, a
 it must stay, because without the hatch the next person who needs one caps label
 will write `text-transform: uppercase` and break the token.
 
+**Re-run since, and it paid again: 21 more dead names, 43 rules, 4.5KB** — the
+whole pre-`.cover` hero (`.hero-title`, `.hero-eyebrow`, `.hero-meta`, the
+`.hero-kpi*` cluster) and every rule of the deleted `.hero-next` card, plus
+`.statstrip-card`. Two things that pass only make it out by hand: **a rule whose
+selector list is PART dead gets trimmed, not deleted** — `.hero-title,
+.cover-eyebrow { position: relative }` is the InfoDot anchor and dropping it
+whole would un-anchor the tooltip and slide the page sideways again — and **a
+comment orphaned by its rule goes with it**, or the file fills up with paragraphs
+explaining code that is not there. The sweep now reports exactly the three
+documented survivors, which is what "clean" looks like.
+
 **CASE IS A TOKEN, and the default is sentence case.** Seventy-one rules set
 `text-transform: uppercase` — every field label, column header, stat caption, the
 subnav, the filter chips — so about fifteen tracked all-caps strings shared one
@@ -487,6 +498,22 @@ exactly, and two of `RiskSpectrum`'s three cells (implied move and vol regime
 are cover facts now). Liquidity was the third and is not lost: the 2Y yield sits
 in the macro board in the same view. The left panel is the QUEUE now — the next
 eight catalysts — which is the one thing on that view nothing else shows.
+
+**THE COVER RIDES EVERY RADAR VIEW; THE THREE-PANEL BOARD IS THE RADAR TAB'S OWN
+CONTENT.** `Hero` renders both, and it used to render both above all four radar
+tabs — so the queue, the macro board and the VIX panel sat in front of Full
+Timeline, Calendar and Volume. Measured on a 900-tall viewport: that board is
+676px at 1500 and **1228px at 390**, which put the Calendar's own grid at
+**y=1248** and, on a phone, at **y=2326**. You clicked Calendar and got 1.4
+screens of the Radar before the month. `Hero` takes a `board` prop now
+(`board={radarTab === "radar"}`) and the calendar starts at y=572 / y=1097.
+
+The split is not arbitrary. The cover — which catalyst is next, how long you
+have, five supporting facts — is the "calm top" the whole layout thesis is built
+on and it is the same question all four views ask, so it stays everywhere. The
+queue is explicitly *the one thing the Radar view shows that nothing else does*;
+a view's own board rendered above three sibling views makes the tabs look
+decorative. **Anything added to `Hero` has to pick a side.**
 
 Two traps that conversion hit:
 
@@ -868,6 +895,33 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   the same treatment `.seg` gets on the filter rows. Measure with the loop in
   **Verifying UI changes**, not by eye — a screenshot taken before anything
   scrolls the page looks perfect.
+  **And the LANDING PAGE has its own copy of this header**, which was caught the
+  same way: `.lp-nav` hid at ≤640, so from there to ~1050 the mark, four links
+  and the CTA came to 727px of max-content against a **700px** viewport. It hides
+  at ≤880 now — where the page already goes single-column — *and* carries
+  `min-width: 0` with a scroll strip, so a fifth link cannot re-break it.
+- **`overflow: hidden` CLIPS THE PAINT; IT DOES NOT LOWER MIN-CONTENT.** `1fr` is
+  `minmax(auto, 1fr)`, and that `auto` is the track's min-content — so a
+  `white-space: nowrap` child sets the floor no matter how thoroughly it is
+  clipped. The Calendar's `.cal-ev` is nowrap-plus-ellipsis, and a long release
+  title pushed its column out until the seven tracks measured **648px against a
+  390px viewport**. `min-width: 0` on the grid item is what makes an ellipsis
+  actually reachable. The header above it was the flex trap in the same view:
+  title, count and two scope buttons at ~416px of max-content.
+- **`StatStrip` is five facts, so it stays five columns.** Below 940px it wrapped
+  to 2-up, which is three rows and ~330px of shared chrome above every radar
+  view — on exactly the screens with the least height to spare, and against a
+  layout thesis that specifies a *row* of supporting facts. It is
+  `repeat(5, minmax(150px, 1fr))` with a 750px floor now: that fits outright down
+  to ~806px and thumbs sideways below, for ~110px. **The scroll sits on the inner
+  `.wrap`**, not on `.statstrip` — the strip is full-bleed, and scrolling the
+  outer box would drag the page gutter away at both ends of the travel.
+- **A month is a SHAPE, so the Calendar scrolls rather than collapsing.** Both
+  grids live inside one `.cal-scroll` — the day labels have to be in the same
+  scroller as the cells or they desync from the columns they name — with a 566px
+  `min-width` on the phone only. It is deliberately not re-rendered as a list:
+  the Full Timeline tab is already the list rendering of exactly these events,
+  and a second one would delete the only thing the Calendar adds.
 - **A de-collision gap in viewBox units is not a gap in pixels**, and the plot's
   width is not a constant. The RRG's `GAP` spaces label chips that render at a
   fixed px size, so it is derived from the plot's **measured** width and the
