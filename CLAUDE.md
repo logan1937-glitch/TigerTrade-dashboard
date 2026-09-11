@@ -235,7 +235,9 @@ each feature degrades to a stated-unavailable state without its key.
 `tt_custom`, `tt_disclaimer_ack_v1`, and the Playbook's `tt_pb_filters`,
 `tt_pb_sort`, `tt_pb_seen` (the explainer auto-opens on the first visit only),
 `tt_pb_risk` (account size + risk % for sizing) and `tt_pb_basis` (which stop
-the sizing box divides by), the portfolio's `tt_pf_sort`, plus `tt_pf_atr` — the ATR multiple, **shared** by
+the sizing box divides by), the portfolio's `tt_pf_sort`, the calendar's
+`tt_cal_scope` (universe or your own names — **defaults to the universe**, see
+the Calendar note below), plus `tt_pf_atr` — the ATR multiple, **shared** by
 the portfolio's trailing-stop column and the Playbook's sizing box on purpose,
 so a position sized in one is monitored on the same number in the other.
 
@@ -951,6 +953,30 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   to ~806px and thumbs sideways below, for ~110px. **The scroll sits on the inner
   `.wrap`**, not on `.statstrip` — the strip is full-bleed, and scrolling the
   outer box would drag the page gutter away at both ends of the travel.
+- **THE CALENDAR OPENS ON THE UNIVERSE** (`tt_cal_scope`, default `"all"`). It
+  defaulted to "your names" so the S&P 500 would not bury the catalysts — but
+  every `tt_*` key is on-device, so a first-time visitor holds nothing and
+  watches nothing, and met a month of empty cells. **A calendar showing nothing
+  looks broken rather than looks empty**, and it hid that the grid carries real
+  report dates at all. The burying is handled where it belongs instead: macro
+  chips render before the tickers in every cell, and `CAL_MAX` folds the rest
+  behind a `+N`. The choice persists, so narrowing to your own book is a decision
+  you make once rather than one made for you before you have a book.
+- **A macro release and a company reporting are different things, so they are
+  drawn differently.** `.cal-ern` used to carry `.cal-ev` as well — same mono
+  face, same tint, same 2px left rule — and once every category token resolved to
+  `--dim` there was nothing left to separate "CPI" from "KGC" in a cell. Macro
+  stays a stacked full-width chip (this is a catalyst product; it is the
+  headline); reports are a **wrapped row of small pills**, which also lets a peak
+  earnings day hold a dozen names without pushing the macro release out of view.
+  Dropping the shared class removed three `!important`s. The `+N` is a **button**
+  that expands the day, not a `div` with a `title` — the overflow is the common
+  case now and a title is mouse-only.
+- **The fixture spaced every name's report three days apart**, so no cell ever
+  held two and the wrap and `+N` could not appear in a shot — the under-varying
+  fixture trap again. Every seventh name lands on one peak day now (six against a
+  `CAL_MAX` of four) and the rest keep the spread the drawer's countdown and the
+  Playbook's blackout chip are shot against.
 - **A month is a SHAPE, so the Calendar scrolls rather than collapsing.** Both
   grids live inside one `.cal-scroll` — the day labels have to be in the same
   scroller as the cells or they desync from the columns they name — with a 566px

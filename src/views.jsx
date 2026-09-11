@@ -1,18 +1,33 @@
 import { useMemo, useState } from "react";
 import { TT } from "./tt.js";
 import { SEV_LABEL } from "./components.jsx";
+import { useStored } from "./store.js";
 
-const CAL_MAX = 4;   // ticker chips per day before the rest collapse into a count
+const CAL_MAX = 4;   // ticker pills shown per day before the rest fold behind a "+N"
 
 /* ---------------------------- CALENDAR -----------------------------
    The macro catalysts this product tracks are only half of what moves a book in
    a given week — the other half is the earnings the tracked universe is about to
-   report. Both now sit in the same month grid: scheduled catalysts first, then
-   report dates, scoped to your own names by default because the full S&P 500
-   would bury the catalysts the calendar exists to show. */
+   report. Both sit in the same month grid: scheduled catalysts first, then
+   report dates.
+
+   THE UNIVERSE IS THE DEFAULT. It used to open on "your names", to keep the full
+   S&P 500 from burying the catalysts — but every `tt_*` key is on-device, so a
+   first-time visitor holds nothing and watches nothing, and the view they met
+   was a month of empty cells. A calendar showing nothing looks broken rather
+   than looks empty, and it hid the fact that this grid carries real report dates
+   at all. The burying it was guarding against is already handled where it
+   belongs: macro events render before the tickers in every cell, and `CAL_MAX`
+   caps the chips per day with the rest collapsing into a count.
+
+   The choice persists, so narrowing to your own book is a decision you make once
+   rather than one made for you before you have a book. */
 export function CalendarView({ rows = [], onOpenStock }) {
   const m = TT.MONTH;
-  const [scope, setScope] = useState("yours");
+  const [scope, setScope] = useStored("tt_cal_scope", "all");
+  // which day is expanded past CAL_MAX — render-local, never persisted: it is a
+  // position in this month's grid, not an identity
+  const [openDay, setOpenDay] = useState(null);
   const cells = [];
   for (let i = 0; i < m.firstDow; i++) cells.push({ out: true, num: 0 });
   for (let d = 1; d <= m.days; d++) cells.push({ out: false, num: d });
@@ -80,21 +95,49 @@ export function CalendarView({ rows = [], onOpenStock }) {
             <div className="cal-cell" key={i} data-out={c.out || undefined} data-today={(!c.out && c.num === m.today) || undefined}>
               {!c.out && <div className="cal-num">{String(c.num).padStart(2, "0")}</div>}
               {evs.map((e, j) => (
-                <div className="cal-ev" key={j} style={{ "--c": TT.CAT_MAP[e.cat].color }}>{e.t}</div>
+                /* the chip ellipsises inside a 74px phone cell, and it carried
+                   no title — so "Retail Sales" read as "Reta…" with no way to
+                   find out what it was */
+                <div className="cal-ev" key={j} style={{ "--c": TT.CAT_MAP[e.cat].color }}
+                  title={`${e.t}${TT.CAT_MAP[e.cat] ? ` · ${TT.CAT_MAP[e.cat].label}` : ""}`}>{e.t}</div>
               ))}
-              {(!c.out ? (byDay[c.num] || []).slice(0, CAL_MAX) : []).map((r) => (
-                <button className="cal-ev cal-ern" key={"e" + r.tk} data-mine={(r.held || r.mine) || undefined}
-                  onClick={() => onOpenStock && onOpenStock({ tk: r.tk })}
-                  title={`${r.tk}${r.name && r.name !== r.tk ? ` — ${r.name}` : ""} reports`
-                    + `${r.time === "bmo" ? " before the open" : r.time === "amc" ? " after the close" : ""}`
-                    + `${r.mine ? " on the date you set" : r.est ? " (projected date — not yet confirmed)" : ""}`
-                    + `${r.held ? " · your position" : r.watched ? " · on your watchlist" : ""} — open full analysis`}>
-                  {r.tk}{(r.held || r.mine) && <span className="cal-ern-d">◆</span>}
-                </button>
-              ))}
-              {!c.out && (byDay[c.num] || []).length > CAL_MAX && (
-                <div className="cal-more mono" title={(byDay[c.num] || []).slice(CAL_MAX).map((r) => r.tk).join(", ")}>
-                  +{(byDay[c.num] || []).length - CAL_MAX} more
+              {/* TWO DIFFERENT KINDS OF THING, DRAWN DIFFERENTLY. A scheduled
+                  macro release and a company reporting were both `.cal-ev`
+                  chips — same face, same tint, same left rule — and since the
+                  event categories all resolved to `--dim`, "CPI" and "KGC" sat
+                  in a cell looking like the same object. That was survivable
+                  while the calendar opened on your own handful of names; with
+                  the universe as the default it is the common case.
+
+                  The macro chips stay stacked above, because this is a
+                  catalyst product and they are the headline. Reports become a
+                  WRAPPED ROW of symbol pills, which reads as a list of tickers
+                  rather than as more events, and which scales: a heavy day in
+                  earnings season is a dozen names, and a dozen stacked chips
+                  would push the macro release out of the visible cell. */}
+              {!c.out && (byDay[c.num] || []).length > 0 && (
+                <div className="cal-erns">
+                  {(byDay[c.num] || []).slice(0, openDay === c.num ? Infinity : CAL_MAX).map((r) => (
+                    <button className="cal-ern mono" key={"e" + r.tk} data-mine={(r.held || r.mine) || undefined}
+                      onClick={() => onOpenStock && onOpenStock({ tk: r.tk })}
+                      title={`${r.tk}${r.name && r.name !== r.tk ? ` — ${r.name}` : ""} reports`
+                        + `${r.time === "bmo" ? " before the open" : r.time === "amc" ? " after the close" : ""}`
+                        + `${r.mine ? " on the date you set" : r.est ? " (projected date — not yet confirmed)" : ""}`
+                        + `${r.held ? " · your position" : r.watched ? " · on your watchlist" : ""} — open full analysis`}>
+                      {r.tk}{(r.held || r.mine) && <span className="cal-ern-d">◆</span>}
+                    </button>
+                  ))}
+                  {(byDay[c.num] || []).length > CAL_MAX && (
+                    /* a BUTTON, not a div with a title. The overflow is the
+                       common case now, and a `title` is mouse-only — the same
+                       reason the glossary term is a button. It expands the day
+                       in place rather than hiding the rest in a tooltip. */
+                    <button className="cal-more mono" onClick={() => setOpenDay(openDay === c.num ? null : c.num)}
+                      aria-expanded={openDay === c.num}
+                      title={openDay === c.num ? "Show fewer" : `Show all ${(byDay[c.num] || []).length} reports`}>
+                      {openDay === c.num ? "less" : `+${(byDay[c.num] || []).length - CAL_MAX}`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

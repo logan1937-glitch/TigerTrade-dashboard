@@ -1661,17 +1661,27 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 /* an earnings chip is a button now — it opens the name's full analysis. Names
    you hold or dated yourself keep the solid accent; the rest of the universe
    reads one step back so the catalysts above them stay legible. */
-.cal-ern { border: 0; border-left: 2px solid var(--border-2) !important; font-family: var(--font-mono);
-  color: var(--muted);
-  background: color-mix(in oklch, var(--text) 5%, transparent) !important; font-weight: 600;
-  display: flex; align-items: center; justify-content: space-between; gap: 4px;
-  width: 100%; text-align: left; cursor: pointer; transition: background .13s ease, color .13s ease; }
-.cal-ern[data-mine] { color: var(--text); font-weight: 700;
-  background: color-mix(in oklch, var(--text) 12%, transparent) !important; }
-.cal-ern:hover { color: var(--text);
-  background: color-mix(in oklch, var(--text) 18%, transparent) !important; }
+/* REPORTS ARE A ROW OF SYMBOLS, not more event chips. `.cal-ern` used to carry
+   `.cal-ev` too, so a company reporting and a scheduled macro release were the
+   same object — same mono face, same tint, same 2px left rule — and with every
+   category token resolving to `--dim` there was nothing left to tell them apart.
+   The pills wrap instead of stacking, which is also what lets a heavy earnings
+   day hold a dozen names without pushing the macro release out of the cell.
+   Dropping `.cal-ev` is what removed three `!important`s from these rules. */
+.cal-erns { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 1px; }
+.cal-ern { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; line-height: 1;
+  color: var(--muted); background: color-mix(in oklch, var(--text) 6%, transparent);
+  border: 1px solid transparent; border-radius: var(--radius-chip); padding: 3px 5px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 3px; }
+.cal-ern[data-mine] { color: var(--text); font-weight: 700; border-color: var(--border-2);
+  background: color-mix(in oklch, var(--text) 12%, transparent); }
+.cal-ern:hover, .cal-ern:focus-visible { color: var(--text); outline: none;
+  border-color: var(--accent); background: color-mix(in oklch, var(--accent) 16%, transparent); }
 .cal-ern-d { font-size: 7px /* inside a fixed calendar cell — exempt */; opacity: .8; }
-.cal-more { font-size: var(--fs-micro); color: var(--dim); padding: 0 6px; cursor: default; }
+.cal-more { font-family: var(--font-mono); font-size: var(--fs-micro); font-weight: 600; line-height: 1;
+  color: var(--dim); background: none; border: 1px dashed var(--border-2); border-radius: var(--radius-chip);
+  padding: 3px 5px; cursor: pointer; }
+.cal-more:hover, .cal-more:focus-visible { color: var(--text); border-color: var(--accent); outline: none; }
 .cal-headr { display: flex; align-items: center; gap: 14px; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 /* the reports figure is the one number in this line worth picking out, and it is
    a count — so it gets weight and the plain ink, never a hue */

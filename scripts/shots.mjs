@@ -292,7 +292,14 @@ function nameRecord(t, i, idx) {
     const si = i % FIX_SECTORS.length;
     const sec = FIX_SECTORS[si];
     meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][i % sec[1].length], idx };
-    earnings[t] = { d: day(2 + i * 3), t: i % 2 ? "amc" : "bmo", last: null };
+    /* REAL EARNINGS CLUSTER, and a fixture that spaced every name three days
+       apart never put two reports in one calendar cell — so the Calendar's
+       wrapped pill row and its "+N" expander, which are the states the universe
+       default makes normal, could not appear in a shot. Every seventh name lands
+       on the same peak day (six of them, against a CAL_MAX of four) and the rest
+       keep the spread the drawer's "reports in N days" and the Playbook's
+       blackout chip are shot against. */
+    earnings[t] = { d: i % 7 === 0 ? day(5) : day(2 + i * 3), t: i % 2 ? "amc" : "bmo", last: null };
     sig[t] = {
       stage: 2, stageLabel: "Advancing", off52: (i % 9) + 1, atHigh: i % 4 === 0, ret12m: 15 + i * 6,
       rsNewHigh: i % 3 === 0, rsLeads: i % 5 === 0, adrPct: 2.4, dollarVol: 9e8, distDays: i % 4,
