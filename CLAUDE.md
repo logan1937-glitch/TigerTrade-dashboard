@@ -907,8 +907,17 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   search only **dims**: removing non-matches re-runs squarify and reshapes the
   map on every keystroke, so the name you were hunting would move while you typed
   for it. They live in the heatmap's own row, not the view's shared filter row —
-  that one's Window control drives every panel on the page. `.seg` brings the
-  scroll strip, because eleven pills plus a search box is well past 390px.
+  that one's Window control drives every panel on the page.
+- **AND THAT PILL ROW NEEDED AN UNCONDITIONAL SCROLL STRIP, not a phone-scoped
+  one.** `.filters .seg` arms `overflow-x: auto` only under 640px, which is right
+  for four or five chips — but eleven sector names plus "All sectors" is ~1,400px
+  of max-content, so the row fits at NO viewport this app targets. A flex item
+  does not shrink below max-content, so it dragged the document sideways at 390,
+  700, 940 **and** 1200 — measured at 1450 against a 1200 viewport, on every view
+  that renders the map, including `rrgpin`. `.mm-heat-secs` carries its own strip
+  at all widths, the treatment `.nav-pills` needed for the same reason. Reaching
+  for the existing `.seg` class is not the same as reaching for its behaviour:
+  **check which media block the behaviour lives in.**
 - **The 2024 Map-tab handoff was mostly already built**, and the parts declined
   are worth recording: its header/nav/live-pill would be a second copy of the
   shell; its 372px asset panel and "Trade {TICKER}" CTA would be a fourth detail

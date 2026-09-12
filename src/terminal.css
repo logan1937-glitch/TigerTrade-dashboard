@@ -1894,7 +1894,17 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .mm-heat-find input:focus { outline: none; border-color: var(--accent); }
 .mm-heat-find input::placeholder { color: var(--dim); }
-.mm-heat-secs { min-width: 0; }
+/* THE SCROLL STRIP IS UNCONDITIONAL HERE, not phone-scoped. The `.filters .seg`
+   rule only arms it under 640px, which is right for four or five chips — but
+   eleven sector names plus "All sectors" is ~1,400px of max-content, so this row
+   never fits at any viewport this app targets. A flex item does not shrink below
+   max-content, so without this the row dragged the whole document sideways at
+   390, 700, 940 AND 1200 — measured at 1450 against a 1200 viewport, on every
+   view that renders the map. Same treatment `.nav-pills` needed for the same
+   reason. */
+.mm-heat-secs { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.mm-heat-secs::-webkit-scrollbar { display: none; }
+.mm-heat-secs .seg-btn { flex: 0 0 auto; white-space: nowrap; }
 
 /* SEARCH DIMS, IT DOES NOT REMOVE. Filtering the tiles out would re-run squarify
    and reshape the whole map on every keystroke, so the name you were hunting for
