@@ -601,14 +601,82 @@ function squarify(children, X, Y, Wd, Ht) {
   return out;
 }
 
+/* THE HEAT SCALE IS FIXED PER WINDOW, not normalised to whatever is on screen.
+
+   It was `maxAbs` — the largest absolute move in the visible set — so a −1% tile
+   was a different colour depending on the loudest mover that day, and changing
+   the window or the sector filter recoloured every tile in the map without any
+   of them having moved. A colour that means something different each time you
+   look at it is not a reading, and the whole point of a heatmap is that the
+   shade IS the number.
+
+   The clamps are roughly 1.5σ for each window — a typical 1.8% daily vol scaled
+   by √time over 5 / 21 / 63 sessions — so most names land inside the ramp and
+   only genuine outliers saturate. `^0.85` lifts small moves off the floor
+   without letting a −0.4% tile pass for a −4% one, which is the failure mode
+   worth avoiding: a saturated tile that has not actually moved misreads the
+   tape. The legend under the map draws this same function, so the scale on
+   screen is never different from the one being explained — the same rule the
+   Playbook's EMA ribbon is built on.
+
+   UNMEASURED IS NOT FLAT. A name whose return this window cannot be computed
+   used to take the identical neutral tint as one that genuinely did not move,
+   which states "unchanged" about something we did not measure. It gets no fill
+   and a dashed ring instead, and says so on hover. */
+const HEAT_CLAMP = { "1W": 6, "1M": 12, "3M": 20 };
+const HEAT_GAMMA = 0.85;
+const heatOf = (chg, tf) => {
+  const clamp = HEAT_CLAMP[tf] || 12;
+  if (chg == null || !Number.isFinite(chg)) return null;            // unmeasured
+  if (Math.abs(chg) < clamp * 0.033) return { t: 0, up: null };     // flat
+  return { t: Math.pow(Math.min(Math.abs(chg), clamp) / clamp, HEAT_GAMMA), up: chg >= 0 };
+};
+/* 8%→44% of the P&L token over the panel surface. The ceiling is deliberate:
+   tile labels are `--text` over this fill, and a ramp run to the pure token
+   would not clear 4.5:1 at the extremes. */
+const heatFill = (h) => (h == null ? "var(--surface)"
+  : h.up == null ? "color-mix(in oklch, var(--text) 5%, var(--surface))"
+  : `color-mix(in oklch, ${h.up ? "var(--pl-up)" : "var(--pl-down)"} ${Math.round(8 + h.t * 36)}%, var(--surface))`);
+
+/* The ramp, drawn from the SAME function the tiles use. The map explained its
+   colours in a sentence and nothing on screen said what a given shade was worth;
+   nine swatches and two end labels make the scale legible without reading. */
+function HeatLegend({ tf }) {
+  const clamp = HEAT_CLAMP[tf] || 12;
+  const stops = [-4, -3, -2, -1, 0, 1, 2, 3, 4].map((i) => (i / 4) * clamp);
+  return (
+    <div className="mm-legend" aria-hidden="true">
+      <span className="mm-legend-e mono">−{clamp}%</span>
+      <span className="mm-legend-ramp">
+        {stops.map((v, i) => (
+          <i key={i} style={{ background: heatFill(heatOf(v, tf)) }} />
+        ))}
+      </span>
+      <span className="mm-legend-e mono">+{clamp}%</span>
+    </div>
+  );
+}
+
 /* The cap is a legibility budget, not a data limit. 80 tiles in a 1,000px map is
    ~8,000px² each and reads fine; the same 80 in a phone's 358×344 box is 1,500px²,
    which is smaller than the word it would have to hold. The note under the map
    states the count either way, so cutting it on a phone is a stated narrowing
    rather than a silent one. */
 const MAP_W = 100, MAP_H = 62, MAP_CAP = 80, MAP_CAP_NARROW = 34;
-function MarketHeatmap({ rows, tf, onOpenStock }) {
+function MarketHeatmap({ rows, tf, onOpenStock, order }) {
   const narrow = useNarrow();
+  /* TWO CONTROLS, AND THEY DO DIFFERENT THINGS ON PURPOSE.
+
+     The sector pick FILTERS — it changes what is laid out, which is the point:
+     the map is capped at 80 tiles for legibility, so picking one sector spends
+     the whole budget on it and you see names the all-sector view had to drop.
+
+     The search only DIMS. Removing the non-matches would re-run squarify and
+     reshape the entire map on every keystroke, so the thing you were looking
+     for would move while you typed for it. Dimming leaves every tile where it
+     is and lets you find the name by position. */
+  const [sector, setSector] = useState("All");
+  const [q, setQ] = useState("");
   /* Measured, because the label decision is a PIXEL question and every input to
      it was a percentage. `showTk` asked whether a tile was 3.4% of the map wide —
      which is 34px on a desktop and 12px on a phone, and 12px of a 4-letter ticker
@@ -629,7 +697,8 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
   }, []);
 
   const built = useMemo(() => {
-    let names = rows.filter((r) => r.sig && r.sig.dollarVol > 0 && r.sector && r.sector !== "Custom");
+    const all = rows.filter((r) => r.sig && r.sig.dollarVol > 0 && r.sector && r.sector !== "Custom");
+    let names = sector === "All" ? all : all.filter((r) => r.sector === sector);
     const total = names.length;
     // keep the most-traded names so tiles stay legible; note the rest honestly
     const cap = narrow ? MAP_CAP_NARROW : MAP_CAP;
@@ -640,7 +709,22 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
     const sectors = Object.entries(by).map(([sector, list]) => ({
       sector, value: list.reduce((s, r) => s + (r.sig.dollarVol || 0), 0), list,
     }));
-    const sectorRects = squarify(scaleToArea(sectors, MAP_W * MAP_H), 0, 0, MAP_W, MAP_H);
+    /* SECTOR PLACEMENT IS STABLE, because squarify sorts by area and the sector
+       blocks were therefore re-ordered every time the window changed or a name
+       moved between them. A map you have to re-find your way around on every
+       interaction is a picture rather than an instrument — and the thing a
+       treemap is read for is "what changed", which needs the parts that did not
+       change to stay put. `order` is the server's own sector list (the SPDR
+       tracker's, off `sectors.rows`), so the two cannot drift; anything not in
+       it keeps its size rank at the end. `scaleToArea` re-sorts, so the sector
+       rects are laid out by hand in that order instead. */
+    const rank = new Map((order || []).map((n, i) => [n, i]));
+    const ordered = [...sectors].sort((a, b) =>
+      (rank.has(a.sector) ? rank.get(a.sector) : 900 + 1 / (a.value || 1))
+      - (rank.has(b.sector) ? rank.get(b.sector) : 900 + 1 / (b.value || 1)));
+    const totalV = ordered.reduce((n, x) => n + x.value, 0) || 1;
+    const k = (MAP_W * MAP_H) / totalV;
+    const sectorRects = squarify(ordered.map((x) => ({ ...x, area: x.value * k })), 0, 0, MAP_W, MAP_H);
     const groups = [], tiles = [];
     for (const sr of sectorRects) {
       groups.push({ sector: sr.sector, x: sr.x, y: sr.y, w: sr.w, h: sr.h, n: sr.list.length });
@@ -652,11 +736,20 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
         tiles.push({ r: nr.r, x: nr.x, y: nr.y, w: nr.w, h: nr.h, chg: ret(nr.r, tf) });
       }
     }
-    return { groups, tiles, shown: names.length, total };
-  }, [rows, tf, narrow]);
+    // breadth of what is ACTUALLY DRAWN, which is not the same as the universe's
+    // — the map is capped and filtered, so it says so rather than borrowing
+    // Market Health's number, which is measured on the whole core universe
+    let adv = 0, dec = 0, flat = 0;
+    for (const t of tiles) {
+      const h = heatOf(t.chg, tf);
+      if (h == null) continue;
+      if (h.up == null) flat++; else if (h.up) adv++; else dec++;
+    }
+    return { groups, tiles, shown: names.length, total, adv, dec, flat,
+      sectors: [...new Set(all.map((r) => r.sector))] };
+  }, [rows, tf, narrow, order, sector]);
 
   if (!built) return <div className="empty">Waiting for live data…</div>;
-  const maxAbs = Math.max(2, ...built.tiles.map((t) => (t.chg != null ? Math.abs(t.chg) : 0)));
   // normalize each axis to its own extent so the treemap fills the container on
   // BOTH axes (the layout space is MAP_W×MAP_H; y was previously left at ~62%)
   const px = (v) => `${(v / MAP_W) * 100}%`;
@@ -666,8 +759,34 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
      bare tiles beats a frame of tickers clipped into different tickers. */
   const cqw = box ? box.w / 100 : 0;
 
+  const ql = q.trim().toLowerCase();
+  const hit = (r) => !ql || (r.tk + " " + (r.name || "")).toLowerCase().includes(ql);
+  const nHit = ql ? built.tiles.filter((t) => hit(t.r)).length : null;
+  // the server's order where we have it, so the pills read in the same sequence
+  // the blocks are laid out in and the ETF table lists them
+  const pills = (order || []).filter((n) => built.sectors.includes(n))
+    .concat(built.sectors.filter((n) => !(order || []).includes(n)).sort());
+
   return (
     <>
+      {/* `.seg` carries the scroll strip every filter row in this app needs: a
+          flex item does not shrink below max-content, and eleven sector pills
+          plus a search box is well past a 390px viewport. */}
+      <div className="mm-heat-ctl">
+        <label className="mm-heat-find">
+          <SearchIcon />
+          <input className="mono" type="search" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="find a name…" aria-label="Dim tiles that do not match" />
+        </label>
+        <span className="seg mm-heat-secs">
+          <button className="seg-btn" data-active={sector === "All" || undefined}
+            onClick={() => setSector("All")}>All sectors</button>
+          {pills.map((n) => (
+            <button key={n} className="seg-btn" data-active={sector === n || undefined}
+              onClick={() => setSector(sector === n ? "All" : n)}>{n}</button>
+          ))}
+        </span>
+      </div>
       <div className="mm-heat" role="img" aria-label="Market heatmap — tile size by dollar volume, color by return">
         <div className="mm-heat-inner" ref={boxRef}>
           {built.groups.map((g) => (
@@ -678,13 +797,8 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
           ))}
           {built.tiles.map((t) => {
             const up = t.chg != null && t.chg >= 0;
-            // diverging scale with a true NEUTRAL midpoint: a ±0.2% move is noise,
-            // not polarity — it gets a quiet neutral tint instead of a green/red one
-            const flat = t.chg == null || Math.abs(t.chg) < 0.2;
-            const alpha = flat ? 0 : Math.min(0.44, 0.08 + (Math.abs(t.chg) / maxAbs) * 0.36);
-            const fill = flat
-              ? "color-mix(in oklch, var(--text) 5%, var(--surface))"
-              : `color-mix(in oklch, ${up ? "var(--pl-up)" : "var(--pl-down)"} ${Math.round(alpha * 100)}%, var(--surface))`;
+            const heat = heatOf(t.chg, tf);        // null = unmeasured, not flat
+            const fill = heatFill(heat);
             /* Type scaled to the TILE, which is the whole difference between a
                treemap and a grid of coloured rectangles. A fixed 10.5px ticker
                gave the largest holding in the market the same label as a sliver,
@@ -720,8 +834,12 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
             const showPct = showTk && pctPx >= 8;
             const tkSize = `${tkPx.toFixed(2)}px`, pctSize = `${pctPx.toFixed(2)}px`;
             return (
-              <button key={t.r.tk} className="mm-heat-tile" onClick={() => onOpenStock({ tk: t.r.tk })}
-                title={`${t.r.tk} · ${t.r.sector}${t.chg != null ? ` · ${up ? "+" : ""}${t.chg.toFixed(1)}% (${tf})` : ""}`}
+              <button key={t.r.tk} className="mm-heat-tile" data-nodata={heat == null || undefined}
+                data-dim={ql && !hit(t.r) ? "" : undefined}
+                onClick={() => onOpenStock({ tk: t.r.tk })}
+                title={`${t.r.tk} · ${t.r.sector} · ${t.chg != null
+                  ? `${up ? "+" : ""}${t.chg.toFixed(1)}% (${tf})`
+                  : `no ${tf} return for this name — the tile is sized but not coloured`}`}
                 style={{ left: px(t.x), top: py(t.y), width: px(t.w), height: py(t.h), background: fill }}>
                 {showTk && <span className="mm-heat-tk" style={{ fontSize: tkSize }}>{t.r.tk}</span>}
                 {showPct && t.chg != null && (
@@ -733,9 +851,27 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
           })}
         </div>
       </div>
+      {/* THE STATUS LINE IS UNDER THE MAP, and it carries the legend. The ramp
+          was explained in a sentence and nothing on screen said what a given
+          shade was worth; the swatches are drawn from the tiles' own function.
+          Breadth is of what is DRAWN — the map is capped and this is not Market
+          Health's universe-wide number, so it is labelled as the map's own. */}
+      <div className="mm-heat-bar">
+        <span className="mm-heat-stat mono">
+          <b>{built.shown}</b> names
+          {built.shown < built.total && <span className="mm-heat-of"> of {built.total} most-traded{sector !== "All" ? ` in ${sector}` : ""}</span>}
+          {nHit != null && <span className="mm-heat-of"> · {nHit} match “{q.trim()}”</span>}
+          <span className="mm-heat-sep">·</span>
+          <b data-up="true">{built.adv}</b> up<span className="mm-heat-sl">/</span><b data-up="false">{built.dec}</b> down
+          <span className="mm-heat-of"> on the map</span>
+        </span>
+        <HeatLegend tf={tf} />
+      </div>
       <p className="mono mm-rrg-note">
-        <b>Reading it:</b> tile size = dollar volume traded (a liquidity/attention proxy — not market cap); color = {tf} return.
-        {built.shown < built.total && <span style={{ opacity: .7 }}> Showing the {built.shown} most-traded of {built.total} names.</span>}
+        <b>Reading it:</b> tile size = dollar volume traded (a liquidity/attention proxy — not market cap);
+        colour = {tf} return on a fixed ±{HEAT_CLAMP[tf] || 12}% scale, so a shade means the same thing
+        every session rather than being relative to the day's biggest mover. A tile with no fill is one
+        whose return for this window could not be computed — not one that was flat.
       </p>
     </>
   );
@@ -745,6 +881,9 @@ function MarketHeatmap({ rows, tf, onOpenStock }) {
 export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) {
   const [tf, setTf] = useState("1M");
   const withSig = rows.filter((r) => r.sig).length;
+  // the server's own sector order (the SPDR tracker's), so the heatmap's blocks
+  // sit in the same sequence the ETF table below lists them in
+  const secOrder = useMemo(() => (sectors && sectors.rows ? sectors.rows.map((r) => r.sector) : null), [sectors]);
   return (
     <div className="wrap mm">
       <div className="filters" style={{ marginBottom: 10 }}>
@@ -763,7 +902,7 @@ export function MarketMap({ rows, live, onOpenStock, onSelectSector, sectors }) 
       <SectorMap rows={rows} tf={tf} onSelectSector={onSelectSector} />
 
       <div className="mm-sec-h"><h3>Market heatmap</h3><span className="dr-sec-sub mono">size = dollar volume · color = {tf} return · tap a tile</span></div>
-      <MarketHeatmap rows={rows} tf={tf} onOpenStock={onOpenStock} />
+      <MarketHeatmap rows={rows} tf={tf} onOpenStock={onOpenStock} order={secOrder} />
 
       <div className="mm-sec-h"><h3>Relative rotation</h3><span className="dr-sec-sub mono">RS-trend vs its momentum · benchmark: S&amp;P 500</span></div>
       <div className="mm-scatter-card">

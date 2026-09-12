@@ -183,6 +183,19 @@ const VIEWS = [
       await p.waitForTimeout(700);
     } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
+  /* The heatmap's two controls, which do DIFFERENT things and so must both be in
+     a picture: picking a sector re-lays the map out (the 80-tile budget is spent
+     on that one sector, so names the all-sector view had to drop appear), while
+     the search only dims — removing the non-matches would reshape the map on
+     every keystroke and move the name you were typing for. A shot of the two
+     together is also the only way to catch the filter silently eating the
+     search, or the dimming being applied to the pre-filter set. */
+  { id: "mapfind", state: { tt_product: "canslim" }, act: async (p) => {
+      await click(p, "Market Map");
+      await p.locator(".mm-heat-secs .seg-btn", { hasText: /^Technology$/ }).first().click();
+      await p.locator(".mm-heat-find input").fill("a");
+      await p.waitForTimeout(450);
+    } },
   { id: "rrgpin",    state: { tt_product: "canslim" }, act: async (p) => {
       await click(p, "Market Map");
       // the mark is an HTML button in the overlay now, not an SVG circle

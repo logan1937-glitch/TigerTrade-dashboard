@@ -877,6 +877,51 @@ VIX panel, watchlist), `drawer.jsx` (stock + event drawers), `canslim.jsx`
   that claims nothing — and the same page measures **0.0081**. Anything that
   occupies vertical space before data lands must hold that space from the first
   frame.
+- **THE HEATMAP'S COLOUR SCALE IS FIXED PER WINDOW, not normalised to the
+  screen.** It divided by `maxAbs` — the largest absolute move in the visible set
+  — so the same −1% tile was a different colour depending on the day's loudest
+  mover, and changing the window or the sector filter recoloured every tile
+  without any of them having moved. A shade that means something different each
+  time you look is not a reading, and the shade IS the number on a heatmap.
+  `HEAT_CLAMP` is 6 / 12 / 20% for 1W / 1M / 3M — about 1.5σ each, a typical 1.8%
+  daily vol scaled by √time over 5 / 21 / 63 sessions — with a `^0.85` response
+  so small moves lift off the floor without a −0.4% tile passing for a −4% one.
+  **`HeatLegend` draws the same `heatOf`/`heatFill` the tiles use**, so the ramp
+  on screen cannot drift from the one being explained — the rule the Playbook's
+  EMA ribbon is built on.
+- **UNMEASURED IS NOT FLAT, here too.** A name whose return for the window could
+  not be computed took the identical neutral tint as one that genuinely did not
+  move — stating "unchanged" about something nobody measured. It gets no fill and
+  a dashed ring (`[data-nodata]`), keeps its size, label and click because dollar
+  volume *is* known for it, and says so on hover. Only the colour is withheld.
+- **SECTOR PLACEMENT IS FIXED, so the map is spatially stable.** `squarify` sorts
+  by area, so the sector blocks re-ordered whenever the window changed or a name
+  moved between them — and a treemap you have to re-find your way around on every
+  interaction is a picture, not an instrument. The order comes from
+  `sectors.rows`, the server's own SPDR list, so it cannot drift from the ETF
+  table below it. `scaleToArea` re-sorts, which is why the sector rects are
+  scaled by hand instead.
+- **The heatmap's two controls do DIFFERENT things on purpose.** The sector pick
+  **filters** — the map is capped at 80 tiles for legibility, so spending the
+  whole budget on one sector surfaces names the all-sector view had to drop. The
+  search only **dims**: removing non-matches re-runs squarify and reshapes the
+  map on every keystroke, so the name you were hunting would move while you typed
+  for it. They live in the heatmap's own row, not the view's shared filter row —
+  that one's Window control drives every panel on the page. `.seg` brings the
+  scroll strip, because eleven pills plus a search box is well past 390px.
+- **The 2024 Map-tab handoff was mostly already built**, and the parts declined
+  are worth recording: its header/nav/live-pill would be a second copy of the
+  shell; its 372px asset panel and "Trade {TICKER}" CTA would be a fourth detail
+  surface (after the drawer, the context panel and the chart modal) fronting a
+  brokerage that does not exist — the same overlap that got the drawer's trade
+  planner deleted; its derived `atr = price * (0.017 + volume/4000)`, seeded
+  52-week ranges and random-walk sparkline are fabrications the app already has
+  real versions of; and **its cap filter cannot be built honestly** — `mktCap`
+  rides in the snapshot for extended-tier names only, so "Mid (under $200B)"
+  would sweep in every name whose cap is unknown. A dollar-volume liquidity
+  filter is the substitute that uses data we have. Its tile-type table (size by
+  area bucket, with a floor) is also the exact thing that rendered PLTR as
+  `PLIR`; the measured-pixel approach with no floor stays.
 - **A container unit cannot subtract a fixed padding, so it cannot decide
   whether text fits.** The Market Map's tile type was sized in `cqw`/`cqh` — a
   proportion of the map — while the text is laid out inside the tile *minus* 8px
@@ -1104,7 +1149,10 @@ npm run shots -- --views radar --live                   # against real APIs
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
 `vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`, `map`,
-`rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`.
+`rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`,
+`mapfind` (the heatmap with a sector picked AND a query typed — the two controls
+do different things, so a shot of them together is the only way to catch the
+filter eating the search, or the dimming being applied to the pre-filter set).
 The `watch` shot seeds all four watchlist row states — a curated event, a **live
 econ** event, a star whose release has left the calendar window, and a ticker —
 and the fixture now answers `/api/fmp?endpoint=economic-calendar`, so the merged

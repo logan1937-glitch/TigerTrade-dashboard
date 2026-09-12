@@ -1855,8 +1855,20 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .mm-heat-tile { position: absolute; overflow: hidden; display: flex; flex-direction: column;
   justify-content: center; align-items: center; text-align: center; gap: 1px;
   border: 1px solid var(--panel); border-radius: 4px; padding: 2px 4px; cursor: pointer; font: inherit; color: inherit;
-  transition: filter .12s ease, outline-color .12s ease; outline: 1.5px solid transparent; }
-.mm-heat-tile:hover { filter: brightness(1.12); outline-color: var(--accent); z-index: 2; }
+  transition: filter .16s cubic-bezier(.2,.8,.3,1), outline-color .12s ease,
+    opacity .18s ease, transform .16s cubic-bezier(.2,.8,.3,1);
+  outline: 1.5px solid transparent; }
+/* A TILE LIFTS ON HOVER, which is worth the transform here and almost nowhere
+   else in this app: the map is a dense field of near-identical rectangles and
+   the pointer needs to say which one it is on before you commit a click. 1.035
+   is enough to read and small enough not to occlude a neighbour. `will-change`
+   because up to 80 of these can animate on a fast traverse. */
+.mm-heat-tile:hover, .mm-heat-tile:focus-visible {
+  filter: brightness(1.12); outline-color: var(--accent); z-index: 6;
+  transform: scale(1.035); will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  .mm-heat-tile:hover, .mm-heat-tile:focus-visible { transform: none; }
+}
 /* font-size comes from the tile, inline. Weight and tracking are fixed so a big
    tile is louder by SIZE rather than by also changing weight. */
 .mm-heat-tk { font-weight: 700; color: var(--text); line-height: 1.05; letter-spacing: -0.01em;
@@ -1864,7 +1876,54 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .mm-heat-pct { line-height: 1.1; font-variant-numeric: tabular-nums; }
 .mm-heat-pct[data-up="true"] { color: color-mix(in oklch, var(--pl-up) 80%, var(--text)); }
 .mm-heat-pct[data-up="false"] { color: color-mix(in oklch, var(--pl-down) 80%, var(--text)); }
-@media (max-width: 640px) { .mm-heat { aspect-ratio: 100 / 96; } }
+/* UNMEASURED READS AS UNMEASURED. A tile whose return for this window could not
+   be computed took the same faint neutral tint as one that genuinely did not
+   move, which states "unchanged" about something nobody measured. No fill and a
+   dashed ring instead — the tile keeps its size, its label and its click,
+   because dollar volume IS known for it; only the colour is withheld. */
+.mm-heat-tile[data-nodata] { border-style: dashed; border-color: var(--border-2); }
+
+/* the heatmap's OWN controls — scoped here, not in the view's shared filter row,
+   because the Window control up there drives every panel on the page while these
+   two drive only the map. `.seg` brings the scroll strip with it. */
+.mm-heat-ctl { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; min-width: 0; }
+.mm-heat-find { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; }
+.mm-heat-find svg { position: absolute; left: 9px; width: 13px; height: 13px; color: var(--dim); pointer-events: none; }
+.mm-heat-find input { width: 190px; height: 32px; padding: 0 10px 0 28px;
+  font-size: var(--fs-label); color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.mm-heat-find input:focus { outline: none; border-color: var(--accent); }
+.mm-heat-find input::placeholder { color: var(--dim); }
+.mm-heat-secs { min-width: 0; }
+
+/* SEARCH DIMS, IT DOES NOT REMOVE. Filtering the tiles out would re-run squarify
+   and reshape the whole map on every keystroke, so the name you were hunting for
+   would move while you typed for it. Dimming holds every tile in place. */
+.mm-heat-tile[data-dim] { opacity: .16; }
+.mm-heat-tile[data-dim] .mm-heat-tk, .mm-heat-tile[data-dim] .mm-heat-pct { color: var(--text); }
+
+/* the status line under the map: what is drawn, its breadth, and the ramp */
+.mm-heat-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-top: 10px; }
+.mm-heat-stat { font-size: var(--fs-label); color: var(--dim); letter-spacing: var(--track-data); }
+.mm-heat-stat b { color: var(--text); font-weight: 700; }
+.mm-heat-stat b[data-up="true"] { color: var(--pl-up); }
+.mm-heat-stat b[data-up="false"] { color: var(--pl-down); }
+.mm-heat-sep { margin: 0 7px; opacity: .5; }
+.mm-heat-sl { margin: 0 3px; opacity: .5; }
+.mm-heat-of { opacity: .75; }
+/* THE LEGEND IS DRAWN FROM THE TILES' OWN FUNCTION, so it cannot describe a ramp
+   the map is not using. Nine swatches at −clamp … +clamp, with the two ends
+   labelled — the scale was previously stated only in a sentence. */
+.mm-legend { display: flex; align-items: center; gap: 8px; }
+.mm-legend-e { font-size: var(--fs-micro); color: var(--dim); font-variant-numeric: tabular-nums; }
+.mm-legend-ramp { display: flex; gap: 1px; }
+.mm-legend-ramp i { display: block; width: 22px; height: 8px; border-radius: 1px;
+  border: 1px solid var(--border); }
+@media (max-width: 640px) {
+  .mm-heat { aspect-ratio: 100 / 96; }
+  .mm-legend-ramp i { width: 14px; }
+}
 
 .mm-scatter-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px 10px;
   box-shadow: var(--lift-1); }
