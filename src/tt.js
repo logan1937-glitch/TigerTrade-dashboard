@@ -300,88 +300,25 @@ TT.RINGS = [
 ];
 TT.ringR = (t) => 0.14 + 0.84 * Math.sqrt(Math.min(t, 150) / 150);
 
-/* ---------------------------------- event historical reaction stats ------- */
-// tiny seeded PRNG (mulberry32)
-function _rng(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/* The event "historical reaction" engine lived here and is DELETED. It was a
+   seeded mulberry32 PRNG — `_rng(ev.id * 2654435761)` — producing eight prior
+   instances per event with a move, a VIX change and a surprise, plus a T−5…T+5
+   average path and a cross-asset table. Every figure in it was invented, and
+   `TT.stats` / `MoveDistribution` / `MiniReaction` were wired to nothing, so it
+   shipped in the bundle and rendered nowhere.
 
-function _buildStats(ev, { amp, upBias, volBias, n }) {
-  const rnd = _rng(ev.id * 2654435761);
-  const instances = [];
-  let mIdx = TT.MONTH.monthIndex;
-  let year = TT.MONTH.year;
-  const stepMonths = ev.cat === "data" || ev.cat === "cb" ? 1 : 3;
-  for (let i = 0; i < n; i++) {
-    mIdx -= stepMonths;
-    while (mIdx < 0) { mIdx += 12; year -= 1; }
-    const up = rnd() < upBias;
-    const mag = amp * (0.45 + rnd() * 1.25);
-    const move = +(up ? mag : -mag).toFixed(2);
-    const vix = +((up ? -1 : 1) * volBias * (0.4 + rnd() * 1.3)).toFixed(1);
-    const surprise = +((rnd() - 0.5) * amp * 1.4).toFixed(2);
-    instances.push({ label: `${_MONTHS[mIdx]} ’${String(year).slice(2)}`, move, vix, surprise });
-  }
-  const window = [];
-  const drift = (upBias - 0.5) * amp * 1.1;
-  for (let d = -5; d <= 5; d++) {
-    let v;
-    if (d < 0) v = drift * 0.12 * (d + 5) / 5 - 0.05 * (-d);
-    else v = drift * (1 - Math.exp(-d / 1.6));
-    const wob = (rnd() - 0.5) * amp * 0.18;
-    window.push({ d, v: +(v + wob).toFixed(2) });
-  }
-  const cross = [
-    { k: "S&P 500", v: +amp.toFixed(1), up: upBias >= 0.5 },
-    { k: "10Y UST", v: +(amp * (0.5 + rnd() * 0.4)).toFixed(1), up: upBias < 0.5 },
-    { k: "DXY", v: +(amp * (0.3 + rnd() * 0.4)).toFixed(1), up: upBias < 0.5 },
-    { k: "Gold", v: +(amp * (0.4 + rnd() * 0.5)).toFixed(1), up: rnd() > 0.5 },
-  ];
-  const ups = instances.filter((i) => i.move > 0).length;
-  const avgAbs = +(instances.reduce((s, i) => s + Math.abs(i.move), 0) / n).toFixed(2);
-  const sorted = [...instances].map((i) => i.move).sort((a, b) => a - b);
-  const median = +sorted[Math.floor(n / 2)].toFixed(2);
-  const maxUp = +Math.max(...instances.map((i) => i.move)).toFixed(2);
-  const maxDn = +Math.min(...instances.map((i) => i.move)).toFixed(2);
-  const avgVix = +(instances.reduce((s, i) => s + i.vix, 0) / n).toFixed(1);
-  return { instances, window, cross,
-    summary: { avgAbs, hitUp: Math.round(ups / n * 100), median, maxUp, maxDn, avgVix, n } };
-}
+   It came out because a design pass proposed putting "average reaction" on every
+   catalyst row and pointed at this code as the thing that "already computes it".
+   That is exactly how a fabrication engine parked in the tree gets wired up: the
+   next reader finds plausible-looking numbers and assumes they are measured.
 
-const _PARAMS = {
-  1:  { amp: 1.6, upBias: 0.42, volBias: 2.6, n: 8 },
-  2:  { amp: 1.4, upBias: 0.52, volBias: 2.2, n: 8 },
-  3:  { amp: 1.0, upBias: 0.48, volBias: 1.4, n: 8 },
-  4:  { amp: 1.1, upBias: 0.55, volBias: 1.0, n: 8 },
-  5:  { amp: 2.0, upBias: 0.5,  volBias: 1.8, n: 8 },
-  6:  { amp: 0.7, upBias: 0.5,  volBias: 0.8, n: 12 },
-  7:  { amp: 1.1, upBias: 0.5,  volBias: 1.6, n: 12 },
-  8:  { amp: 0.6, upBias: 0.52, volBias: 0.7, n: 12 },
-  9:  { amp: 1.3, upBias: 0.48, volBias: 1.0, n: 8 },
-  10: { amp: 1.5, upBias: 0.5,  volBias: 2.4, n: 12 },
-  11: { amp: 0.6, upBias: 0.5,  volBias: 0.8, n: 12 },
-  12: { amp: 1.2, upBias: 0.55, volBias: 1.2, n: 8 },
-  13: { amp: 0.8, upBias: 0.5,  volBias: 1.0, n: 8 },
-  14: { amp: 0.7, upBias: 0.5,  volBias: 0.9, n: 8 },
-  15: { amp: 1.1, upBias: 0.48, volBias: 1.5, n: 8 },
-  16: { amp: 1.7, upBias: 0.5,  volBias: 2.0, n: 6 },
-};
-TT._statsCache = {};
-TT.stats = (ev) => {
-  if (TT._statsCache[ev.id]) return TT._statsCache[ev.id];
-  const p = _PARAMS[ev.id] || { amp: (TT.detail(ev.id).move || 0.8), upBias: 0.5, volBias: 1.0, n: 8 };
-  const s = _buildStats(ev, p);
-  TT._statsCache[ev.id] = s;
-  return s;
-};
-TT.WINMONTH = _MONTHS;
+   The figure is worth having and is NOT buildable from what this app has. It
+   needs the DATES OF PRIOR INSTANCES of each release, and the economic calendar
+   feed serves a forward window, not a history keyed by release. SPY bars we do
+   have; the instance dates we do not. If a source for them is ever wired in, the
+   measurement is the mean absolute S&P move T−3 to T+3 over the last n instances,
+   with `<NA why="Needs at least 3 prior instances with daily bars" />` wherever
+   n is short — never ±0.00%, which reads as "no reaction" rather than "unknown". */
 
 /* ---------------------------------- CANSLIM dataset ----------------------- */
 function _csrng(seed) {

@@ -5,7 +5,7 @@ import { fetchHistories, computeSignals, lookbackFrom, momentumScore, rsRatings,
 import { fetchMarket } from "./marketData.js";
 import { fetchEcon, mergeEcon } from "./econ.js";
 import { fetchProfile } from "./profile.js";
-import { WatchCtx, CanslimCtx, AlertCtx, PosCtx, TopBar, Hero, StatStrip, SubNav, RADAR_TABS, RadarView, SearchIcon, StarIcon, CatalystTape, StockTape, tapePicks } from "./components.jsx";
+import { WatchCtx, CanslimCtx, AlertCtx, PosCtx, TopBar, Hero, StatStrip, SubNav, RADAR_TABS, RadarView, SearchIcon, StarIcon, StockTape, tapePicks } from "./components.jsx";
 import { Disclaimer } from "./disclaimer.jsx";
 import { CalendarView, TimelineView } from "./views.jsx";
 import { VolView } from "./volView.jsx";
@@ -886,10 +886,12 @@ export default function App() {
           badges={product === "radar"
             ? { radar: events.length }
             : (posRows.length > 0 ? { portfolio: posRows.length } : null)} />
-        {product === "radar"
-          ? <CatalystTape events={upcoming} onSelect={openEvent} />
-          : <StockTape rows={csData.list} quotes={tapeQ.quotes} asOf={tapeQ.asOf}
-              tried={tapeQ.tried} ok={tapeQ.ok} onPick={openStock} />}
+        {/* the radar's tape was a third copy of its own event list — see the note
+            where CatalystTape used to be. The screener's keeps live prices. */}
+        {product !== "radar" && (
+          <StockTape rows={csData.list} quotes={tapeQ.quotes} asOf={tapeQ.asOf}
+            tried={tapeQ.tried} ok={tapeQ.ok} onPick={openStock} />
+        )}
         {product === "radar" ? (
           <>
             {/* the cover rides every radar view; the queue/macro/VIX board is the

@@ -296,35 +296,6 @@ export function ReactionWindow({ data, h = 150 }) {
   );
 }
 
-/* ---------- MOVE DISTRIBUTION: signed bars of past instances ---------- */
-export function MoveDistribution({ instances, h = 150 }) {
-  const grow = useGrow(650);
-  const W = 560, H = h, padB = 22, padT = 12;
-  const vals = instances.map((i) => i.move);
-  const lo = Math.min(...vals, 0), hi = Math.max(...vals, 0);
-  const range = (hi - lo) || 1;
-  const y0 = padT + (1 - (0 - lo) / range) * (H - padB - padT);
-  const bw = (W / instances.length) * 0.62;
-  const gap = (W / instances.length);
-  return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Historical move distribution">
-      <line x1="0" y1={y0} x2={W} y2={y0} className="chart-zero" />
-      {instances.map((it, i) => {
-        const yv = padT + (1 - (it.move - lo) / range) * (H - padB - padT);
-        const top = Math.min(yv, y0), hgt = Math.abs(yv - y0) * grow;
-        const cx = gap * i + gap / 2;
-        return (
-          <g key={i}>
-            <rect x={cx - bw / 2} y={it.move >= 0 ? y0 - hgt : y0} width={bw} height={hgt}
-              className="chart-bar" data-up={it.move >= 0} rx="1.5" />
-            <text x={cx} y={H - 7} className="chart-xlab">{it.label.replace("’", "'")}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
 /* ---------- RS LINE (relative strength) ---------- */
 export function RSLine({ rs, h = 60 }) {
   const grow = useGrow(700);

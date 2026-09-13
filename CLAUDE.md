@@ -68,6 +68,28 @@ placeholder that could be mistaken for a measurement.
 The one legitimate exception is `scripts/shots.mjs`, whose fixture is synthetic
 by design and never reaches a user.
 
+**A FABRICATION ENGINE PARKED IN THE TREE IS A LIVE HAZARD, even unwired.**
+`tt.js` carried an event "historical reaction" generator — a seeded mulberry32
+PRNG (`_rng(ev.id * 2654435761)`) inventing eight prior instances per event with
+a move, a VIX change and a surprise, plus a T−5…T+5 average path and a
+cross-asset table — with `TT.stats`, `MoveDistribution` and `MiniReaction` built
+on it. **None of them were referenced anywhere**, so it shipped in the bundle and
+rendered nothing, which is why it survived every sweep.
+
+It came out because a design pass proposed putting "average reaction" on every
+catalyst row and cited `MiniReaction` as the thing that "already computes this".
+That is exactly the failure mode: the next reader finds plausible numbers in the
+tree and assumes they were measured. Dead code that fabricates is worse than dead
+code, because its only possible future is being wired up.
+
+**The figure is genuinely worth having and is NOT buildable from what this app
+has.** It needs the DATES OF PRIOR INSTANCES of each release; the economic
+calendar feed serves a forward window, not a history keyed by release. SPY bars
+we have, the instance dates we do not. If a source is ever wired in, the
+measurement is the mean absolute S&P move T−3 to T+3 over the last n instances,
+with `<NA why="Needs at least 3 prior instances with daily bars" />` wherever n
+is short — never `±0.00%`, which reads as "no reaction" rather than "unknown".
+
 ## Architecture
 
 **Data flow.** `App.jsx` is the single source of truth; everything below it is
@@ -525,6 +547,27 @@ subject was the smallest text in it. Each row now carries the countdown (a fixed
 and date beneath it, and the severity right-aligned — ranked by LIGHTNESS, since
 a severity band is not money. Ten rows fill the column honestly rather than by
 padding.
+
+**THE CATALYST TAPE IS GONE, and it was measured before it went.** It drew
+`events.slice(0, 12)` — the same `upcoming` array the cover's headline takes
+`events[0]` from and the queue takes `slice(1, 10)` from. Probed at 1500 and 390:
+the tape's items 2-6 were *exactly* the queue's items 1-5, same order, same
+countdowns, about 300px above them. A third rendering of one event set is what
+the Catalysts tab was deleted for, and it cost a 36px strip on every radar view.
+The other three radar tabs do not rescue it — Full Timeline is the list rendering
+of those events and the Calendar is the month rendering — and only Volume had no
+overlap, where a macro marquee over a dollar-volume board is unrelated context
+rather than a reason to keep the strip on the other three. **`StockTape` is a
+different component and stays**: live intraday prices, plus the documented
+`min-height: 36px` CLS reservation.
+
+**Severity carries a SHAPE as well as a lightness** (`SevGlyph`). Being ordinal
+it ramps by lightness and never by hue, which is right — and is also a three-step
+grey ramp, the encoding that vanishes at a glance, on a dim screen, or for a
+reader with reduced contrast sensitivity. Three bars (3 Extreme / 2 High / 1
+Medium-Low) carry the same rank in a channel that survives all three. Unfilled
+bars stay drawn so it reads as "1 of 3" rather than as a smaller mark, and the
+glyph inherits `currentColor` so the two encodings cannot disagree.
 
 **THE RADAR OPENS THE SAME WAY**, with its own primary question: not a page
 title but WHICH CATALYST IS NEXT and how long you have. The event name is the

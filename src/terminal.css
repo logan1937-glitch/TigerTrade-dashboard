@@ -453,10 +453,20 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Severity ranks by LIGHTNESS, like everywhere else — extreme is the brightest
    word in the column and low recedes. No hue: a severity band is not money. */
-.hero-q-sev { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--track-label);
+.hero-q-sev { display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--track-label);
   text-transform: var(--label-case); color: var(--dim); white-space: nowrap; }
 .hero-q-sev[data-sev="extreme"] { color: var(--text); }
 .hero-q-sev[data-sev="high"] { color: var(--muted); }
+/* the bars inherit `currentColor` from the severity ramp above, so the shape and
+   the lightness can never disagree about the same reading. Unfilled bars stay
+   drawn — a 1-of-3 glyph is a scale; one lonely bar is just a smaller mark. */
+.sev-glyph { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 9px; flex: none; }
+.sev-glyph i { display: block; width: 2.5px; border-radius: 1px; background: currentColor; opacity: .22; }
+.sev-glyph i:nth-child(1) { height: 4px; }
+.sev-glyph i:nth-child(2) { height: 6.5px; }
+.sev-glyph i:nth-child(3) { height: 9px; }
+.sev-glyph i[data-on] { opacity: 1; }
 /* right cluster: the two data panels sit as an equal-height, top-aligned pair */
 /* shared panel chrome — same surface gradient, border, edge highlight and depth
    on the left identity card, the macro board AND the VIX panel: one card system */
@@ -1152,12 +1162,6 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 @media (prefers-reduced-motion: reduce) { .watch-btn .watch-hit { animation: none; } }
 .mobile-tabbar .tb-badge[data-hit] { background: var(--accent); color: var(--accent-ink); }
 
-/* mini reaction sparkline (hero next-catalyst) */
-.mini-react { width: 128px; height: 26px; display: block; flex: none; }
-.mini-zero { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.mini-evt { stroke: color-mix(in oklch, var(--c) 55%, transparent); stroke-width: 1; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
-.mini-line { fill: none; stroke: var(--c); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
-
 /* watchlist panel */
 .wl-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 70px 40px; }
 .wl-empty svg { width: 32px; height: 32px; color: var(--dim); }
@@ -1239,7 +1243,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .tick-item b { color: var(--text); font-weight: 700; }
 .tick-name { color: inherit; }
 .tick-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
-.tick-date { color: var(--dim); }
+
 .tick-chg[data-up="true"] { color: var(--pl-up); }
 .tick-chg[data-up="false"] { color: var(--pl-down); }
 /* no change figure from the feed — quiet, and never mistakable for a flat print */
@@ -1315,8 +1319,7 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .chart-zero { stroke: var(--border-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .chart-eventline { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; opacity: 0.7; }
 .chart-xlab { fill: var(--dim); font-family: var(--font-mono); font-size: var(--fs-label); text-anchor: middle; }
-.chart-bar { fill: var(--muted); }
-.chart-bar[data-up="false"] { fill: var(--pl-down); }
+
 .chart-rs { fill: none; stroke: var(--cat-data); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; opacity: 0.9; }
 .chart-ma { fill: none; stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 .chart-ma[data-ma="50"] { stroke: var(--cat-data); opacity: 0.8; }

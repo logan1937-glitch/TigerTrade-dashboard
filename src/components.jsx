@@ -5,6 +5,27 @@ import { GLOSSARY } from "./glossary.js";
 
 export const SEV_LABEL = { extreme: "Extreme", high: "High", medium: "Medium", low: "Low" };
 
+/* SEVERITY GETS A SHAPE AS WELL AS A LIGHTNESS. It is ordinal, so under the
+   colour rule it ramps by lightness and never by hue — `--sev-extreme` is
+   `--text` down to `--sev-low` at `--dim`. That is correct and it is also a
+   three-step grey ramp, which is precisely the encoding that disappears for a
+   reader with reduced contrast sensitivity, on a dim screen, or at a glance.
+
+   Three bars — 3 Extreme, 2 High, 1 Medium or Low — carry the same rank
+   redundantly, in a channel that survives all three. The unfilled bars stay
+   visible so the glyph reads as "1 of 3" rather than as a shorter object; that
+   is what makes it a scale instead of a blob. It inherits `currentColor`, so the
+   lightness ramp still does its work and the two encodings cannot disagree. */
+const SEV_BARS = { extreme: 3, high: 2, medium: 1, low: 1 };
+export function SevGlyph({ sev }) {
+  const n = SEV_BARS[sev] || 1;
+  return (
+    <i className="sev-glyph" aria-hidden="true">
+      {[1, 2, 3].map((i) => <i key={i} data-on={i <= n || undefined} />)}
+    </i>
+  );
+}
+
 /* ONE BUY-STATUS VOCABULARY, because there were THREE and they disagreed. The
    screener's row, the stock drawer and the watchlist each carried their own
    copy, so a single name read "In Buy Zone" in amber on the board and "Buy
@@ -102,23 +123,6 @@ export function StarBtn({ wkey, kind, refId, label, name }) {
   );
 }
 
-/* mini reaction sparkline (avg cumulative move around the event) */
-export function MiniReaction({ data }) {
-  const W = 128, H = 26;
-  const vals = data.map((d) => d.v);
-  const lo = Math.min(...vals, 0), hi = Math.max(...vals, 0), range = (hi - lo) || 1;
-  const x = (i) => (i / (data.length - 1)) * W;
-  const y = (v) => 3 + (1 - (v - lo) / range) * (H - 6);
-  const line = data.map((d, i) => `${x(i).toFixed(1)},${y(d.v).toFixed(1)}`).join(" ");
-  const zeroIdx = data.findIndex((d) => d.d === 0);
-  return (
-    <svg className="mini-react" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <line x1="0" y1={y(0)} x2={W} y2={y(0)} className="mini-zero" />
-      <line x1={x(zeroIdx)} y1="0" x2={x(zeroIdx)} y2={H} className="mini-evt" />
-      <polyline points={line} className="mini-line" />
-    </svg>
-  );
-}
 
 /* company logo (FMP image CDN → clean monogram fallback), dark-theme friendly */
 /* FMP has moved this asset host once already; the legacy path still answers for
@@ -548,7 +552,7 @@ export function Hero({ events, onSelectEvent, activeId, board, showBoards, live,
                       <span className="hero-q-meta">{c ? c.label : "—"} · {e.approx ? "~" : ""}{e.date}</span>
                       <EconLine econ={e.econ} compact />
                     </span>
-                    <span className="hero-q-sev" data-sev={e.sev}>{SEV_LABEL[e.sev]}</span>
+                    <span className="hero-q-sev" data-sev={e.sev}><SevGlyph sev={e.sev} />{SEV_LABEL[e.sev]}</span>
                   </button>
                 );
               })}
@@ -581,20 +585,24 @@ function Tape({ label, children }) {
   );
 }
 
-export function CatalystTape({ events, onSelect }) {
-  if (!events || events.length < 2) return null;
-  return (
-    <Tape label="Upcoming catalysts">
-      {[0, 1].map((copy) => events.slice(0, 12).map((ev) => (
-        <button key={copy + "-" + ev.id} className="tick-item mono" style={{ "--c": TT.CAT_MAP[ev.cat].color }}
-          onClick={() => onSelect(ev)} tabIndex={copy ? -1 : 0} aria-hidden={copy ? true : undefined}>
-          <i className="tick-dot" /><b>T{ev.t}d</b><span className="tick-name">{ev.title}</span>
-          <span className="tick-date">{ev.approx ? "~" : ""}{ev.date}</span>
-        </button>
-      )))}
-    </Tape>
-  );
-}
+/* THE CATALYST TAPE IS DELETED, and it was measured before it went.
+
+   It drew `events.slice(0, 12)` — the same `upcoming` array the cover's headline
+   takes `events[0]` from and the queue takes `slice(1, 10)` from. Probed at
+   1500px and 390px, the tape's items 2-6 were EXACTLY the queue's items 1-5, in
+   the same order, with the same countdowns, about 300px above them. A third
+   rendering of one event set is the same thing the Catalysts tab was deleted
+   for, and it cost a 36px strip on every radar view.
+
+   The other three radar tabs do not save it: Full Timeline is the list rendering
+   of those events and the Calendar is the month rendering, so it duplicated
+   there too. Only the Volume tab had no overlap — and there a scrolling macro
+   marquee above a dollar-volume board is unrelated context, not a reason to keep
+   a strip on the other three.
+
+   `StockTape` is a different component and stays: it carries live intraday
+   prices, which nothing else on the screener does, and its `min-height: 36px`
+   reservation is the documented CLS fix. */
 
 // The tape's membership, exported so App can fetch quotes for exactly the names
 // it draws without the view fetching anything itself.
