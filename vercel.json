@@ -1,10 +1,26 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "crons": [
-    { "path": "/api/snapshot?refresh=1", "schedule": "0 22 * * 1-5" },
-    { "path": "/api/snapshot?refresh=1&tier=ext", "schedule": "20 22 * * 1-5" }
+    {
+      "path": "/api/snapshot?refresh=1",
+      "schedule": "0 22 * * 1-5"
+    },
+    {
+      "path": "/api/snapshot?refresh=1&tier=ext",
+      "schedule": "20 22 * * 1-5"
+    },
+    {
+      "path": "/api/backtest?refresh=1",
+      "schedule": "40 22 * * 1-5"
+    }
   ]
 }

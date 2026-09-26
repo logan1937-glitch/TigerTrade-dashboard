@@ -3690,3 +3690,95 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   animation: cmSpin .7s linear infinite; }
 @keyframes cmSpin { to { transform: rotate(360deg); } }
 .app[data-motion="none"] .cm-spin { animation: none; }
+
+/* ======================= TRACK RECORD (model evidence) ======================= */
+/* The view's whole job is to be checkable, so nothing here hides a limitation:
+   the caveats get the same type size as the findings, and the bucket chart is
+   drawn on ONE scale shared with the two benchmark lines — separate scales are
+   the classic way a backtest chart flatters itself. */
+.tr { padding-bottom: 64px; }
+.tr-lede { max-width: 78ch; margin: 2px 0 18px; font-family: var(--font-ui);
+  font-size: var(--fs-body); line-height: 1.6; color: var(--muted); text-wrap: pretty; }
+.tr-lede b { color: var(--text); font-weight: 600; }
+
+.tr-wait { display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 120px; padding: 18px; text-align: center; text-wrap: pretty; max-width: 76ch;
+  margin-inline: auto; font-family: var(--font-ui); font-size: var(--fs-data);
+  line-height: 1.6; color: var(--muted); }
+.tr-wait[data-settled] { min-height: 0; color: var(--dim); }
+
+/* four findings, label over figure over qualifier — no boxes, one hairline
+   under the group, the same treatment the drawer's signal grid uses */
+.tr-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.tr-kpi { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tr-kpi-k { font-size: var(--fs-label); letter-spacing: var(--track-label);
+  text-transform: var(--label-case); color: var(--dim); }
+.tr-kpi-v { font-size: var(--fs-figure); font-weight: 700; color: var(--text);
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.tr-kpi-v i { font-style: normal; font-size: 0.62em; color: var(--dim); font-weight: 500; }
+.tr-kpi-s { font-size: var(--fs-label); color: var(--dim); line-height: 1.4; text-wrap: pretty; }
+
+.tr-chart { margin-bottom: 12px; }
+.tr-bars { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px; height: 260px; padding-right: 148px; }
+.tr-bar { display: flex; flex-direction: column; min-width: 0; }
+/* the plot area is the bar's own box; the two labels sit under it, outside the
+   scale, so a long label can never change where a value is drawn */
+.tr-bar-plot { position: relative; flex: 1 1 auto;
+  background: linear-gradient(var(--border), var(--border)) no-repeat 0 var(--zero) / 100% 1px; }
+.tr-bar-plot i { position: absolute; left: 12%; right: 12%; border-radius: 2px; min-height: 2px; }
+.tr-bar-plot i[data-up="true"] { background: var(--pl-up); }
+.tr-bar-plot i[data-up="false"] { background: var(--pl-down); }
+.tr-bar-v { margin-top: 8px; font-size: var(--fs-data); font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text); }
+.tr-bar-v[data-up="true"] { color: var(--pl-up); }
+.tr-bar-v[data-up="false"] { color: var(--pl-down); }
+/* A GROUP IS AN ORDINAL POSITION, so its label ranks by LIGHTNESS and never by
+   hue — the bars are money moved and carry the only colour in the panel. */
+.tr-bar-k { font-size: var(--fs-label); color: var(--dim); }
+.tr-bar[data-rank="0"] .tr-bar-k { color: var(--text); font-weight: 600; }
+.tr-bar[data-rank="1"] .tr-bar-k { color: var(--muted); }
+
+/* the benchmarks, on the SAME scale as the bars — that is the entire point of
+   drawing them rather than printing them somewhere else on the page */
+.tr-ref { position: absolute; left: 0; right: 148px; height: 0;
+  border-top: 1px dashed var(--border-2); pointer-events: none; }
+/* THE LABEL IS CONSTRAINED TO THE GUTTER, not merely started at its edge. It
+   was `left: calc(100% + 10px)` with `nowrap`, which puts a ~170px string into
+   a 148px reservation — it fitted at 1500 only because `.wrap`'s own margin
+   absorbed the difference, so the plot was quietly borrowing the page gutter at
+   every width. Bounded to 138px, it wraps inside the space that was reserved
+   for it. */
+.tr-ref b { position: absolute; left: 100%; margin-left: 10px; width: 138px;
+  font-size: var(--fs-label); font-weight: 600; color: var(--dim); line-height: 1.25; }
+/* AND THE TWO LINES DE-COLLIDE. The field and SPY returns are usually within a
+   point of each other — that is the whole reason both are drawn — so their
+   labels land on the same row and print over one another. One sits above its
+   line and one below, which also says which is which without reading. */
+.tr-ref[data-k="uni"] { border-top-color: var(--muted); }
+.tr-ref[data-k="uni"] b { color: var(--muted); bottom: 3px; }
+.tr-ref[data-k="spy"] b { top: 3px; }
+
+.tr-note { max-width: 88ch; font-size: var(--fs-label); line-height: 1.6; color: var(--dim); }
+.tr-note b { color: var(--muted); font-weight: 600; }
+
+/* the caveats are set at READING size, not footnote size. A disclosure printed
+   smaller than the finding it qualifies is decoration. */
+.tr-caveats { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px 28px; margin: 0; }
+.tr-caveats dt { font-size: var(--fs-data); font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.tr-caveats dd { margin: 0; font-family: var(--font-ui); font-size: var(--fs-data);
+  line-height: 1.6; color: var(--muted); text-wrap: pretty; }
+
+@media (max-width: 980px) {
+  .tr-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  /* the label gutter is a desktop affordance; on a phone the benchmark labels
+     ride above their lines instead of beside them, or the plot has no width */
+  .tr-bars { padding-right: 0; height: 210px; gap: 6px; }
+  .tr-ref { right: 0; }
+  .tr-ref b { left: 0; top: -1.5em; }
+  .tr-bar-k { font-size: var(--fs-micro); }
+}

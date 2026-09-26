@@ -7,6 +7,7 @@ import { GLOSSARY } from "./glossary.js";
 import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
 import { PortfolioView } from "./portfolio.jsx";
+import { TrackRecord } from "./trackRecord.jsx";
 import { ChartModal } from "./chartModal.jsx";
 
 const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
@@ -18,8 +19,12 @@ const LETTERS = ["L", "E", "A", "D", "E", "R", "S"];
    not page content. The LIST still lives here, which is what the old comment
    about "only this component knows which ids are valid" was protecting: App
    validates the stored tab against this array rather than against a copy. */
+/* "Track record" sits next to Market Health on purpose: both answer "should I
+   trust what the board is telling me", and the model's own evidence belongs
+   beside the market's. It is last because it is read once and referred back to,
+   not scanned daily. */
 export const SUBTABS = [["screener", "Screener"], ["map", "Market Map"], ["health", "Market Health"],
-  ["playbook", "Playbook"], ["portfolio", "Portfolio"]];
+  ["playbook", "Playbook"], ["portfolio", "Portfolio"], ["record", "Track record"]];
 
 // so the empty-filter panel can name the lens the user actually picked
 const IDX_LABEL = { sp500: "S&P 500", ndx: "Nasdaq 100", dow: "Dow 30" };
@@ -834,6 +839,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
           onLookup={onLookup} lookupBusy={lookupBusy} lookupErr={lookupErr}
           focusTk={pbFocus} onFocused={onPbFocused} />}
         {tab === "portfolio" && <PortfolioView rows={posRows} onOpenStock={onOpenStock} events={events} vix={vix} />}
+        {tab === "record" && <TrackRecord />}
       </div>
     </>
   );

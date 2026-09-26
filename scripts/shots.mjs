@@ -183,6 +183,16 @@ const VIEWS = [
       await p.waitForTimeout(700);
     } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
+  /* The model's own evidence. Worth its own shot because the whole view is
+     arithmetic on the payload — bar heights, the two benchmark lines and the
+     "N of 4" headline are all computed at render, so a shape regression here is
+     invisible in a diff. The fixture deliberately carries an IMPERFECT ladder
+     (3 of 4, one pair inverted) so the picture covers the honest case rather
+     than the flattering one. */
+  { id: "record", state: { tt_product: "canslim" }, act: async (p) => {
+      await click(p, "Track record");
+      await p.waitForTimeout(600);
+    } },
   /* The heatmap's two controls, which do DIFFERENT things and so must both be in
      a picture: picking a sector re-lays the map out (the 80-tile budget is spent
      on that one sector, so names the all-sector view had to drop appear), while
@@ -626,6 +636,38 @@ const SNAP_EXT = JSON.stringify(extFixture());
 // the same payload minus the FMP-fed blocks: macro, vix and the earnings dates
 // go dark together because they ride one call, and that pairing is the thing the
 // degraded copy names
+/* The LEADERS track record. Shaped exactly like /api/backtest's real output so
+   the view's own arithmetic runs — the bar scale, the benchmark lines and the
+   monotone count are all computed client-side from these numbers, and a fixture
+   that hard-coded a tidy ladder would photograph a chart the component never
+   actually drew.
+
+   Deliberately NOT a clean 5-of-5: the 3rd and 4th groups are inverted, so the
+   headline reads "3 of 4" and the shot covers the case that matters — a result
+   that is good but not perfect. A fixture where everything lines up is how a
+   view that cannot render an imperfect result ships looking fine. */
+const BACKTEST = JSON.stringify({
+  schema: 1, status: "ok", generatedAt: "2026-09-25T22:40:00.000Z", source: "Yahoo",
+  benchmark: "SPY", universe: 503, covered: 488, refused: 15,
+  rebalances: 12, from: "2025-09-12", to: "2026-08-14",
+  holdSessions: 21, rebalGap: 21, buckets: 5,
+  byBucket: [
+    { bucket: 0, ret: 2.41, n: 97 }, { bucket: 1, ret: 1.62, n: 97 },
+    { bucket: 2, ret: 0.94, n: 97 }, { bucket: 3, ret: 1.08, n: 97 },
+    { bucket: 4, ret: -0.37, n: 100 },
+  ],
+  uni: 1.14, spy: 1.02,
+  monotone: 3, monotonePairs: 4, topBeats: 9, topBeatsOf: 12, spread: 2.78,
+  caveats: [
+    ["Survivorship", "The universe is today's index membership. Names removed over the window are absent and names added are present for all of it — and additions are past winners, so this bias flatters the result. Fixing it needs point-in-time constituent history, which no feed here provides."],
+    ["No costs", "Returns are gross. No commission, no spread, no slippage, no borrow. A monthly rebalance of a hundred names is not free."],
+    ["Gross of taxes", "Every rebalance is a taxable event in a taxable account."],
+    ["Short window", "Measured over the bars the nightly pass can fetch, not over a full cycle. A year of monthly rebalances is twelve observations — enough to see a gradient, not enough to call it durable."],
+    ["Not a strategy", "This measures whether the SCORE ranks forward returns. It is not a portfolio, it has no risk control, and nothing here is a recommendation."],
+  ],
+  runs: [],
+});
+
 const SNAP_DEAD = JSON.stringify({ ...fixture(), macro: null, vix: null, vol: null, earnings: null });
 const SNAP_EXT_PENDING = JSON.stringify({ tier: "ext", status: "pending", reason: "NOT_YET_COMPUTED",
   count: 0, total: 0, quotes: {}, sig: {}, meta: {} });
@@ -649,6 +691,11 @@ for (const theme of themes) {
         // too, and answering it with the core payload would make the widened
         // universe look like it merged when nothing new arrived at all
         if (u.includes("endpoint=economic")) body = JSON.stringify(ECON_FEED);
+        // routed before /api/snapshot for the reason tier=ext is: this URL does
+        // not contain "/api/snapshot", but keeping the specific tests together
+        // is what stopped the ext fixture being shadowed, and the same habit
+        // applies here. `dead` shoots the not-yet-computed path.
+        else if (u.includes("/api/backtest")) body = v.dead ? JSON.stringify({ schema: 1, status: "pending", reason: "NOT_YET_COMPUTED", caveats: JSON.parse(BACKTEST).caveats }) : BACKTEST;
         else if (u.includes("tier=ext")) body = v.dead ? SNAP_EXT_PENDING : SNAP_EXT;
         else if (u.includes("/api/snapshot")) body = v.dead ? SNAP_DEAD : SNAP;
         // /api/yahoo backs the peak-since-entry lookup for held positions

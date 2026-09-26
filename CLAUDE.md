@@ -18,6 +18,7 @@ npm run build          # production build → dist/
 npm test               # both suites
 npm run test:earnings  # 55 assertions against a stubbed Yahoo/Finnhub
 npm run test:swing     # 66 assertions on the ATR/EMA/Launchpad/quote-building math
+npm run test:backtest  # 15 assertions that the track record cannot cheat
 npm run shots          # screenshot every view headlessly → shots/
 npm run shots -- --audit  # + report panels >25% empty and the smallest type in them
 npm run og             # regenerate the 1200×630 social card → public/og.png
@@ -1202,6 +1203,11 @@ Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
 `vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`, `map`,
 `rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`,
+`record` (the track record — the whole view is arithmetic on the payload, so bar
+heights, the two benchmark lines and the "N of 4" headline are computed at render
+and a shape regression is invisible in a diff; its fixture carries a deliberately
+IMPERFECT ladder, 3 of 4 with one pair inverted, so the picture covers the honest
+case rather than the flattering one),
 `mapfind` (the heatmap with a sector picked AND a query typed — the two controls
 do different things, so a shot of them together is the only way to catch the
 filter eating the search, or the dimming being applied to the pre-filter set).
@@ -1374,17 +1380,60 @@ analytics is not a loophole around it.
 The radar was, which landed a first-time visitor on macro-event surveillance
 rather than on the differentiated board.
 
-**What is NOT built, and what it needs.** There are no accounts, no server-side
-user state and no payment path — every one of the eight `tt_*` keys is
-localStorage, so a user who opens the site on a second device starts empty. That
-is the monetization blocker, and it is a set of decisions before it is code:
-which auth provider, what is free versus paid, and what the paid tier actually
-delivers. The highest-value paid capability is almost certainly **alerts that
-fire server-side** (a name enters its buy zone, a trail is breached, a catalyst
-is N days out) plus a daily digest — it needs accounts anyway, and it converts a
-site you remember to visit into a service that reaches you. The strongest
-credibility feature is a **track record for the LEADERS model**, computable from
-bars already stored: without it the score is an assertion.
+**THE TRACK RECORD IS BUILT** (`api/backtest.js` + `src/backtest.js` + the
+`record` tab), and it is the answer to "why would anyone pay". Nobody pays for
+another screener; they pay for one whose ranking is demonstrably predictive. The
+score was the single thing this product asked you to believe and the only thing
+it offered no evidence for.
+
+Every month in the window, the whole universe is scored **using only the bars
+available on that day**, sorted, split into five groups, and measured over the
+next month. Four properties make it checkable rather than promotional, and each
+is a thing a vendor backtest usually gets wrong:
+
+- **It runs the PRODUCTION scorer.** `computeSignals`, `rsRatings` and
+  `momentumScore` are imported, not reimplemented — a backtest of a
+  reimplementation measures the reimplementation, which is the trap that put
+  `isLaunchpad` behind a named export in the first place.
+- **No lookahead, enforced structurally.** A rebalance slices every name's bars
+  to `date <= D` before anything is computed, so the scorer is handed a series
+  that physically cannot contain the future. Slicing is by DATE, not index:
+  names have different bar counts, and an index offset would score different
+  names as of different days. `test/backtest.test.mjs` asserts this two ways —
+  a universe with no persistent signal must NOT produce a gradient, and trimming
+  the bars past the last rebalance must not move its numbers.
+- **The whole ladder is reported, and the headline is `monotone / pairs`.** One
+  good bucket is what noise looks like when you go looking for it. "3 of 4" is a
+  claim a reader can weigh; "our top decile returned X" is not.
+- **The caveats ship with the payload**, from `CAVEATS` in `src/backtest.js`, and
+  render at the same type size as the findings. **Survivorship is the one that
+  cannot be fixed** — the universe is today's membership, so removed names are
+  absent and added names (past winners) are present throughout, which biases the
+  result in the flattering direction. It needs point-in-time constituent history,
+  which no feed here provides. Labelled, never hidden. A disclosure set smaller
+  than the finding it qualifies is decoration.
+
+**It is a third nightly pass and a third blob** (`leaders-backtest-v1.json`,
+weekdays 22:40 UTC, 20 min after the ext tier), for the extended tier's reasons:
+it needs **2 years** of bars for ~530 names — one full trailing window before the
+earliest rebalance plus the rebalances themselves — so it cannot share an
+invocation, and the answer changes monthly at most. Yahoo only, no FMP fallback.
+**Never computed on demand**, not even on a schema mismatch: a cold pass is ~530
+upstream fetches and would time a visitor's request out while spending the
+night's budget. Until the cron runs it answers `status: "pending"` and the view
+says exactly that. Scoring itself is ~2.3s for 530 names × 14 rebalances —
+the fetches are the budget, not the maths.
+
+**What is STILL not built.** There are no accounts, no server-side user state and
+no payment path — every `tt_*` key is localStorage, so a second device starts
+empty. That is the remaining monetization blocker and it is a set of decisions
+before it is code: which auth provider, what is free versus paid, what the paid
+tier delivers. The highest-value paid capability is **alerts that fire
+server-side** (a name enters its buy zone, a trail is breached, a catalyst is N
+days out) plus a daily digest — it needs accounts anyway, and it converts a site
+you remember to visit into a service that reaches you. The track record is what
+makes that worth paying for: an alert on a score nobody trusts is a notification,
+not a service.
 
 ## Deploying
 
