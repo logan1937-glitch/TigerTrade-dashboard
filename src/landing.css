@@ -246,3 +246,12 @@
   .lp-pill i { box-shadow: none; }
   .lp-btn { transition: none; }
 }
+
+/* The evidence section reuses `.lp-rule`'s grid wholesale — it is the same
+   shape of argument (a claim on the left, a four-row card on the right) and
+   giving it its own layout would say it is a different kind of section than the
+   honesty rule it follows from. Only the top rule differs, so the two read as a
+   pair rather than as a repeat. */
+.lp-rec { border-top: 1px solid var(--border); }
+.lp-rec .lp-rlede + .lp-rlede { margin-top: 14px; }
+.lp-rec .lp-btns { margin-top: 24px; }

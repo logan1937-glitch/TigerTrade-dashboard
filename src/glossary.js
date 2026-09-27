@@ -56,7 +56,10 @@ export const GLOSSARY = {
     short: "A 0–100 momentum score built from RS, stage, distribution days and volume signature.",
     long: `Purely technical: no fundamentals are used anywhere in it, so a curated name and one
       the screener found score on the same basis. RS is the largest single input at 45%.
-      Illiquid names take a penalty. A score is a model output and not a price target.`,
+      Illiquid names take a penalty. A score is a model output and not a price target.
+      Whether it actually ranks forward returns is measured rather than asserted — the
+      Track record tab scores the whole universe point-in-time each month and shows what
+      each fifth did next, with the caveats it cannot correct for.`,
   },
   stage: {
     term: "Stage",

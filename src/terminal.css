@@ -3445,6 +3445,19 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .fact-k { font-size: var(--fs-label); letter-spacing: var(--track-label); color: var(--dim); }
 .fact-v { font-size: var(--fs-figure); font-weight: 600; line-height: 1.1; color: var(--text); }
 .fact-s { font-size: var(--fs-micro); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* THE ONE FACT THAT IS A CONTROL, and it must not look like a different KIND of
+   thing than the four beside it — the row is a quiet band of supporting figures
+   and a button styled as a button would break that. So the reset is total (no
+   `font` shorthand, which resets the figure size — the trap `.cover-fig-btn`
+   already paid for) and the only affordance is the arrow in its sub-line, which
+   takes `--accent` on hover because that is the interaction colour. */
+.fact-btn { display: flex; flex-direction: column; gap: 5px; padding: 0 26px 0 0; min-width: 0;
+  background: none; border: 0; text-align: left; color: inherit; cursor: pointer;
+  font-family: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; }
+.fact-btn .fact-s i { font-style: normal; color: var(--muted); transition: color .14s ease; }
+.fact-btn:hover .fact-k, .fact-btn:focus-visible .fact-k { color: var(--muted); }
+.fact-btn:hover .fact-s i, .fact-btn:focus-visible .fact-s i { color: var(--accent); }
+.fact-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-sm); }
 @media (max-width: 1100px) {
   .cover-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; }
 }

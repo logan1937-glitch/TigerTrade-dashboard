@@ -819,12 +819,22 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
             <div className="fact"><span className="fact-k">In buy zone</span>
               <span className="fact-v mono">{buyCount}</span>
               <span className="fact-s">price against its pivot</span></div>
-            <div className="fact"><span className="fact-k">A-grade leaders</span>
+            {/* THE ONE FACT THAT LINKS TO ITS OWN EVIDENCE. Every other figure in
+                this row is a measurement of the market; this one is a count of
+                what the MODEL says, which is the only claim on the page a
+                reader has grounds to distrust. The track record exists to
+                answer that and it was a sixth tab a first-time visitor had no
+                reason to click — evidence nobody encounters is not evidence.
+                So the fact is a button: the assertion and its proof are one
+                click apart, in the place the assertion is made. */}
+            <button className="fact fact-btn" onClick={() => setTab("record")}
+              title="How the score has actually ranked — point-in-time, monthly, with its caveats">
+              <span className="fact-k">A-grade leaders</span>
               <span className="fact-v mono">{leaders}</span>
               {/* 80, not 93 — `_grade` is "a" at 80 and `leaders` counts the
                   same threshold. The caption said 93+, which is a different
                   number from the one above it. */}
-              <span className="fact-s">score 80+</span></div>
+              <span className="fact-s">score 80+ · <i>does it rank? →</i></span></button>
           </div>
         </div>
       </div>

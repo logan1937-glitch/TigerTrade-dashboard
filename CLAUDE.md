@@ -1207,7 +1207,8 @@ view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `rada
 heights, the two benchmark lines and the "N of 4" headline are computed at render
 and a shape regression is invisible in a diff; its fixture carries a deliberately
 IMPERFECT ladder, 3 of 4 with one pair inverted, so the picture covers the honest
-case rather than the flattering one),
+case rather than the flattering one), `recordlink` (the same view reached by the
+landing page's deep link instead of the tab — see the monetizing section),
 `mapfind` (the heatmap with a sector picked AND a query typed — the two controls
 do different things, so a shot of them together is the only way to catch the
 filter eating the search, or the dimming being applied to the pre-filter set).
@@ -1423,6 +1424,33 @@ upstream fetches and would time a visitor's request out while spending the
 night's budget. Until the cron runs it answers `status: "pending"` and the view
 says exactly that. Scoring itself is ~2.3s for 530 names × 14 rebalances —
 the fetches are the budget, not the maths.
+
+**EVIDENCE NOBODY ENCOUNTERS IS NOT EVIDENCE**, so the score and its proof are
+one click apart in three places, and the placements are deliberate:
+
+- **The cover's "A-grade leaders" fact is a button** (`.fact-btn`) that opens the
+  `record` tab. It is the one figure in that five-up row that is a count of what
+  the MODEL says rather than a measurement of the market — the only claim on the
+  page a reader has grounds to distrust — so it is the one that carries the link.
+  The reset is total and deliberately **not** `font: inherit`, which would reset
+  the figure size: the same shorthand trap `.cover-fig-btn` already paid for. It
+  must not look like a different *kind* of thing than the four facts beside it,
+  so the only affordance is the arrow in its sub-line, amber on hover.
+- **The `score` glossary entry names the tab**, because "what does this number
+  mean" and "does it work" are the same question asked half a second apart.
+- **The landing page argues it** (`.lp-rec`), reusing `.lp-rule`'s grid wholesale
+  because it is the same shape of argument — the honesty rule, then the same
+  discipline turned on our own model. **It carries NO figures on purpose.**
+  Hardcoding "+2.78pp" would freeze a number the nightly pass recomputes into
+  marketing copy, which is the fabrication the OG card already refuses. The
+  method is stated and the live result is one click away — and "we measured it,
+  go and look" is the more persuasive of the two anyway, because a figure on a
+  marketing page is one a reader has no way to check.
+- The `recordlink` shot takes the landing CTA's **real URL**
+  (`/terminal?p=canslim&tab=record`) rather than clicking the tab, because a
+  `?tab=` id is validated against `SUBTABS` before it selects anything and a
+  failing id renders the screener silently — which would make the one CTA the
+  whole evidence argument rests on look like it did nothing.
 
 **What is STILL not built.** There are no accounts, no server-side user state and
 no payment path — every `tt_*` key is localStorage, so a second device starts

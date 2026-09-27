@@ -193,6 +193,14 @@ const VIEWS = [
       await click(p, "Track record");
       await p.waitForTimeout(600);
     } },
+  /* The landing page's "See what it actually did" CTA lands here by DEEP LINK,
+     not by clicking the tab, and a `?tab=` id is validated against SUBTABS
+     before it selects anything — an id that fails validation renders the
+     screener instead, silently, which would make the one CTA the evidence
+     argument depends on look like it simply did nothing. Shot on the real URL
+     so the route is covered rather than assumed. */
+  { id: "recordlink", path: "/terminal?p=canslim&tab=record",
+    state: { tt_product: "radar", tt_tab: "radar" }, act: (p) => p.waitForTimeout(700) },
   /* The heatmap's two controls, which do DIFFERENT things and so must both be in
      a picture: picking a sector re-lays the map out (the 80-tile budget is spent
      on that one sector, so names the all-sector view had to drop appear), while

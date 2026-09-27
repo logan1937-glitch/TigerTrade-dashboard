@@ -225,6 +225,56 @@ export default function Landing({ mode = "dark", onEnter }) {
         </div>
       </section>
 
+      {/* THE SAME DISCIPLINE, TURNED ON OUR OWN MODEL. The section above argues
+          that a missing input must not be rounded into a measurement; this one
+          is what that argument costs when it is applied to the thing we are
+          selling. A score is an assertion until somebody measures it.
+
+          DELIBERATELY NO FIGURES HERE. Putting "+2.78pp" on this page would
+          mean hardcoding a number that the nightly pass recomputes — a
+          measurement frozen into marketing copy, which is the same failure as
+          the fabricated prices the OG card refuses to render. The method is
+          stated and the live result is one click away, which is also the more
+          persuasive of the two: "we measured it, go and look" beats a figure a
+          reader has no way to check. */}
+      <section className="lp-rule lp-rec">
+        <div className="wrap lp-rule-grid">
+          <div>
+            <div className="lp-eyebrow mono">The evidence</div>
+            <h2 className="lp-h2 lp-h2-big lp-balance">We score our own model the way we score a stock</h2>
+            <p className="lp-rlede">
+              Every screener has a proprietary number and every one of them says it works. Ours is
+              measured, monthly, on the same code the board runs: the whole universe is ranked using
+              only the bars available <b>on that day</b>, split into five groups, and each group's
+              next month is recorded. If the score carries information, the groups come out in order —
+              and if they don't, the chart says so.
+            </p>
+            <p className="lp-rlede">
+              The result is published with what it cannot prove, at the same type size as the finding.
+              Survivorship is the one we can't correct, and it runs in our favour, so we say that first.
+            </p>
+            <div className="lp-btns">
+              <button className="lp-btn" data-kind="secondary" onClick={go("/terminal?p=canslim&tab=record")}>
+                See what it actually did
+              </button>
+            </div>
+          </div>
+          <div className="lp-card">
+            {[
+              ["Point-in-time", "Bars are sliced to the rebalance date before anything is computed. No future bar can reach the scorer."],
+              ["Same code", "The backtest imports the production scorer. A test of a rewrite measures the rewrite."],
+              ["Whole ladder", "All five groups, not the best one. A single good bucket is what noise looks like."],
+              ["Its own limits", "Survivorship, costs, taxes, sample length — shipped with the numbers, not in a footnote."],
+            ].map(([k, v]) => (
+              <div className="lp-card-row" key={k}>
+                <div className="lp-card-k mono">{k}</div>
+                <div className="lp-card-v">{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="lp-not">
         <div className="wrap">
           <div className="lp-eyebrow mono">What it is not</div>
