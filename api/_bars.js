@@ -19,7 +19,18 @@ const fin = (v) => (v == null || Number.isNaN(+v) ? null : +v);
 /* `range` is a Yahoo range string. The backtest asks for 2y because it needs a
    full trailing window (252 sessions) BEFORE its earliest rebalance, plus the
    rebalances themselves — 1y would leave no out-of-sample period at all. */
-export async function fetchBars(symbol, range = "1y") {
+/* `requireAdjusted` exists because the SAME fallback is right in one caller and
+   dangerous in the other. Falling back to `quote.close` when Yahoo omits
+   `adjclose` is correct for a chart — an unadjusted line is still that name's
+   price. It is NOT correct for the backtest: one unadjusted series across a 4:1
+   split contributes a −75% "return" for that month, and with ~100 names to a
+   bucket that is most of a percentage point of pure artefact on whichever bucket
+   held it. Yahoo essentially always serves adjclose for US equities, and
+   "essentially always" is exactly how silent corruption gets into a study
+   nobody re-derives. The backtest passes `true`, so a name without adjusted
+   closes is REFUSED and counted in the coverage figure the view prints, rather
+   than quietly entering the sample. */
+export async function fetchBars(symbol, range = "1y", requireAdjusted = false) {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`
       + `?range=${encodeURIComponent(range)}&interval=1d`;
@@ -34,6 +45,7 @@ export async function fetchBars(symbol, range = "1y") {
     const q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
     const adj = res.indicators && res.indicators.adjclose && res.indicators.adjclose[0]
       && res.indicators.adjclose[0].adjclose;
+    if (requireAdjusted && !adj) return null;      // see the note above
     const rows = [];
     for (let i = 0; i < ts.length; i++) {
       // ADJUSTED close, so splits and dividends are already handled — a

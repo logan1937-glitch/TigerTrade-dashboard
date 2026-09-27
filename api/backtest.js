@@ -68,7 +68,8 @@ async function compute() {
   const barsByTk = new Map();
   let refused = 0;
 
-  const spy = await fetchBars(BENCH, "2y");
+  // adjusted-only: an unadjusted series would read a split as a crash
+  const spy = await fetchBars(BENCH, "2y", true);
   if (!spy || spy.length < MIN_BARS + HOLD + REBAL_GAP) {
     return {
       schema: SCHEMA, generatedAt: new Date().toISOString(), status: "insufficient",
@@ -79,7 +80,7 @@ async function compute() {
   }
 
   await pool(tickers, async (tk) => {
-    const rows = await fetchBars(tk, "2y");
+    const rows = await fetchBars(tk, "2y", true);
     if (rows && rows.length >= MIN_BARS) barsByTk.set(tk, rows);
     else refused++;
   }, 6, FETCH_DEADLINE);

@@ -1414,6 +1414,18 @@ is a thing a vendor backtest usually gets wrong:
   which no feed here provides. Labelled, never hidden. A disclosure set smaller
   than the finding it qualifies is decoration.
 
+**`fetchBars(symbol, range, requireAdjusted)` — and the third argument is a
+correctness switch, not a preference.** Falling back to `quote.close` when Yahoo
+omits `adjclose` is right for a CHART: an unadjusted line is still that name's
+price. It is wrong for the STUDY — one unadjusted series across a 4:1 split
+contributes a −75% "return" for that month, and with ~100 names to a bucket that
+is most of a percentage point of pure artefact on whichever bucket held it.
+Yahoo essentially always serves adjclose for US equities, and "essentially
+always" is how silent corruption gets into a number nobody re-derives. The
+backtest passes `true`, so such a name is **refused and counted in `refused`**,
+which the view prints — coverage bounds the claim, so a reader is told before
+they read the gradient.
+
 **It is a third nightly pass and a third blob** (`leaders-backtest-v1.json`,
 weekdays 22:40 UTC, 20 min after the ext tier), for the extended tier's reasons:
 it needs **2 years** of bars for ~530 names — one full trailing window before the
