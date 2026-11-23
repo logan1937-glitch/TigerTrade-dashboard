@@ -485,7 +485,14 @@ function fixture() {
     // numeric `v` + `bp`, fx/comm a numeric `v` + `chg`, cpi is a bare object,
     // and market health needs its `breadth` block (the screener reads it)
     market: {
-      trend: "Confirmed Uptrend", trendNote: "Above 50-DMA", distDays: 2, distMax: 6, lastFTD: day(-28),
+      /* The REAL sentence `computeMarketHealth` produces, not a terse stand-in.
+         It is the line that carries the regime's polarity now that the figure
+         above it is uncoloured, and at four words the shot could not show
+         whether a full one wraps, crowds the distribution row, or reads as a
+         permission at all. A fixture shorter than production is a fixture that
+         stops testing the thing it is there to test. */
+      trend: "Confirmed Uptrend", trendNote: "Buying permitted — S&P above its rising 50-day and 200-day lines.",
+      distDays: 2, distMax: 6, lastFTD: day(-28),
       // The Index Health card was rendering EMPTY in every shot because this was
       // `[]`. The Dow row deliberately carries a null change and a null 200-day
       // read: those are the paths that used to print a green +0.00% and an

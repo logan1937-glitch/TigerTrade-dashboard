@@ -138,7 +138,7 @@ export function EventDrawerBody({ ev, onClose, onPick, vix }) {
             <div title="Expected 1-day S&P 500 move implied by the current VIX (VIX ÷ √252) — the market's live volatility read">
               <span className="dr-mk mono">Expected move <span style={{ opacity: .6 }}>· VIX-implied</span></span>
               <div className="dr-mv mono">{val(em, (x) => `±${x.toFixed(1)}%`, "The expected move is derived from the VIX level — no VIX quote in this snapshot")}</div>
-              {em != null && <BarMeter value={Math.min(em / 3, 1) * 100} c="var(--accent)" />}
+              {em != null && <BarMeter value={Math.min(em / 3, 1) * 100} />}
             </div>
           </div>
         </div>

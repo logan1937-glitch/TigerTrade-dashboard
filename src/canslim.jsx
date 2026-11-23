@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { TT } from "./tt.js";
 import { RET_KEY } from "./signals.js";
 import { PlaybookView } from "./playbook.jsx";
-import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct, FeedState, Term, BUY_STATUS } from "./components.jsx";
+import { SearchIcon, StarBtn, InfoDot, NA, Chip, FigPct, FeedState, Term, BUY_STATUS, REGIME_STATE } from "./components.jsx";
 import { GLOSSARY } from "./glossary.js";
 import { BarMeter } from "./charts.jsx";
 import { MarketMap } from "./marketMap.jsx";
@@ -649,9 +649,11 @@ function MarketHealth({ market }) {
         {liveMh && <span className="count mono" style={{ opacity: .8 }}>trend & distribution from the S&amp;P 500</span>}
       </div>
       <div className="mh-grid">
-        <div className="mh-card mh-trend reveal" style={{ "--i": 0 }}>
+        {/* same shape as the cover: figure uncoloured, polarity on the words —
+            see REGIME_STATE for why the two must not diverge again */}
+        <div className="mh-card mh-trend reveal" data-state={REGIME_STATE(m.trend)} style={{ "--i": 0 }}>
           <span className="mh-k mono">Market trend</span>
-          <span className="mh-trend-v" style={m.trend !== "Confirmed Uptrend" ? { color: m.trend === "Market In Correction" ? "var(--pl-down)" : "var(--caution)" } : undefined}>{m.trend}</span>
+          <span className="mh-trend-v">{m.trend}</span>
           <p className="mh-note">{m.trendNote}</p>
           <div className="mh-dist">
             <span className="mh-k mono">Distribution days</span>
@@ -686,12 +688,16 @@ function MarketHealth({ market }) {
           <span className="mh-k mono">{liveMh ? `Breadth · tracked universe (${b.n})` : "Breadth"}</span>
           <div className="mh-breadth">
             <div className="mh-b"><span className="mh-bk mono">New 52-wk highs / lows</span><span className="mh-bv mono"><b className="up">{b.newHighs}</b> / <b className="dn">{b.newLows}</b></span></div>
-            {/* Breadth is a PROPORTION OF THE UNIVERSE, not money moved — jade,
-                like every other measured signal on this board. Drawn in the P&L
-                green these read as a gain, and a healthy breadth reading on a
-                down day put a green bar under a red tape. */}
-            {b.pctAbove50 != null && <div className="mh-b"><span className="mh-bk mono">% above 50-day</span><span className="mh-bv mono">{b.pctAbove50}%</span><BarMeter value={b.pctAbove50} c="var(--accent)" /></div>}
-            {b.upVolPct != null && <div className="mh-b"><span className="mh-bk mono">Up $-volume</span><span className="mh-bv mono">{b.upVolPct}%</span><BarMeter value={b.upVolPct} c="var(--accent)" /></div>}
+            {/* Breadth is a PROPORTION OF THE UNIVERSE, not money moved. Drawn
+                in the P&L green these read as a gain, and a healthy breadth
+                reading on a down day put a green bar under a red tape — which
+                is why they were moved off it. They were moved onto JADE, and
+                when jade was retired the call sites were repointed at
+                `--accent`, so a magnitude ended up wearing the interaction
+                colour; the comment here still said "jade", which was the tell.
+                The meter's own LENGTH is the reading, so the fill is neutral. */}
+            {b.pctAbove50 != null && <div className="mh-b"><span className="mh-bk mono">% above 50-day</span><span className="mh-bv mono">{b.pctAbove50}%</span><BarMeter value={b.pctAbove50} /></div>}
+            {b.upVolPct != null && <div className="mh-b"><span className="mh-bk mono">Up $-volume</span><span className="mh-bv mono">{b.upVolPct}%</span><BarMeter value={b.upVolPct} /></div>}
             <div className="mh-b"><span className="mh-bk mono">Adv/Dec ratio</span><span className="mh-bv mono">{b.advDec}:1</span></div>
           </div>
         </div>
@@ -797,7 +803,7 @@ export function CanslimView({ onOpenStock, live = { status: "loading" }, rows = 
 
           {/* Never a fabricated regime: with no market payload this is a dash
               that says why, not an optimistic default. */}
-          <div className="cover-fig" data-state={market ? (market.trend === "Confirmed Uptrend" ? "ok" : market.trend === "Market In Correction" ? "bad" : "warn") : undefined}>
+          <div className="cover-fig" data-state={market ? REGIME_STATE(market.trend) : undefined}>
             {market ? market.trend : <NA why="The market-health block is missing from this snapshot — trend, distribution days and breadth all ride on it" />}
           </div>
           <div className="cover-sub">

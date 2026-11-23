@@ -45,6 +45,25 @@ export const BUY_STATUS = {
   watch: ["Watch",       "var(--dim)",     "watchStatus"],
 };
 
+/* ONE REGIME VOCABULARY, for the same reason there is one BUY_STATUS. The
+   market trend is rendered in TWO places — the screener cover and Market
+   Health's trend panel — and they had drifted: the cover left the figure in
+   `--text` and coloured its sub-line with the P&L pair (correct, and the rule
+   this file's notes spell out), while the panel painted the FIGURE itself
+   `--accent` for an uptrend, `--pl-down` for a correction and `--caution`
+   otherwise. So one reading looked like two different kinds of thing two inches
+   apart on the same screen, and the panel's version spent the interaction
+   colour on a measurement.
+
+   A regime cannot borrow a hue when the only hue is money moved. The figure is
+   always `--text`; the polarity rides on the words beneath it, which is also the
+   more useful place for it — "Buying permitted" says what to do, "Confirmed
+   Uptrend" only says what is. */
+export const REGIME_STATE = (trend) => (
+  trend == null ? undefined
+  : trend === "Confirmed Uptrend" ? "ok"
+  : trend === "Market In Correction" ? "bad" : "warn");
+
 /* The Ember mark: three tapered slashes — a tiger's claw rake and a rising tape
    read as the same gesture. Geometry is fixed by the brand system: a 10×10 grid
    in a 0 0 100 100 box, heads at y 52/38/22 stepping up 14 units, all feet on

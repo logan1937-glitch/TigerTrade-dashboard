@@ -334,7 +334,16 @@ export function ScoreDonut({ score, label = "Composite", size = 96 }) {
 }
 
 /* ---------- horizontal bar meter ---------- */
-export function BarMeter({ value, max = 100, suffix = "", c = "var(--accent)" }) {
+/* A METER'S FILL IS NEUTRAL, because its LENGTH already carries the reading.
+   The default was `--accent`, which is the interaction colour — so every call
+   site inherited amber for a magnitude, and the mistake propagated by default
+   rather than by decision. Breadth, up-volume share and an implied move are all
+   magnitudes: no direction, no selection, so neither the P&L pair nor amber.
+   Lightness on the neutral ramp is what the colour rule gives a magnitude, and
+   the bar's own width is that lightness ramp's job here — colouring the fill as
+   well would encode the same number twice. Pass `c` only for a bar that really
+   does carry a direction. */
+export function BarMeter({ value, max = 100, suffix = "", c = "var(--muted)" }) {
   const grow = useGrow(600);
   return (
     <div className="meter"><i style={{ width: Math.min(value / max, 1) * 100 * grow + "%", background: c }} /></div>

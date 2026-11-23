@@ -421,6 +421,41 @@ against a declining one.
   ramps. Check the list before adding a hue.
 - **A count is not a direction.** The Calendar header's "N reports" was `--pl-up`.
 
+**A SECOND SWEEP, THIS TIME FOR `--accent` ON DATA, found five more — and they
+share one cause.** All five were JADE under the first colour system ("amber is
+brand, jade is signal"). When jade was retired the call sites were repointed at
+`--accent` because that is where the signal colour had gone, and nobody re-asked
+whether a hue belonged on them at all. The giveaway is in the source: the Market
+Health comment still read *"jade, like every other measured signal on this
+board"* above a line passing `var(--accent)`.
+
+- **`BarMeter`'s DEFAULT was `--accent`**, so every call site inherited amber for
+  a magnitude and the mistake propagated by default rather than by decision. It
+  is `--muted` now; `% above 50-day`, `Up $-volume` and the drawer's implied-move
+  bar all stopped passing an override. **A meter's LENGTH is the reading** —
+  colouring the fill too encodes the same number twice.
+- **`.pf-wbar` and `.pf-sec i`** — book weight and sector weight. A position
+  being 40% of a book is neither selected nor notable.
+- **`.mh-trend-v` was `--accent`**, with inline overrides for correction and
+  caution. See the regime note below.
+- Left alone deliberately: **`.cs-off[data-tier="near"]`**. That is accent
+  marking *notable* — the same use as a name in its buy zone or an A-grade score
+  — and only the top tier of three takes it.
+
+**ONE REGIME VOCABULARY — `REGIME_STATE` in `components.jsx`**, for the reason
+there is one `BUY_STATUS`. The market trend renders in two places and they had
+drifted: the cover left the figure in `--text` and coloured its sub-line with the
+P&L pair, while Market Health's panel painted the FIGURE `--accent` for an
+uptrend and `--pl-down` / `--caution` otherwise. **The same reading looked like
+two different kinds of thing two inches apart on one screen.** The figure is
+always `--text`; the polarity rides on the words beneath it, which is the more
+useful place for it anyway — "Buying permitted" says what to do, "Confirmed
+Uptrend" only says what is. Both call sites derive the state from the one helper.
+The fixture's `trendNote` was a four-word stand-in ("Above 50-DMA") where
+production emits a full sentence, so the shot could not show whether the line
+that now carries the polarity wraps or crowds the row — it carries the real
+string now.
+
 **ONE BUY-STATUS VOCABULARY — `BUY_STATUS` in `components.jsx`.** There were
 THREE copies (screener row, stock drawer, watchlist) and they disagreed: one name
 read "In Buy Zone" in amber on the board and "Buy Zone" in **P&L green** two
