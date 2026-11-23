@@ -249,6 +249,34 @@ thing you read. Two related rules:
 | `claude.js` | Anthropic proxy for the AI features. |
 | `_upstream.js` | Optional residential proxy (`MASSIVE_PROXY_URL`) for the unkeyed, IP-defended Yahoo calls only. |
 
+**`BLOB_READ_WRITE_TOKEN` IS LESS OPTIONAL THAN THE LIST BELOW MAKES IT LOOK, and
+production ran two months without it before anyone noticed.** Measured against the
+live site: `/api/snapshot` answered `blob: false, served: "compute"`, and both
+`?tier=ext` and `/api/backtest` answered `status: "pending"`. The core tier
+degrades gracefully — it recomputes and `s-maxage=1800` bounds that to about two
+recomputes an hour at the edge, so the FMP quota survives — but **the other two
+tiers are never computed on demand by design**, so with nowhere to write they
+each spent the night computing ~900 and ~530 names and then discarding them.
+"Beyond index" and the whole Track record tab had therefore never worked for any
+visitor, on a deploy that otherwise looked completely healthy.
+
+**What hid it for two months was the wording, and that is the transferable part.**
+All three surfaces reported the condition as `NOT_YET_COMPUTED` — "Tonight's pass
+hasn't run yet", "The study has not been computed yet". That is a sentence that
+resolves itself by waiting, and it was describing a state that cannot resolve
+without a human. It is the never-fabricate rule one level up from a number: a
+don't-know rendered as a definite, benign reading in whichever direction hurts
+most, which here is the direction where nobody investigates. It is the same
+failure as a skeleton still pulsing after the load has settled, which is exactly
+what `feedSettled` exists to prevent on the radar — the app had the principle and
+had not applied it to its own configuration. **`NO_BLOB_STORE` is now a third,
+distinct reason** in both endpoints, both views word it as a setting rather than a
+wait, and both name the token, on the `Boundary` principle that a screenshot has
+to be enough to fix it. The `noblob` / `noblobext` shots are that state, and they
+sit beside `dead` / `deadext` precisely so the two cannot drift back into reading
+alike. **When you add a status, ask which of its values end on their own** — any
+that do not need their own sentence.
+
 **Env vars:** `FMP_API_KEY`, `FINNHUB_API_KEY`, `BLOB_READ_WRITE_TOKEN`,
 `ANTHROPIC_API_KEY`, `MASSIVE_PROXY_URL`, `MASSIVE_PROXY_BULK`. All optional —
 each feature degrades to a stated-unavailable state without its key.
@@ -1236,7 +1264,8 @@ npm run shots -- --views radar --live                   # against real APIs
 
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
-`vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`, `map`,
+`vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`,
+`noblob`, `noblobext` (the no-blob-store state — see the endpoints section), `map`,
 `rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`,
 `record` (the track record — the whole view is arithmetic on the payload, so bar
 heights, the two benchmark lines and the "N of 4" headline are computed at render

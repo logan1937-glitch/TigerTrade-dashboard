@@ -182,6 +182,22 @@ const VIEWS = [
       await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
       await p.waitForTimeout(700);
     } },
+  /* THE STATE PRODUCTION WAS ACTUALLY IN, for two months, undetected: a healthy
+     core snapshot with no blob store behind it, so the extended tier and the
+     track record each computed nightly and threw the result away. Both surfaces
+     reported it as a cron that had not fired yet, which is a sentence that
+     resolves itself by waiting — so the one failure in this app that needed a
+     human to notice it was the one phrased as "check back tomorrow". These two
+     shots exist to keep that distinguishable: they must NOT read like `dead` and
+     `deadext` beside them. */
+  { id: "noblob", state: { tt_product: "canslim" }, noblob: true, act: async (p) => {
+      await click(p, "Track record");
+      await p.waitForTimeout(600);
+    } },
+  { id: "noblobext", state: { tt_product: "canslim" }, noblob: true, act: async (p) => {
+      await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
+      await p.waitForTimeout(700);
+    } },
   { id: "map",       state: { tt_product: "canslim" }, act: (p) => click(p, "Market Map") },
   /* The model's own evidence. Worth its own shot because the whole view is
      arithmetic on the payload — bar heights, the two benchmark lines and the
@@ -684,8 +700,17 @@ const BACKTEST = JSON.stringify({
 });
 
 const SNAP_DEAD = JSON.stringify({ ...fixture(), macro: null, vix: null, vol: null, earnings: null });
-const SNAP_EXT_PENDING = JSON.stringify({ tier: "ext", status: "pending", reason: "NOT_YET_COMPUTED",
+/* THE TWO WAYS A TIER CAN BE ABSENT WITH NOTHING WRONG UPSTREAM, and they are
+   opposite conditions: NOT_YET_COMPUTED ends on tonight's cron, NO_BLOB_STORE
+   cannot end until the deployment is given a blob store, because the pass has
+   nowhere to write and discards its work every run. Production sat in the second
+   for two months while every surface rendered the first — "ready after tonight's
+   pass" — so both are parameterised here and both get a shot. The one thing
+   these fixtures exist to prove is that the two do not look alike. */
+const extPending = (reason) => JSON.stringify({ tier: "ext", status: "pending", reason,
   count: 0, total: 0, quotes: {}, sig: {}, meta: {} });
+const btPending = (reason) => JSON.stringify({ schema: 1, status: "pending", reason,
+  caveats: JSON.parse(BACKTEST).caveats });
 let shot = 0, failed = 0;
 
 for (const theme of themes) {
@@ -709,9 +734,14 @@ for (const theme of themes) {
         // routed before /api/snapshot for the reason tier=ext is: this URL does
         // not contain "/api/snapshot", but keeping the specific tests together
         // is what stopped the ext fixture being shadowed, and the same habit
-        // applies here. `dead` shoots the not-yet-computed path.
-        else if (u.includes("/api/backtest")) body = v.dead ? JSON.stringify({ schema: 1, status: "pending", reason: "NOT_YET_COMPUTED", caveats: JSON.parse(BACKTEST).caveats }) : BACKTEST;
-        else if (u.includes("tier=ext")) body = v.dead ? SNAP_EXT_PENDING : SNAP_EXT;
+        // applies here. `dead` shoots the not-yet-computed path, `noblob` the
+        // permanent one — and `noblob` leaves the CORE snapshot healthy, which
+        // is what production looked like: prices and macro fine, two tiers that
+        // compute nightly and have nowhere to land.
+        else if (u.includes("/api/backtest"))
+          body = (v.dead || v.noblob) ? btPending(v.noblob ? "NO_BLOB_STORE" : "NOT_YET_COMPUTED") : BACKTEST;
+        else if (u.includes("tier=ext"))
+          body = (v.dead || v.noblob) ? extPending(v.noblob ? "NO_BLOB_STORE" : "NOT_YET_COMPUTED") : SNAP_EXT;
         else if (u.includes("/api/snapshot")) body = v.dead ? SNAP_DEAD : SNAP;
         // /api/yahoo backs the peak-since-entry lookup for held positions
         else if (u.includes("/api/yahoo")) {

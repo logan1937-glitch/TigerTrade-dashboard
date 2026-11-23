@@ -796,9 +796,15 @@ async function handleExt(req, res, refresh) {
        at the same time. Until the cron has run, the tier reports itself pending
        and the screener says so, instead of quietly falling back to the core list
        under a label that claims to be wider than it is. */
+    /* NO_BLOB_STORE is a different thing from the other two and the screener says
+       so: a schema mismatch or a cron that has not fired yet both end on their
+       own tonight, and this one cannot end at all — the pass has nowhere to
+       write, so it recomputes ~900 names and throws them away every time. See
+       the matching note in api/backtest.js; both tiers read the same token and
+       both were reporting a permanent failure as a wait. */
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({ tier: "ext", status: "pending",
-      reason: stored ? "SCHEMA_STALE" : "NOT_YET_COMPUTED",
+      reason: !hasBlob ? "NO_BLOB_STORE" : stored ? "SCHEMA_STALE" : "NOT_YET_COMPUTED",
       count: 0, total: 0, quotes: {}, sig: {}, meta: {}, blob: hasBlob, served: "none" });
   }
   if (!extJob) extJob = computeExt().finally(() => { extJob = null; });

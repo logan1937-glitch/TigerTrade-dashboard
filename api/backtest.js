@@ -118,11 +118,21 @@ export default async function handler(req, res) {
     /* Deliberately NOT computed here — see the header. A schema mismatch waits
        for the cron rather than making a visitor pay for ~530 upstream fetches,
        which is the one place this differs from the core snapshot's behaviour. */
-    res.setHeader("Cache-Control", "public, s-maxage=300");
+    /* THE THREE REASONS ARE NOT THE SAME CONDITION, and only two of them end.
+       SCHEMA_STALE and NOT_YET_COMPUTED both resolve themselves on the next
+       cron, so "check back after tonight's pass" is true of them. NO_BLOB_STORE
+       never resolves: with no token there is nowhere to write a result, so every
+       pass computes the whole study and discards it, and a reader told to wait
+       is told to wait forever. Reporting it as NOT_YET_COMPUTED is the pulsing
+       skeleton one level up — a settled, permanent failure wearing the clothes
+       of a load still in flight, which is exactly what `feedSettled` exists to
+       stop on the radar. It shipped that way and sat unnoticed for two months,
+       which is the cost of a status that cannot distinguish them. */
+    res.setHeader("Cache-Control", hasBlob ? "public, s-maxage=300" : "no-store");
     res.setHeader("X-Backtest-Source", "pending");
     return res.status(200).json({
       schema: SCHEMA, status: "pending", caveats: CAVEATS,
-      reason: stored ? "SCHEMA_STALE" : "NOT_YET_COMPUTED",
+      reason: !hasBlob ? "NO_BLOB_STORE" : stored ? "SCHEMA_STALE" : "NOT_YET_COMPUTED",
     });
   }
 

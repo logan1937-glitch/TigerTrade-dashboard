@@ -66,11 +66,32 @@ export function TrackRecord() {
 
       {data.status === "loading" && <div className="tr-wait"><span className="cm-spin" />Loading the study…</div>}
 
+      {/* A WAIT AND A BROKEN CONFIGURATION READ THE SAME to anyone looking at
+          this panel, and they are opposite things: one ends tonight, the other
+          never ends. Saying "not computed yet" about the second is the same
+          error as a skeleton that keeps pulsing after the load has settled — it
+          promises something is coming. Production sat in the second state for
+          two months while this panel told every visitor to come back tomorrow,
+          so the two now get different sentences and the permanent one names
+          what has to change. */}
       {data.status === "pending" && (
         <div className="tr-wait" data-settled="">
-          The study has not been computed yet — it runs on its own nightly pass, after the snapshot.
-          It is deliberately never computed on demand: a cold run is about 530 upstream fetches, and
-          making a visitor wait for that would spend the night's data budget on one page view.
+          {data.reason === "NO_BLOB_STORE" ? (
+            <>This will not appear on its own. The nightly pass has nowhere to put its result —
+            the deployment has no blob store, so <span className="mono">BLOB_READ_WRITE_TOKEN</span> is
+            unset and every run computes the whole study and discards it. That is a deployment
+            setting rather than a wait: it cannot resolve tonight, and the method above is exactly
+            what runs once it is set.</>
+          ) : data.reason === "SCHEMA_STALE" ? (
+            <>The stored study predates the current version of the model, so it is being withheld
+            rather than shown against a scorer that no longer matches it. The next nightly pass
+            rebuilds it.</>
+          ) : (
+            <>The study has not been computed yet — it runs on its own nightly pass, after the
+            snapshot. It is deliberately never computed on demand: a cold run is about 530 upstream
+            fetches, and making a visitor wait for that would spend the night's data budget on one
+            page view.</>
+          )}
         </div>
       )}
 

@@ -435,9 +435,11 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
           {idxF === "ext" && ext.status !== "ok" && view.length > 0 && (
             <span className="cs-ext-note mono" data-bad={ext.status === "error" || undefined}>
               {ext.status === "loading" ? "loading the wider universe…"
-                : ext.status === "pending" ? (ext.reason === "SCHEMA_STALE"
-                  ? "rebuilding after a deploy — ready after tonight's pass"
-                  : "not computed yet — the nightly pass runs after the close")
+                : ext.status === "pending" ? (ext.reason === "NO_BLOB_STORE"
+                  ? "cannot be stored — not a wait, see the panel"
+                  : ext.reason === "SCHEMA_STALE"
+                    ? "rebuilding after a deploy — ready after tonight's pass"
+                    : "not computed yet — the nightly pass runs after the close")
                 : ext.status === "error" ? `unavailable (${ext.reason || "error"})`
                 : "—"}
             </span>
@@ -497,6 +499,16 @@ function Screener({ rows, onOpenStock, onLookup, lookupBusy, lookupErr, sectorF,
             <FeedState kind="pending" kicker="Extended universe"
               headline="Loading the wider tier."
               detail="Roughly 900 names outside the S&P 500, on their own payload. It is fetched only when you ask for it, which is why this is not already here." />
+          ) : ext.status === "pending" && ext.reason === "NO_BLOB_STORE" ? (
+            /* `degraded`, not `pending`: pending is a promise that something is
+               coming, and nothing is. The tier's pass runs and then has nowhere
+               to write, so it discards ~900 names nightly. Naming the token is
+               the point — a screenshot of this panel has to be enough to fix it,
+               the same reason `Boundary` prints the real error text. */
+            <FeedState kind="degraded" kicker="Extended universe"
+              headline="The wider tier has nowhere to be stored."
+              detail="Its nightly pass computes roughly 900 names and then discards them: the deployment has no blob store, so BLOB_READ_WRITE_TOKEN is unset and there is nothing to serve. This is a configuration setting rather than a wait — it will not resolve after tonight's pass. The core universe below is a separate payload and is unaffected; RS stays ranked against that field."
+              actions={[{ label: "Stay on the core universe", onClick: () => setIdxF("all") }]} />
           ) : ext.status === "pending" ? (
             <FeedState kind="pending" kicker="Extended universe"
               headline="Tonight's pass hasn't run yet."

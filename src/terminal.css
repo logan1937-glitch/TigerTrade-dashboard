@@ -3732,7 +3732,12 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   min-height: 120px; padding: 18px; text-align: center; text-wrap: pretty; max-width: 76ch;
   margin-inline: auto; font-family: var(--font-ui); font-size: var(--fs-data);
   line-height: 1.6; color: var(--muted); }
-.tr-wait[data-settled] { min-height: 0; color: var(--dim); }
+/* FLEX IS FOR THE SPINNER, which only the loading state has — and a flex row
+   makes every inline child its own column, so the moment a settled message
+   contained a `<span>` (an env var name set in mono) the sentence broke into
+   three centred blocks with the token stranded between them. The settled state
+   is prose and nothing else, so it is a block. */
+.tr-wait[data-settled] { display: block; min-height: 0; color: var(--dim); }
 
 /* four findings, label over figure over qualifier — no boxes, one hairline
    under the group, the same treatment the drawer's signal grid uses */
