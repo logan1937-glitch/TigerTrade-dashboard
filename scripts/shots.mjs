@@ -187,6 +187,13 @@ const VIEWS = [
      the live merge is most of what the radar tracks, so this shot is also the
      honest picture of how much thinner the queue gets. */
   { id: "noecon", state: { tt_product: "radar", tt_tab: "radar" }, noecon: true },
+  /* The macro board HELD rather than blank. A spent FMP quota used to empty it
+     and `memSnap` was overwritten unconditionally, so one starved recompute
+     took the board down for the rest of the day; it carries the last good
+     block forward now. That is only legitimate because the panel prints the
+     age, so the age is what this shot exists to check — and it is a state
+     `dead` cannot show, because `dead` has no block to hold. */
+  { id: "macrohold", state: { tt_product: "radar", tt_tab: "radar" }, macroStale: true },
   { id: "deadext", state: { tt_product: "canslim" }, dead: true, act: async (p) => {
       await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
       await p.waitForTimeout(700);
@@ -530,7 +537,7 @@ function extFixture() {
     quotes, sig, meta };
 }
 
-function fixture() {
+function fixture(v = {}) {
   // The real snapshot covers the S&P 500 union the curated list, so nearly every
   // screener row arrives with signals. A fixture of 12 unrelated symbols left the
   // visible rows falling back to tt.js's editorial seeded curves — which made the
@@ -596,6 +603,13 @@ function fixture() {
       comm: [{ k: "Gold", v: 2412.4, chg: 0.42 }, { k: "Silver", v: 60.15, chg: 3.96 }, { k: "Brent crude", v: 78.86, chg: -0.63 }],
       crypto: [{ k: "Bitcoin", v: 63999.34, chg: 0.84 }, { k: "Ethereum", v: 1869.64, chg: 0.6 }],
       cpi: { v: 3.1, chg: -0.1, asOf: day(-20) },
+      /* PRODUCTION'S MACRO BLOCK CARRIES A TOP-LEVEL `asOf` AND THIS DID NOT,
+         so the board's age line — the label that licenses showing figures the
+         snapshot carried forward — rendered in no shot at all. The usual
+         fixture-shape trap: nothing errors, the element is simply absent.
+         40 minutes reads as a real duration rather than "just now", and
+         `macroStale` re-dates it past a day to photograph the held state. */
+      asOf: Date.now() - (v.macroStale ? 30 * 3600e3 : 40 * 60e3),
     },
     vix: { level: 16.4, chg: -2.1, avg50: 15.2, hi52: 34.8, lo52: 11.9, series },
     // mirrors vixContext() + flowBlock() in api/snapshot.js. The two lists are
@@ -727,6 +741,11 @@ const chromium = await loadChromium();
 const { server, port } = await serve();
 const browser = await launch(chromium);
 const SNAP = JSON.stringify(fixture());
+/* The macro board HELD past a day — what the panel shows once the snapshot has
+   carried the block forward because FMP stopped answering. Built from the same
+   fixture so only the age differs; the figures are identical, which is the
+   point: the only thing telling you they are old is the line that says so. */
+const SNAP_MACRO_STALE = JSON.stringify(fixture({ macroStale: true }));
 const SNAP_EXT = JSON.stringify(extFixture());
 // the same payload minus the FMP-fed blocks: macro, vix and the earnings dates
 // go dark together because they ride one call, and that pairing is the thing the
@@ -820,7 +839,7 @@ for (const theme of themes) {
           body = (v.dead || v.noblob) ? btPending(v.noblob ? "NO_BLOB_STORE" : "NOT_YET_COMPUTED") : BACKTEST;
         else if (u.includes("tier=ext"))
           body = (v.dead || v.noblob) ? extPending(v.noblob ? "NO_BLOB_STORE" : "NOT_YET_COMPUTED") : SNAP_EXT;
-        else if (u.includes("/api/snapshot")) body = v.dead ? SNAP_DEAD : SNAP;
+        else if (u.includes("/api/snapshot")) body = v.dead ? SNAP_DEAD : v.macroStale ? SNAP_MACRO_STALE : SNAP;
         // /api/yahoo backs the peak-since-entry lookup for held positions
         else if (u.includes("/api/yahoo")) {
           // SHOTS_YAHOO_DOWN=1 — see the header. Exercises the degraded path.

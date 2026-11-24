@@ -716,8 +716,25 @@ const pctTxt = (c) => (c == null ? "—" : c === 0 ? "0.00%" : `${c > 0 ? "+" : 
 const dir = (x) => (x == null || x === 0 ? undefined : x > 0);   // neutral when flat
 
 // live macro instrument panel beside the radar — rates, FX, commodities, inflation
+/* HOW OLD THE BOARD IS, in words. The snapshot carries macro/vix forward when a
+   recompute cannot reach FMP (see api/snapshot.js), so these figures can be
+   older than the page — and a carried-forward number shown as current is the
+   fabrication this product refuses. The age IS the licence to show it at all,
+   so it is never omitted, and past a day it is marked rather than left for the
+   reader to work out from a timestamp. */
+const AGE = (ms) => {
+  if (!ms) return null;
+  const mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 2) return { t: "just now", stale: false };
+  if (mins < 90) return { t: `${mins}m ago`, stale: false };
+  const hrs = Math.round(mins / 60);
+  if (hrs < 36) return { t: `${hrs}h ago`, stale: hrs >= 26 };
+  return { t: `${Math.round(hrs / 24)}d ago`, stale: true };
+};
+
 export function MacroBoard({ macro, settled }) {
   const { rates, fx, comm, crypto, cpi } = macro || {};
+  const age = AGE(macro && macro.asOf);
   // The board is fed only by the nightly snapshot's FMP calls. When those don't
   // answer — no key, a plan that denies the endpoints, an exhausted quota — the
   // data is not late, it is not coming, and a skeleton that pulses forever
@@ -756,6 +773,12 @@ export function MacroBoard({ macro, settled }) {
   );
   return (
     <div className="macroboard">
+      {age && (
+        <div className="mb-asof mono" data-stale={age.stale || undefined}
+          title={new Date(macro.asOf).toLocaleString()}>
+          {age.stale ? `held from ${age.t} — the feed has not answered since` : `as of ${age.t}`}
+        </div>
+      )}
       {rates && rates.length > 0 && (
         <div className="mb-sec">
           <div className="mb-h mono">Rates</div>

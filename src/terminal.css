@@ -484,6 +484,14 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
 .mb-sec { display: flex; flex-direction: column; gap: 7px; }
 .mb-sec + .mb-sec { padding-top: 12px; border-top: 1px solid var(--border); }
 .mb-h { font-size: var(--fs-micro); letter-spacing: var(--track-label); text-transform: var(--label-case); color: var(--dim); margin-bottom: 3px; }
+/* The board's own as-of. Chrome, so `--fs-micro` is right here — it labels the
+   panel rather than reporting anything. When the figures are being held because
+   the feed stopped answering it is no longer chrome, it is the caveat that makes
+   showing them legitimate, so it steps up to `--muted`. Not a hue: "old" is not
+   a direction, and the ramp already carries rank. */
+.mb-asof { font-size: var(--fs-micro); letter-spacing: var(--track-meta); color: var(--dim);
+  margin-bottom: 10px; }
+.mb-asof[data-stale] { color: var(--muted); }
 .mb-row { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 12px; }
 .mb-k { font-size: var(--fs-data); color: var(--muted); white-space: nowrap; }
 .mb-v { font-size: var(--fs-body); font-weight: 700; color: var(--text); text-align: right; }

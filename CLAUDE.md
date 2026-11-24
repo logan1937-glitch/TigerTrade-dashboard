@@ -331,6 +331,36 @@ stayed gone past the next reset. Two changes:
 Neither makes the budget last — **only the Blob store does that**, which is why
 it is the first item here. They stop a bad day being made worse by the retrying.
 
+**AND A FAILED FETCH WAS DESTROYING A GOOD BOARD, which is why it never came
+back.** `memSnap` was overwritten unconditionally, so a single starved recompute
+replaced a working macro block with nothing and served *that* for the next half
+hour — and the recompute after it was just as starved. The board went dark and
+stayed dark through a quota that had already rolled over. This is the rule
+`api/backtest.js` already states ("a failed recompute must not replace a good
+stored study with an error") and this file did not. `lastMacro` keeps the block
+and re-attaches it when a run comes back empty; macro, VIX and earnings move as
+one unit because they are one set of FMP calls.
+
+**The age is the entire licence for doing that.** A carried-forward figure shown
+as current is the fabrication this file refuses; the same figure with its age on
+it is a measurement. `macro.asOf` already rode in the payload and was **rendered
+nowhere** — `.mb-asof` prints it now, as `as of 40m ago` normally and
+`held from 30h ago — the feed has not answered since` past a day, where it steps
+from `--dim` to `--muted` because at that point it is the caveat rather than
+chrome. It is lambda memory only, so a cold start still starts blank: a
+mitigation, not the fix. **The fixture had no top-level `macro.asOf`** while
+production does, so the line rendered in no shot until that was corrected — the
+shape-mismatch trap, where nothing errors and the element is simply absent.
+`macrohold` is the held state; `dead` cannot stand in for it, because `dead` has
+no block to hold.
+
+**And "does the macro board need the paid plan?" is NO, measured.** Those
+endpoints — `treasury-rates`, `commodities-quote`, `forex-quote`,
+`cryptocurrency-quote`, `economic-indicators` — answered 200 with real values on
+the free key. A plan gate is a **permanent 402**; a spent allowance is a **429
+that rolls over**. Do not read one as the other: the first means build a
+fallback, the second means spend fewer calls.
+
 **The downgrade also caught a freshness claim with nothing behind it.** The
 cover's as-of line read `… · updated {TT.todayISO}` in *both* branches, and
 `todayISO` is computed at render — so in template mode the radar printed today's
@@ -1381,7 +1411,8 @@ Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
 `vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`,
 `noblob`, `noblobext` (the no-blob-store state), `noecon` (a healthy board with only
-the economic calendar refused — see the FMP tier note in the endpoints section), `map`,
+the economic calendar refused), `macrohold` (the macro board carried forward past a
+day — see the FMP tier note in the endpoints section), `map`,
 `rrgpin`, `rrgind` (the industry drill-down), `health`, `playbook`, `playbookhelp`,
 `portfolio`, `drawer`, `landing`,
 `record` (the track record — the whole view is arithmetic on the payload, so bar

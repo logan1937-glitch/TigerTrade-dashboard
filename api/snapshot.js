@@ -71,6 +71,24 @@ const MEM_TTL = 30 * 60 * 1000;
    back — trading one silent failure for a longer one. Note this does not make
    the budget last; only the Blob store does that. It stops a bad day from
    being made worse by the retrying. */
+/* A FAILED FETCH MUST NOT DESTROY A GOOD BOARD — the rule api/backtest.js
+   already states for the study ("a failed recompute must not replace a good
+   stored study with an error") and this file did not state for the macro
+   block. `macro`, `vix` and `earnings` all ride on the same FMP calls, so a
+   spent quota empties all three at once, and `memSnap` was then overwritten
+   UNCONDITIONALLY — so one starved recompute replaced a working board with
+   nothing and served that for the next half hour, and the one after it was
+   just as starved. The board went dark and stayed dark through a quota that
+   had already rolled over.
+
+   The last good block is kept and re-attached when a recompute comes back
+   empty. It carries its OWN `asOf`, and the panel prints it: that label is the
+   entire licence for doing this. A carried-forward figure shown as current is
+   exactly the fabrication this file refuses; the same figure with its age on
+   it is a measurement. Lambda memory only, so a cold start still starts blank
+   — this is a mitigation, not the fix. The fix is the Blob store. */
+let lastMacro = null;                   // { macro, vix, earnings, at }
+
 let fmpSpent = 0;                       // ms of the last 429; 0 = clear
 export const FMP_BACKOFF = 15 * 60 * 1000;
 export const resetFmpLatch = () => { fmpSpent = 0; };   // for test/quota.test.mjs
@@ -870,6 +888,17 @@ export default async function handler(req, res) {
   if (!computeJob) computeJob = compute().finally(() => { computeJob = null; });
   const body = await computeJob;
   if (body.count > 0) {
+    /* macro/vix/earnings are one unit because they are one set of FMP calls.
+       Keep them when they arrive; re-attach the last good set when they do
+       not, rather than letting a starved run erase them. */
+    if (body.macro || body.vix) {
+      lastMacro = { macro: body.macro, vix: body.vix, earnings: body.earnings, at: Date.now() };
+    } else if (lastMacro) {
+      body.macro = lastMacro.macro;
+      body.vix = lastMacro.vix;
+      if (!body.earnings || !Object.keys(body.earnings).length) body.earnings = lastMacro.earnings;
+      console.log(`snapshot: carried macro/vix forward from ${new Date(lastMacro.at).toISOString()}`);
+    }
     memSnap = { at: Date.now(), body };
     await writeBlob(body);
   }
