@@ -501,7 +501,20 @@ export function Hero({ events, onSelectEvent, activeId, board, showBoards, live,
             Volatility · Momentum Radar
             <InfoDot text="The scheduled catalysts that move volatility — rates, liquidity, data, and geopolitics — mapped by proximity and sized by expected impact." />
           </h1>
-          <span className="cover-asof mono">{live ? "Live economic calendar" : "Event template 2026–2027"} · {up.length} tracked · updated {TT.todayISO}</span>
+          {/* "UPDATED <TODAY>" IS A MEASUREMENT IN THE TEMPLATE CASE AND THERE IS
+              NOTHING BEHIND IT. `TT.todayISO` is computed at render, so the line
+              printed today's date whether or not anything had been fetched — and
+              with the live calendar refused, the template is a committed
+              editorial file that was last touched whenever it was committed. The
+              label named the source honestly and then undid it with a freshness
+              claim one clause later. The template case says what is actually
+              true instead: these are the curated events and the live feed is
+              not answering. It does not guess WHY — the client cannot tell a
+              plan tier from an outage, and naming infrastructure to a visitor
+              who still has 41 real catalysts in front of them buys nothing. */}
+          <span className="cover-asof mono">{live
+            ? <>Live economic calendar · {up.length} tracked · updated {TT.todayISO}</>
+            : <>Event template 2026–2027 · {up.length} tracked · live calendar unavailable</>}</span>
         </div>
 
         {next ? (

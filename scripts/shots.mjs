@@ -178,6 +178,15 @@ const VIEWS = [
      state that only ever render when something upstream has failed, and which are
      therefore the least-looked-at surface in the app. */
   { id: "dead", state: { tt_product: "radar", tt_tab: "radar" }, dead: true },
+  /* THE MIXED STATE, and it is the one a plan downgrade actually produces: the
+     snapshot is perfectly healthy — macro, VIX, 520 names — and only the
+     economic calendar is refused, because that endpoint is tiered separately.
+     `dead` cannot stand in for it; it refuses everything at once, so it shows
+     the template events beside two dead panels and proves nothing about how the
+     curated list reads under a board that works. The event count is the tell:
+     the live merge is most of what the radar tracks, so this shot is also the
+     honest picture of how much thinner the queue gets. */
+  { id: "noecon", state: { tt_product: "radar", tt_tab: "radar" }, noecon: true },
   { id: "deadext", state: { tt_product: "canslim" }, dead: true, act: async (p) => {
       await p.locator('.seg-btn', { hasText: /^Beyond index$/ }).first().click();
       await p.waitForTimeout(700);
@@ -730,7 +739,21 @@ for (const theme of themes) {
         // tier=ext BEFORE the core test — the ext URL contains "/api/snapshot"
         // too, and answering it with the core payload would make the widened
         // universe look like it merged when nothing new arrived at all
-        if (u.includes("endpoint=economic")) body = JSON.stringify(ECON_FEED);
+        /* `dead` REFUSES THIS TOO, which is how the radar's template mode finally
+           gets into a picture. The fixture served the econ feed unconditionally,
+           so every shot ever taken was in LIVE mode and the `live ? :` branch on
+           the cover's as-of line had never been photographed — the branch that
+           runs whenever the key's tier excludes the economic calendar, which is
+           a state a deploy can sit in indefinitely. 402 rather than a network
+           error because that is what FMP actually answers for a restricted
+           endpoint. Note this makes `dead` mean "upstream is refusing us"
+           generally (macro, vix, ext and econ); split it if a shot ever needs
+           one of those dead and the others alive. */
+        if (u.includes("endpoint=economic")) {
+          if (v.dead || v.noecon) return r.fulfill({ status: 402, contentType: "application/json",
+            body: '{"error":"Restricted Endpoint: not available under your current subscription"}' });
+          body = JSON.stringify(ECON_FEED);
+        }
         // routed before /api/snapshot for the reason tier=ext is: this URL does
         // not contain "/api/snapshot", but keeping the specific tests together
         // is what stopped the ext fixture being shadowed, and the same habit

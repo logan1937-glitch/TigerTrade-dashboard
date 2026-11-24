@@ -277,6 +277,51 @@ sit beside `dead` / `deadext` precisely so the two cannot drift back into readin
 alike. **When you add a status, ask which of its values end on their own** — any
 that do not need their own sentence.
 
+**THE FMP PLAN IS NO LONGER A PAID TIER** (cancelled Nov 2026 — there was no live
+use case justifying it yet). Measured against the live key rather than assumed,
+because FMP gates per endpoint and the failure is a **402 "Restricted Endpoint"**,
+not a 401 — a key that is present and refused takes a different path from a key
+that is absent, and this codebase's recurring bug is exactly that boundary:
+
+| still answers | refused with 402 |
+|---|---|
+| `quote`, `earnings-calendar`, `treasury-rates`, `commodities-quote`, `forex-quote`, `cryptocurrency-quote`, `economic-indicators` | `batch-quote`, `economic-calendar` |
+
+So the macro board, the VIX panel, the S&P earnings dates, the sectors and the
+whole 520-name screener are **unaffected**. Two consequences that are:
+
+- **`batch-quote` costs nothing**, because `fetchQuotes` was built for this — it
+  tries the batch first and fills every gap with per-symbol `quote` calls, which
+  still clear. The comment there already said "premium tiers only".
+- **`economic-calendar` is a real loss.** `mergeEcon` has nothing to merge, so the
+  radar runs on the curated template alone and the queue goes from ~41 tracked to
+  **18**. The live `●` tags, the live-dated overrides and `EconLine`'s
+  prev/cons/actual figures all go with it — those ride only on merged releases.
+- **`company-screener` is untested and probably gated too.** It is the extended
+  tier's universe, so if it is refused then "Beyond index" cannot be built *at
+  all*, blob store or not — `computeExt` fails fast with `SCREEN_EMPTY` rather
+  than running 900 fetches, so confirming it is one cheap call. The **backtest is
+  Yahoo-only**, so the Track record is untouched by the tier and needs nothing but
+  the blob store.
+
+**The downgrade also caught a freshness claim with nothing behind it.** The
+cover's as-of line read `… · updated {TT.todayISO}` in *both* branches, and
+`todayISO` is computed at render — so in template mode the radar printed today's
+date next to a committed editorial file that was last touched whenever it was
+committed. The label named the source honestly ("Event template 2026–2027") and
+then undid it one clause later. It says `live calendar unavailable` there now. It
+deliberately does **not** guess why: the client cannot tell a plan tier from an
+outage, and naming infrastructure to a visitor who still has 18 real catalysts in
+front of them buys nothing — unlike the blob-store case, where a whole tab was
+empty with no explanation available anywhere.
+
+**And the fixture served the econ feed unconditionally**, so every shot ever taken
+was in LIVE mode and the template branch had never been photographed — on a state
+a deploy can sit in indefinitely. `dead` refuses it too now, and `noecon` is the
+*mixed* state a tier downgrade actually produces: a healthy snapshot with only the
+calendar gone. `dead` cannot stand in for it, because it kills everything at once
+and so says nothing about how the curated queue reads under a board that works.
+
 **Env vars:** `FMP_API_KEY`, `FINNHUB_API_KEY`, `BLOB_READ_WRITE_TOKEN`,
 `ANTHROPIC_API_KEY`, `MASSIVE_PROXY_URL`, `MASSIVE_PROXY_BULK`. All optional —
 each feature degrades to a stated-unavailable state without its key.
@@ -1265,7 +1310,8 @@ npm run shots -- --views radar --live                   # against real APIs
 Output lands in `shots/` (gitignored, and never wiped — filenames encode
 view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `radar`, `timeline`, `calendar`,
 `vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`,
-`noblob`, `noblobext` (the no-blob-store state — see the endpoints section), `map`,
+`noblob`, `noblobext` (the no-blob-store state), `noecon` (a healthy board with only
+the economic calendar refused — see the FMP tier note in the endpoints section), `map`,
 `rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`,
 `record` (the track record — the whole view is arithmetic on the payload, so bar
 heights, the two benchmark lines and the "N of 4" headline are computed at render
