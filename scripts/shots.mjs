@@ -245,6 +245,26 @@ const VIEWS = [
       await p.locator(".rrg-dot").nth(3).click();
       await p.waitForTimeout(400);
     } },
+  /* The industry drill-down, which is a SECOND state the rotation graph has to
+     be photographed in: the labels are up to twice as long as any sector name,
+     so the roster wraps here and nowhere else, and the member count and the
+     "N of M, K not measured" line only exist in this scope. Pins a sector, then
+     takes the drill control — going by the control rather than by seeding state
+     also covers the fact that the control appears at all, which is the only way
+     into this view. */
+  { id: "rrgind",    state: { tt_product: "canslim" }, act: async (p) => {
+      await click(p, "Market Map");
+      /* Technology BY NAME, not by index. It is the one sector the fixture
+         makes drillable, and `.nth(3)` would pin whichever sector happened to
+         be fourth — one with no measurable industry split, so the drill control
+         would not render and a guarded click would skip silently. A shot that
+         photographs the wrong state looks exactly like a shot that passes. No
+         guard here on purpose: if the control is missing this must fail. */
+      await p.locator('.rrg-dot[aria-label^="Technology"]').click();
+      await p.waitForTimeout(300);
+      await p.locator(".rrg-scope").click();
+      await p.waitForTimeout(400);
+    } },
   { id: "health",    state: { tt_product: "canslim" }, act: (p) => click(p, "Market Health") },
   { id: "portfolio", state: { tt_product: "canslim", tt_positions: HOLDINGS }, act: (p) => click(p, "Portfolio") },
   /* `tt_pb_seen` matters: the explainer auto-opens on a first visit, so without
@@ -317,7 +337,13 @@ const TK_INDEX = (sym) => { const i = TK_ORDER.indexOf(sym); return i >= 0 ? i :
    gives it. The user's screenshot of the live chart is what found that. A
    fixture that under-varies doesn't fail — it just stops testing. */
 const FIX_SECTORS = [
-  ["Technology", ["Semiconductors", "Software - Infrastructure", "Software - Application"]],
+  // four for Technology, and one of them deliberately LONG: the roster's label
+  // wrapping exists because industry names reach 43 characters in production
+  // ("Industrial - Pollution & Treatment Controls") where the longest sector
+  // name is 22, and a fixture topping out at 25 never puts that rule in a shot.
+  // All four are real FMP industry strings.
+  ["Technology", ["Semiconductors", "Software - Infrastructure", "Software - Application",
+                  "Semiconductor Equipment & Materials"]],
   ["Financial Services", ["Banks - Diversified", "Capital Markets"]],
   ["Healthcare", ["Biotechnology", "Medical Devices"]],
   ["Consumer Cyclical", ["Internet Retail", "Restaurants"]],
@@ -345,9 +371,28 @@ function nameRecord(t, i, idx) {
     // Sector AND industry vary. Every name sharing one industry meant the
     // industry-group panel rendered a single group, so its scroller — and the
     // group ordering it exists to make navigable — were never in a shot.
-    const si = i % FIX_SECTORS.length;
+    /* AND THE SECTORS ARE UNEVEN ON PURPOSE, because a flat round-robin put
+       ~4 names in each sector and so 1–2 in each industry — under the rotation
+       graph's MIN_GROUP_NAMES floor everywhere, which meant the industry
+       drill-down could never appear in a shot at all. Production is not flat
+       either: Technology carries 15 industries and 7 of them clear the floor,
+       while Utilities clears one. Technology takes every third name here (~14,
+       so its three industries hold 4–5 each and all three are drillable) and
+       the rest round-robin the other ten, landing at 2–3 names and therefore
+       NO measurable industry split — which is the other state worth covering,
+       since most sectors are in it.
+
+       The industry index must come from the name's ordinal WITHIN its sector,
+       not from `i`: Technology's names are i = 0, 3, 6, … so `i % 3` is always
+       0 and every one of them would land in a single industry — the exact flat
+       fixture this block exists to avoid, reintroduced by the fix for it. */
+    const techTurn = i % 3 === 0;
+    const nonTechOrd = i - Math.floor(i / 3) - 1;        // 0,1,2,… across the rest
+    const si = techTurn ? 0 : 1 + (nonTechOrd % (FIX_SECTORS.length - 1));
+    const ordInSector = techTurn ? i / 3 : Math.floor(nonTechOrd / (FIX_SECTORS.length - 1));
     const sec = FIX_SECTORS[si];
-    meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][i % sec[1].length], idx };
+    const ii = ordInSector % sec[1].length;              // which industry inside the sector
+    meta[t] = { name: `${t} Corporation`, sector: sec[0], industry: sec[1][ii], idx };
     /* REAL EARNINGS CLUSTER, and a fixture that spaced every name three days
        apart never put two reports in one calendar cell — so the Calendar's
        wrapped pill row and its "+N" expander, which are the states the universe
@@ -384,11 +429,21 @@ function nameRecord(t, i, idx) {
          out around a ring so all four quadrants are occupied, and each tail
          sweeps clockwise, which is the direction the concept describes. */
       rrg: (() => {
-        const a0 = (si / FIX_SECTORS.length) * Math.PI * 2;
+        /* AND INDUSTRIES FAN OUT INSIDE THE SECTOR, which the sector-anchored
+           version could not do: per-name jitter averages toward zero across a
+           group, so all three of Technology's industries landed on one point
+           (ratio 105.1 for each, momentum inside half a point) and the
+           drill-down's shot could not show whether its dots are separable at
+           all. The fan is CENTRED on the sector's own ring position — the
+           offsets run −1, 0, +1 — so a sector's average is where it always
+           was and the eleven-dot view is unchanged. Industries inside a sector
+           really do rotate together but not identically; this says that. */
+        const iOff = ii - (sec[1].length - 1) / 2;     // centred for ANY industry count
+        const a0 = (si / FIX_SECTORS.length) * Math.PI * 2 + iOff * 0.17;
         const jr = ((i % 5) - 2) * 0.55, jm = ((i % 7) - 3) * 0.42;   // per-name offset
         return Array.from({ length: 6 }, (_, k) => {
           const a = a0 - (5 - k) * 0.13;                              // clockwise into today
-          const rad = 2.2 + k * 0.24 + (i % 3) * 0.4;
+          const rad = 2.2 + k * 0.24 + (i % 3) * 0.4 + iOff * 0.95;
           return {
             ratio: +(100 + Math.cos(a) * rad * 1.5 + jr).toFixed(2),
             mom: +(100 + Math.sin(a) * rad + jm).toFixed(2),

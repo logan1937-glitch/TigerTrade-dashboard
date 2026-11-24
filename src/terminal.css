@@ -2002,6 +2002,28 @@ body:has(.app[data-mode="light"]) { background: #FAFAFA; }
   border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--border)); border-radius: var(--radius-sm);
   padding: 4px 11px; cursor: pointer; transition: background .13s ease; }
 .rrg-clear:hover { background: color-mix(in oklch, var(--accent) 12%, transparent); }
+/* The drill-down into a sector's industries. Same affordance as .rrg-clear —
+   both are "change what this chart is showing" — so it reuses the shape rather
+   than inventing a second button language in one toolbar. */
+.rrg-scope { font-size: var(--fs-data); color: var(--accent); background: transparent;
+  border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--border)); border-radius: var(--radius-sm);
+  padding: 4px 11px; cursor: pointer; transition: background .13s ease; white-space: nowrap; }
+.rrg-scope:hover { background: color-mix(in oklch, var(--accent) 12%, transparent); }
+
+/* AN INDUSTRY NAME RUNS TO 43 CHARACTERS ("Industrial - Pollution & Treatment
+   Controls") where the longest SECTOR name is 22, and every width in the roster
+   grid is arithmetic off that 22 — 168px for the name, 312px a card, 640px for
+   two side by side. Re-deriving the card for the worst case would force one
+   column at every width the roster is currently two. So the label wraps while
+   scoped instead, the same answer the Playbook's ticker column reached: a
+   truncated group name is a group you cannot identify, and a second line costs
+   less than the column does. `align-items: start` keeps the numeral and the two
+   figures on the first line rather than centring them against a two-line name. */
+.rrg-roster[data-scope] .rrg-rrow { align-items: start; }
+.rrg-roster[data-scope] .rrg-rrow-l { white-space: normal; overflow: visible; line-height: 1.3; }
+/* the member count — a caveat, so it ranks below the name it qualifies */
+.rrg-rrow-c { font-style: normal; font-size: var(--fs-micro); color: var(--dim);
+  margin-left: 6px; font-variant-numeric: tabular-nums; }
 /* quadrant tints stay a whisper — context, not four colored slabs */
 .rrg-q { opacity: 1; }
 /* Ground, not decoration — and no longer P&L. 8% washes made a red half and a

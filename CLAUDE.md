@@ -1274,6 +1274,49 @@ reversals are the whole history of this component:
   enough to read: **ink-to-plot went from about 1:7,400 to 1:33**. The numeral is
   a render-local legend keyed to reading order, never an identity — nothing may
   ever be persisted against it.
+- **INDUSTRIES ARE A DRILL-DOWN, NEVER A REPLACEMENT.** Pin a sector and the
+  toolbar offers its industries; `scope` swaps the grouping key and nothing
+  else. It is cheap because **sector dots were already the equal-weight average
+  of their members' tails**, not the SPDR ETFs' own prices — so an industry dot
+  is the *same kind of object*, `avgTails` over a finer key, on tails the
+  snapshot already ships per name. No payload, no `SCHEMA` bump, no vendor call.
+  Replacing sectors outright was the other option and it is the deleted Names
+  mode wearing a label: the live universe carries **124 industries**, and 124
+  dots in a 600×400 box fails for the reason ~500 did. Inside one sector it is
+  10–16, which is the cardinality the plot, the 2×2 roster and the 620px cap
+  were all sized for.
+- **`MIN_GROUP_NAMES` is 3, and both the floor and its value are measured.** Of
+  those 124 industries, **31 hold one name and 74 hold three or fewer** — an
+  industry dot built from one member is that stock's own RS line wearing a
+  group's label, the never-fabricate rule applied to an aggregate instead of a
+  figure. Thin groups are dropped and **counted**, and the toolbar prints
+  "N industries of M · K under 3 names, not measured", because a field silently
+  smaller than it looks is the same lie. Three rather than four is measured too:
+  at four, **Basic Materials and Utilities fall to a single industry each** and a
+  rotation chart with one dot is not a chart. The roster prints each group's `n`
+  for the same reason — three names and fifty do not deserve equal trust in one
+  picture. A sector with fewer than two measurable industries says *that*, not
+  "waiting for live data": the data arrived.
+- **The row field is `group`, not `industry`.** `csData` renames the snapshot's
+  `meta.industry` on the way in (`App.jsx`), so reading `r.industry` in a view
+  returns undefined for every row — every industry collapses into one
+  unclassified bucket, the floor drops it, and the drill-down is never offered.
+  It failed silently in the app and loudly only in the shot.
+- **The fixture had to be made UNEVEN to cover this.** A flat round-robin put ~4
+  names in each sector and so 1–2 in each industry — under the floor everywhere,
+  so the drill-down could not appear in a shot at all. Technology now takes every
+  third name (~14 across four industries, all clearing the floor) and the rest
+  round-robin the other ten at 2–3 names and therefore no measurable split, which
+  is the state most sectors are in and is now covered by `rrgpin`. Two traps in
+  that change: the industry index must come from the name's ordinal **within its
+  sector**, because Technology's names are `i = 0, 3, 6…` so `i % 3` is always 0
+  and all of them would land in one industry — the flat fixture reintroduced by
+  its own fix; and the `rrg` tail, anchored to the SECTOR with per-name jitter,
+  averages that jitter away across a group, so all of Technology's industries sat
+  on one point (ratio 105.1 each). Industries now fan out around the sector's
+  ring position, **centred**, so sector averages and the eleven-dot view are
+  unchanged.
+
 - **The roster beside the plot is not decoration.** A dot's position is the
   reading, but decoding eleven of them is work, and the question actually being
   asked — "who is leading?" — is a list. It also carries the sentence that says
@@ -1339,7 +1382,8 @@ view/theme/width so a re-run overwrites exactly what it re-shoots). Views: `rada
 `vol`, `volsort`, `watch`, `screener`, `screenerext`, `screeneridx`, `dead`, `deadext`,
 `noblob`, `noblobext` (the no-blob-store state), `noecon` (a healthy board with only
 the economic calendar refused — see the FMP tier note in the endpoints section), `map`,
-`rrgpin`, `health`, `playbook`, `playbookhelp`, `portfolio`, `drawer`, `landing`,
+`rrgpin`, `rrgind` (the industry drill-down), `health`, `playbook`, `playbookhelp`,
+`portfolio`, `drawer`, `landing`,
 `record` (the track record — the whole view is arithmetic on the payload, so bar
 heights, the two benchmark lines and the "N of 4" headline are computed at render
 and a shape regression is invisible in a diff; its fixture carries a deliberately

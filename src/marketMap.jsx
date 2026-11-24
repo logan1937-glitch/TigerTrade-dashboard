@@ -298,23 +298,90 @@ const useNarrow = () => {
    roster beside it ran four screens long. Rotation is a sector-level idea anyway:
    it is about where money is moving between groups, and a single name's RS line
    already has a better home in the drawer. Eleven dots is the whole point. */
+/* A GROUP OF ONE IS NOT A GROUP, and at industry level most of them are.
+   Measured on the live 520-name universe: 124 industries, of which 31 hold a
+   single name and 74 hold three or fewer. An industry dot built from one member
+   is that stock's own RS line with a group's label on it — a reading about a
+   population that does not exist, which is the never-fabricate rule applied to
+   an aggregate instead of a figure. Thin groups are DROPPED and counted, the
+   way `launchpad()` drops a name it cannot measure rather than assuming it
+   passes, and the count is printed so the field size is never silently smaller
+   than it looks.
+
+   Three rather than four, and that is measured too: at a floor of four, Basic
+   Materials and Utilities fall to a single industry each, and a rotation chart
+   with one dot is not a chart. Three keeps every sector at one to ten. */
+export const MIN_GROUP_NAMES = 3;
+
 function RelativeRotation({ rows }) {
   const narrow = useNarrow();
   const [hover, setHover] = useState(null);
-  const [pinned, setPinned] = useState(null);   // tapped sector whose tail stays shown
+  const [pinned, setPinned] = useState(null);   // tapped group whose tail stays shown
+  const [scope, setScope] = useState(null);     // null = sectors; else industries within this sector
 
-  const entities = useMemo(() => {
+  /* SECTORS WERE ALREADY AN AGGREGATE OF THEIR MEMBERS' TAILS, not the SPDR
+     ETFs' own prices — which is what makes the industry view the same kind of
+     object rather than a new one. It is `avgTails` over a different grouping
+     key, on tails the snapshot already ships per name, so the drill-down costs
+     no payload, no schema bump and no vendor call. */
+  const { entities, thin } = useMemo(() => {
     // each name's 6-point rotation tail is precomputed on the snapshot (rrgOf).
-    // Sectors are the equal-weight average of their members' tails.
     const withTail = rows.map((r) => (r.sig && r.sector !== "Custom" ? { r, tail: rrgOf(r) } : null)).filter((x) => x && x.tail);
+    const inScope = scope ? withTail.filter(({ r }) => r.sector === scope) : withTail;
     const by = {};
-    for (const { r, tail } of withTail) (by[r.sector] = by[r.sector] || []).push(tail);
-    return Object.entries(by).map(([sector, tails]) => {
+    for (const { r, tail } of inScope) {
+      /* THE ROW FIELD IS `group`, NOT `industry`. `csData` renames the
+         snapshot's `meta.industry` on the way in (App.jsx), and reading the
+         original name here returned undefined for every row — so every
+         industry collapsed into one unclassified bucket, the floor dropped it,
+         and the drill-down could never be offered. It failed silently in the
+         app and loudly only in the shot, which is the argument for the shot. */
+      const k = scope ? (r.group || "—") : r.sector;
+      if (scope && (k === "—" || k === "Custom lookup")) continue;   // unclassified is not an industry
+      (by[k] = by[k] || []).push(tail);
+    }
+    let dropped = 0;
+    const out = Object.entries(by).map(([id, tails]) => {
+      // the floor applies to industries only — a sector always has the members
+      if (scope && tails.length < MIN_GROUP_NAMES) { dropped++; return null; }
       const tail = avgTails(tails);
-      return tail ? { id: sector, label: sector, tail, head: tail[tail.length - 1], n: tails.length } : null;
+      return tail ? { id, label: id, tail, head: tail[tail.length - 1], n: tails.length } : null;
     }).filter(Boolean);
-  }, [rows]);
+    return { entities: out, thin: dropped };
+  }, [rows, scope]);
 
+  // how many industries the pinned sector would actually yield, so the control
+  // that offers the drill-down states the number instead of promising a view
+  // that turns out to be one dot
+  const drillable = useMemo(() => {
+    if (scope || !pinned) return 0;
+    const n = {};
+    for (const r of rows) {
+      if (!r.sig || r.sector !== pinned || !r.group || r.group === "—" || r.group === "Custom lookup") continue;
+      if (rrgOf(r)) n[r.group] = (n[r.group] || 0) + 1;
+    }
+    return Object.values(n).filter((v) => v >= MIN_GROUP_NAMES).length;
+  }, [rows, pinned, scope]);
+
+  const exit = () => { setScope(null); setPinned(null); setHover(null); };
+
+  /* A SCOPE THAT CANNOT BE DRAWN SAYS WHY. The generic "waiting for live data"
+     is true before the snapshot lands and false here: the data arrived and this
+     sector simply has fewer than two industries carrying `MIN_GROUP_NAMES`
+     names. Reporting that as waiting is the same error as a pending status on a
+     condition that never ends. */
+  if (scope && entities.length < 2) return (
+    <div className="mm-scatter">
+      <div className="rrg-toolbar">
+        <span className="rrg-hint mono">
+          <b>{scope}</b> has {entities.length === 1 ? "only one industry" : "no industry"} with at
+          least {MIN_GROUP_NAMES} tracked names{thin ? `, and ${thin} too thin to measure` : ""}.
+          Rotation compares groups, so it needs at least two.
+        </span>
+        <button className="rrg-clear mono" onClick={exit}>← All sectors</button>
+      </div>
+    </div>
+  );
   if (entities.length < 2) return <div className="empty">Waiting for live data…</div>;
 
   // 3:2 on a desktop, near-square on a phone. The CSS mirrors both shapes and must
@@ -381,13 +448,39 @@ function RelativeRotation({ rows }) {
             <b>{hv.label}</b> · {hv.n} names · <span style={{ textTransform: "capitalize" }}>{QUAD(hv.head)}</span>
             {" "}· Ratio {hv.head.ratio.toFixed(1)} · Mom {hv.head.mom.toFixed(1)}
           </span>
+        ) : scope ? (
+          /* The field size is stated rather than implied. An industry view is a
+             handful of groups out of a sector's full list, and a reader who is
+             not told how many were set aside will read the survivors as the
+             whole sector. */
+          <span className="rrg-hint mono">
+            <b>{scope}</b> · {entities.length} industries of {entities.length + thin}
+            {thin ? ` · ${thin} under ${MIN_GROUP_NAMES} names, not measured` : ""}
+          </span>
         ) : (
           <span className="rrg-hint mono">
             <b>Hover or tap a sector</b> to trace where it has come from over six weeks
           </span>
         )}
-        {pinned && (
+        {/* Pinning already means "this is the one I am looking at", so the
+            drill-down hangs off it rather than inventing a second selection.
+            It names the count because a sector with one measurable industry has
+            nothing to show and saying so here is cheaper than navigating into
+            it to find out. */}
+        {!scope && pinned && (drillable >= 2 ? (
+          <button className="rrg-scope mono" onClick={() => { setScope(pinned); setPinned(null); setHover(null); }}>
+            {drillable} industries in {pinned} →
+          </button>
+        ) : (
+          <span className="rrg-hint mono" style={{ opacity: .7 }}>
+            {pinned} has no industry split with ≥ {MIN_GROUP_NAMES} names
+          </span>
+        ))}
+        {!scope && pinned && (
           <button className="rrg-clear mono" onClick={() => setPinned(null)}>Clear {pinned}</button>
+        )}
+        {scope && (
+          <button className="rrg-clear mono" onClick={exit}>← All sectors</button>
         )}
       </div>
       <div className="rrg-wrap">
@@ -511,7 +604,7 @@ function RelativeRotation({ rows }) {
           mode's ~44 entities. With that gone the trick only ever cost a scroll
           fade that washed out the footer. */}
       <div className="rrg-roster-col">
-      <div className="rrg-roster">
+      <div className="rrg-roster" data-scope={scope || undefined}>
         {QUADRANTS.map((q) => {
           const list = byQuad[q.id] || [];
           const shown = list;
@@ -534,7 +627,14 @@ function RelativeRotation({ rows }) {
                     {/* the same numeral the dot carries — this is the whole key,
                         and it is why the plot needs no names inside it */}
                     <span className="rrg-rrow-n mono">{keyOf[e.id]}</span>
-                    <span className="rrg-rrow-l">{e.label}</span>
+                    {/* the member count rides INSIDE the label rather than taking
+                        a fifth grid track, whose widths are arithmetic (see the
+                        roster note in CLAUDE.md). It only appears while scoped,
+                        because a sector's count is not a caveat and an
+                        industry's is: three names and fifty do not deserve
+                        equal trust in the same picture. */}
+                    <span className="rrg-rrow-l">{e.label}
+                      {scope && <i className="rrg-rrow-c mono" title={`${e.n} tracked names`}>{e.n}</i>}</span>
                     <span className="rrg-rrow-v mono">{e.head.ratio.toFixed(1)}</span>
                     <span className="rrg-rrow-v mono">{e.head.mom.toFixed(1)}</span>
                   </button>
@@ -552,10 +652,16 @@ function RelativeRotation({ rows }) {
         <p className="mm-rrg-note rrg-note">
           {/* the axes now name both of their own directions, so this no longer
               repeats them; what is left is what the picture cannot say by itself */}
-          <b>Reading it:</b> each numbered dot is one sector today, measured against the S&amp;P 500, and the same
-          number sits beside its name in the list. Rotation runs clockwise — Improving → Leading → Weakening →
-          Lagging — and a full turn takes months, not days, so a sector deep in one corner is a position rather
-          than a signal. Hover or tap anything, on the chart or in the list, to draw the six weeks behind it;
+          <b>Reading it:</b> each numbered dot is one {scope ? "industry" : "sector"} today, measured against
+          the S&amp;P 500, and the same number sits beside its name in the list.
+          {scope
+            ? <> Each is the equal-weight average of the tracked names in it — the same way the sector dots
+                are built — so a group of {MIN_GROUP_NAMES} moves on one name far more than a sector of fifty
+                does, and the roster prints the count for that reason. </>
+            : " "}
+          Rotation runs clockwise — Improving → Leading → Weakening →
+          Lagging — and a full turn takes months, not days, so a {scope ? "group" : "sector"} deep in one
+          corner is a position rather than a signal. Hover or tap anything, on the chart or in the list, to draw the six weeks behind it;
           the dots along that trail are one per week, so evenly spaced is a steady drift and bunched is a stall.
           <span style={{ opacity: .7 }}> Our approximation of the relative-rotation concept popularized by Julius de Kempenaer (RRG Research); not the proprietary JdK RS-Ratio / RS-Momentum. Educational use only.</span>
         </p>
