@@ -56,6 +56,32 @@ let computeJob = null;                  // in-flight compute, shared by a burst
 let memExt = null, extJob = null;       // same, for the extended tier
 const MEM_TTL = 30 * 60 * 1000;
 
+/* A SPENT CAP MAKES THIS FILE COST MORE, NOT LESS, which is the part the note
+   above did not account for. Every FMP helper here walks a fallback chain of
+   two or three URLs and advances on `!r.ok` — so a run that can fetch nothing
+   burns roughly forty upstream calls where a healthy run burns thirteen. The
+   failure digs against the very budget that caused it, and it does that on
+   every recompute, which is why a cap once spent stays spent for the rest of
+   the day rather than recovering at the next reset.
+
+   One 429 latches the whole warm container off FMP: every later call returns
+   null immediately instead of walking its chain. The latch EXPIRES, because
+   FMP's cap rolls over and a stuck flag would blank the macro board, the VIX
+   panel and the earnings dates through a day whose quota had already come
+   back — trading one silent failure for a longer one. Note this does not make
+   the budget last; only the Blob store does that. It stops a bad day from
+   being made worse by the retrying. */
+let fmpSpent = 0;                       // ms of the last 429; 0 = clear
+export const FMP_BACKOFF = 15 * 60 * 1000;
+export const resetFmpLatch = () => { fmpSpent = 0; };   // for test/quota.test.mjs
+export async function fmpFetch(url) {
+  if (fmpSpent && Date.now() - fmpSpent < FMP_BACKOFF) return null;
+  const r = await fetch(url);
+  if (r.status === 429) { fmpSpent = Date.now(); console.error("fmp: quota spent, backing off"); return null; }
+  fmpSpent = 0;
+  return r;
+}
+
 async function readBlob(key = BLOB_KEY) {
   if (!hasBlob) return null;
   try {
@@ -116,8 +142,8 @@ async function fmpBars(symbol) {
   if (!key) return null;
   try {
     const url = `https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
-    const r = await fetch(url);
-    if (!r.ok) return null;
+    const r = await fmpFetch(url);
+    if (!r || !r.ok) return null;
     const j = await r.json();
     const arr = Array.isArray(j) ? j : (j && j.historical) || [];
     if (!arr.length) return null;
@@ -144,8 +170,8 @@ async function fmpConstituents() {
     ];
     for (const url of endpoints) {
       try {
-        const r = await fetch(url);
-        if (!r.ok) continue;
+        const r = await fmpFetch(url);
+        if (!r || !r.ok) continue;
         const j = await r.json();
         if (Array.isArray(j) && j.length > 400) {
           return j.filter((x) => x && x.symbol).map((x) => ({ tk: x.symbol, name: x.name || x.symbol, sector: x.sector || "—", industry: x.subSector || x.industry || "—" }));
@@ -170,8 +196,8 @@ async function fmpIndexMembers(slug) {
     for (const url of [`https://financialmodelingprep.com/stable/${slug}-constituent?apikey=${key}`,
                        `https://financialmodelingprep.com/api/v3/${slug}_constituent?apikey=${key}`]) {
       try {
-        const r = await fetch(url);
-        if (!r.ok) { console.log(`fmp ${slug}-constituent: ${r.status}`); continue; }
+        const r = await fmpFetch(url);
+        if (!r || !r.ok) { if (r) console.log(`fmp ${slug}-constituent: ${r.status}`); continue; }
         const j = await r.json();
         if (Array.isArray(j) && j.length >= 25) return j.filter((x) => x && x.symbol).map((x) => ({ tk: x.symbol, name: x.name || x.symbol, sector: x.sector || "—", industry: x.subSector || x.industry || "—" }));
       } catch (e) { console.error(`fmp ${slug}:`, e); }
@@ -230,8 +256,8 @@ async function fmpScreener() {
       + `&volumeMoreThan=${EXT_MIN_VOL}&isEtf=false&isFund=false&isActivelyTrading=true`
       + `&country=US&exchange=${ex}&limit=2000&apikey=${key}`;
     try {
-      const r = await fetch(url);
-      if (!r.ok) { console.error(`fmp screener ${ex}: ${r.status}`); continue; }
+      const r = await fmpFetch(url);
+      if (!r || !r.ok) { if (r) console.error(`fmp screener ${ex}: ${r.status}`); continue; }
       const j = await r.json();
       if (Array.isArray(j)) out.push(...j);
     } catch (e) { console.error(`fmp screener ${ex}:`, e); }
@@ -280,8 +306,8 @@ async function fmpEarnings(tickers) {
     ];
     for (const url of endpoints) {
       try {
-        const r = await fetch(url);
-        if (!r.ok) continue;
+        const r = await fmpFetch(url);
+        if (!r || !r.ok) continue;
         const j = await r.json();
         if (Array.isArray(j) && j.length) return j;
       } catch (e) { console.error("fmp earnings:", url, e); }
@@ -330,7 +356,7 @@ async function fmpMacro() {
   if (!key) return null;
   const jget = async (urls) => {
     for (const u of urls) {
-      try { const r = await fetch(u); if (!r.ok) continue; const j = await r.json(); if (j && (Array.isArray(j) ? j.length : true)) return j; }
+      try { const r = await fmpFetch(u); if (!r || !r.ok) continue; const j = await r.json(); if (j && (Array.isArray(j) ? j.length : true)) return j; }
       catch (e) { console.error("fmp macro:", u, e); }
     }
     return null;
@@ -444,7 +470,7 @@ async function fmpVix() {
   const V = encodeURIComponent("^VIX");
   const jget = async (urls) => {
     for (const u of urls) {
-      try { const r = await fetch(u); if (!r.ok) continue; const j = await r.json(); if (j && (Array.isArray(j) ? j.length : true)) return j; }
+      try { const r = await fmpFetch(u); if (!r || !r.ok) continue; const j = await r.json(); if (j && (Array.isArray(j) ? j.length : true)) return j; }
       catch (e) { console.error("fmp vix:", u, e); }
     }
     return null;
@@ -847,10 +873,16 @@ export default async function handler(req, res) {
     memSnap = { at: Date.now(), body };
     await writeBlob(body);
   }
-  // a deployment with no Blob store has only the edge cache standing between it
-  // and its upstream quota, so it holds the result far longer
+  /* A deployment with no Blob store has ONLY the edge cache standing between it
+     and its upstream quota, and 30 minutes was sized against a plan that could
+     absorb ~1,500 calls a day. On a free tier (a few hundred) that spends the
+     whole budget within minutes of the daily reset and the macro board, VIX and
+     earnings dates are blank until the next one. Three hours is eight recomputes
+     a day instead of forty-eight, which fits — and costs nothing in honesty,
+     because the snapshot is a NIGHTLY precompute by design, so three hours is
+     still eight times fresher than the thing it stands in for. */
   res.setHeader("Cache-Control", body.count > 0
-    ? (hasBlob ? "s-maxage=300, stale-while-revalidate=86400" : "s-maxage=1800, stale-while-revalidate=86400")
+    ? (hasBlob ? "s-maxage=300, stale-while-revalidate=86400" : "s-maxage=10800, stale-while-revalidate=86400")
     : "no-store");
   return res.status(200).json({ ...body, blob: hasBlob, served: refresh ? "compute-refresh" : "compute" });
 }

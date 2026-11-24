@@ -10,8 +10,9 @@
     "shots": "node scripts/shots.mjs",
     "test:swing": "node test/swing.test.mjs",
     "test:backtest": "node test/backtest.test.mjs",
-    "test": "node test/earnings.test.mjs && node test/swing.test.mjs && node test/backtest.test.mjs",
-    "og": "node scripts/og.mjs"
+    "test": "node test/earnings.test.mjs && node test/swing.test.mjs && node test/backtest.test.mjs && node test/quota.test.mjs",
+    "og": "node scripts/og.mjs",
+    "test:quota": "node test/quota.test.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.5.0",

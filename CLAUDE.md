@@ -19,6 +19,7 @@ npm test               # both suites
 npm run test:earnings  # 55 assertions against a stubbed Yahoo/Finnhub
 npm run test:swing     # 66 assertions on the ATR/EMA/Launchpad/quote-building math
 npm run test:backtest  # 15 assertions that the track record cannot cheat
+npm run test:quota     # 9 assertions on the FMP 429 latch (and that 402 does NOT latch)
 npm run shots          # screenshot every view headlessly → shots/
 npm run shots -- --audit  # + report panels >25% empty and the smallest type in them
 npm run og             # regenerate the 1200×630 social card → public/og.png
@@ -303,6 +304,32 @@ whole 520-name screener are **unaffected**. Two consequences that are:
   than running 900 fetches, so confirming it is one cheap call. The **backtest is
   Yahoo-only**, so the Track record is untouched by the tier and needs nothing but
   the blob store.
+
+**THEN THE MACRO BOARD, VIX AND EARNINGS WENT BLANK TOGETHER — the signature
+this file already names — and it was a 429, not a 402.** "Limit Reach": the
+daily cap, spent. The cause is the two problems above meeting each other. With
+no Blob store the edge recomputed every 30 minutes (~48 a day), each run costing
+~13 FMP calls — fine against a plan that absorbed it, fatal against a few
+hundred a day. **And a spent cap made this file cost MORE, not less:** every
+helper walks a fallback chain of two or three URLs and advances on `!r.ok`, so a
+run that can fetch nothing burned ~40 calls where a working run burns 13. The
+failure spent the budget that caused it, on every recompute, so a cap once gone
+stayed gone past the next reset. Two changes:
+
+- **`fmpFetch` latches the warm container off FMP on a 429** (`FMP_BACKOFF`, 15
+  min), so one refusal ends the run's spending instead of starting it. It
+  **expires**, because the cap rolls over and a stuck flag would hold the board
+  dark through a day whose quota had already come back. It latches on 429 only —
+  a **402 is a restricted *endpoint*, not a spent budget**, and latching on it
+  would blank everything because one gated feature was asked for.
+  `test/quota.test.mjs` asserts all three.
+- **`s-maxage` without a blob goes 1800 → 10800.** Eight recomputes a day rather
+  than forty-eight. It costs nothing in honesty: the snapshot is a *nightly*
+  precompute by design, so three hours is still eight times fresher than the
+  thing it stands in for.
+
+Neither makes the budget last — **only the Blob store does that**, which is why
+it is the first item here. They stop a bad day being made worse by the retrying.
 
 **The downgrade also caught a freshness claim with nothing behind it.** The
 cover's as-of line read `… · updated {TT.todayISO}` in *both* branches, and
